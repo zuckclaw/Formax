@@ -1,16 +1,43 @@
-# React + Vite
+# Formax
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Formax adalah aplikasi form management dashboard untuk membuat form, membuat template, mengelola respon, dan mengekspor data CSV.
 
-Currently, two official plugins are available:
+## Fitur utama
+- Login dan register
+- Dashboard KPI
+- Manajemen form
+- Builder form drag-free berbasis pertanyaan
+- Template form reusable
+- Submit form pengguna
+- Lihat respon form
+- Export CSV dari respon
+- Routing aman dengan auth guard
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Setup lokal
+1. Install dependency:
+   npm install
+2. Salin file konfigurasi:
+   copy .env.example .env.local
+3. Jalankan dev server:
+   npm run dev
+4. Akses aplikasi di browser:
+   http://localhost:5173
 
-## React Compiler
+## Konfigurasi backend
+Buat file .env.local di root project jika ingin menyambungkan API backend yang nyata:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+VITE_API_BASE_URL=http://localhost:8000/api
 
-## Expanding the ESLint configuration
+Jika backend belum aktif, frontend akan otomatis memakai mock data agar flow tetap berjalan.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Build produksi
+npm run build
+
+## Preview build produksi untuk deploy lokal
+npm run preview
+
+## Jalankan tanpa env khusus
+npm run start
+
+## Catatan deploy lokal
+Untuk deploy lokal, cukup jalankan build produksi lalu gunakan preview Vite di mesin lokal Anda, atau arahkan hasil build ke server statis yang mendukung hosting SPA.
