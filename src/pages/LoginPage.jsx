@@ -30,49 +30,57 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="auth-shell">
-      <div className="auth-card">
-        <div className="auth-header">
-          <span className="eyebrow">Formax</span>
-          <h1>Masuk</h1>
-          <p>Kelola form, template, dan respons pengguna dengan mudah.</p>
+    <div className="auth-page">
+      <div className="auth-shell">
+        <div className="auth-card">
+          <div className="auth-tabs" aria-label="Authentication tabs">
+            <Link to="/login" className="auth-tab active">
+              Login
+            </Link>
+            <Link to="/register" className="auth-tab">
+              Register
+            </Link>
+          </div>
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <label>
+              <span>Email Address*</span>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="Enter your email address"
+                required
+              />
+            </label>
+
+            <label>
+              <span>Password*</span>
+              <input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                required
+              />
+            </label>
+
+            <label className="auth-checkline">
+              <input type="checkbox" />
+              <span>Remember me</span>
+            </label>
+
+            {error ? <div className="error-box">{error}</div> : null}
+
+            <button type="submit" disabled={loading}>
+              {loading ? 'Memproses...' : 'Login'}
+            </button>
+          </form>
+
+          
         </div>
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <label>
-            Email
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="you@example.com"
-              required
-            />
-          </label>
-
-          <label>
-            Password
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Masukkan password"
-              required
-            />
-          </label>
-
-          {error ? <div className="error-box">{error}</div> : null}
-
-          <button type="submit" disabled={loading}>
-            {loading ? 'Memproses...' : 'Masuk'}
-          </button>
-        </form>
-
-        <p className="auth-footer">
-          Belum punya akun? <Link to="/register">Daftar</Link>
-        </p>
       </div>
     </div>
   )

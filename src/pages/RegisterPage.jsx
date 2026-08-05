@@ -35,73 +35,69 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="auth-shell">
-      <div className="auth-card">
-        <div className="auth-header">
-          <span className="eyebrow">Formax</span>
-          <h1>Daftar</h1>
-          <p>Buat akun untuk mulai membuat form dan template.</p>
+    <div className="auth-page">
+      <div className="auth-shell">
+        <div className="auth-card">
+          <div className="auth-tabs" aria-label="Authentication tabs">
+            <Link to="/login" className="auth-tab">
+              Login
+            </Link>
+            <Link to="/register" className="auth-tab active">
+              Register
+            </Link>
+          </div>
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <label>
+              <span>Full Name*</span>
+              <input
+                type="text"
+                name="full_name"
+                value={form.full_name}
+                onChange={handleChange}
+                placeholder="Enter your full name"
+                required
+              />
+            </label>
+
+            <label>
+              <span>Email Address*</span>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="Enter your email address"
+                required
+              />
+            </label>
+
+            <label>
+              <span>Password*</span>
+              <input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                required
+              />
+            </label>
+
+            <label className="auth-checkline">
+              <input type="checkbox" />
+              <span>Remember me</span>
+            </label>
+
+            {error ? <div className="error-box">{error}</div> : null}
+
+            <button type="submit" disabled={loading}>
+              {loading ? 'Mendaftar...' : 'Register'}
+            </button>
+          </form>
+
+          
         </div>
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <label>
-            Nama lengkap
-            <input
-              type="text"
-              name="full_name"
-              value={form.full_name}
-              onChange={handleChange}
-              placeholder="Nama lengkap"
-              required
-            />
-          </label>
-
-          <label>
-            Email
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="you@example.com"
-              required
-            />
-          </label>
-
-          <label>
-            Password
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Minimal 8 karakter"
-              required
-            />
-          </label>
-
-          <label>
-            Konfirmasi password
-            <input
-              type="password"
-              name="password_confirmation"
-              value={form.password_confirmation}
-              onChange={handleChange}
-              placeholder="Ulangi password"
-              required
-            />
-          </label>
-
-          {error ? <div className="error-box">{error}</div> : null}
-
-          <button type="submit" disabled={loading}>
-            {loading ? 'Mendaftar...' : 'Daftar'}
-          </button>
-        </form>
-
-        <p className="auth-footer">
-          Sudah punya akun? <Link to="/login">Masuk</Link>
-        </p>
       </div>
     </div>
   )
