@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -29,6 +29,18 @@ export const resolveApiData = (payload) => {
   return payload
 }
 
+const normalizeUserPayload = (data) => {
+  if (!data) return null
+
+  if (data.user) return data.user
+  if (data.profile) return data.profile
+  if (data.data?.user) return data.data.user
+  if (data.data?.profile) return data.data.profile
+  if (data.id || data.email || data.name) return data
+
+  return null
+}
+
 export const normalizeAuthResponse = (payload) => {
   const data = resolveApiData(payload)
   const token =
@@ -41,14 +53,7 @@ export const normalizeAuthResponse = (payload) => {
     data?.data?.access_token ??
     null
 
-  const user =
-    data?.user ??
-    data?.profile ??
-    data?.userData ??
-    data?.data?.user ??
-    data?.data?.profile ??
-    data?.data ??
-    null
+  const user = normalizeUserPayload(data) ?? normalizeUserPayload(payload)
 
   return {
     token,
@@ -64,13 +69,19 @@ export const requestWithFallbacks = async (method, endpoints, payload = null, co
     throw new Error('Tidak ada endpoint yang tersedia untuk request ini.')
   }
 
+  const routeVariants = candidates.flatMap((endpoint) => {
+    const normalized = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    return [normalized, `/api${normalized}`]
+  })
+
+  const uniqueRoutes = [...new Set(routeVariants)]
   let lastError = null
 
-  for (const endpoint of candidates) {
+  for (const route of uniqueRoutes) {
     try {
       return await api.request({
         method,
-        url: endpoint,
+        url: route,
         data: payload,
         ...config,
       })

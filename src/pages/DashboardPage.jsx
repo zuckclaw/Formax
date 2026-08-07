@@ -1,87 +1,97 @@
-import { Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-
-const summaryCards = [
-  { title: 'Total Form', value: '12', subtitle: 'Aktif & draft' },
-  { title: 'Template', value: '8', subtitle: 'Siap dipakai' },
-  { title: 'Submission', value: '420', subtitle: 'Respon masuk' },
-]
-
-const recentForms = [
-  { name: 'Survey Kepuasan Pelanggan', status: 'Published', updated: '2 jam lalu' },
-  { name: 'Form Pendaftaran Webinar', status: 'Draft', updated: '5 jam lalu' },
-  { name: 'Evaluasi Kegiatan Internal', status: 'Published', updated: '1 hari lalu' },
-]
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import MainLayout from '../components/MainLayout'
+import FormCard from '../components/FormCard'
+import { getBuiltInTemplates, getForms } from '../services/formService'
 
 const DashboardPage = () => {
-  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const [forms, setForms] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const builtInTemplates = getBuiltInTemplates()
+
+  useEffect(() => {
+    loadDashboardForms()
+  }, [])
+
+  const loadDashboardForms = async () => {
+    try {
+      const data = await getForms()
+      setForms(data)
+    } catch (err) {
+      console.error('Failed to load forms:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteForm = (deletedId) => {
+    setForms((prev) => prev.filter((f) => String(f.id) !== String(deletedId)))
+  }
+
+  const filteredForms = forms.filter((f) =>
+    f.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
-    <div className="dashboard-page">
-      <aside className="sidebar">
-        <div className="brand">Formax</div>
-
-        <nav className="nav">
-          <Link to="/dashboard" className="nav-item active">Dashboard</Link>
-          <Link to="/forms" className="nav-item">Forms</Link>
-          <Link to="/builder" className="nav-item">Form Builder</Link>
-          <Link to="/templates" className="nav-item">Template</Link>
-          <Link to="/reports" className="nav-item">Reports</Link>
-        </nav>
-
-        <button className="logout-btn" onClick={logout}>Keluar</button>
-      </aside>
-
-      <main className="content">
-        <header className="topbar">
-          <div>
-            <p className="welcome">Selamat datang</p>
-            <h2>{user?.full_name || user?.name || 'Pengguna'}</h2>
-          </div>
-          <Link to="/forms/create" className="primary-btn button-link">+ Buat Form</Link>
-        </header>
-
-        <section className="summary-grid">
-          {summaryCards.map((card) => (
-            <div key={card.title} className="summary-card">
-              <p>{card.title}</p>
-              <h3>{card.value}</h3>
-              <span>{card.subtitle}</span>
+    <MainLayout searchQuery={searchQuery} setSearchQuery={setSearchQuery}>
+      <div className="dashboard-view">
+        {/* Row Top: Built-in Templates & Create Card */}
+        <section className="top-templates-section">
+          <div className="template-cards-grid">
+            {/* Card Create New Template */}
+            <div
+              className="create-template-dashed-card"
+              onClick={() => navigate('/builder')}
+            >
+              <div className="plus-circle-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+              </div>
+              <span className="create-card-label">Create New Template</span>
             </div>
-          ))}
-        </section>
 
-        <section className="panel">
-          <div className="panel-header">
-            <h3>Form Terbaru</h3>
-            <Link to="/builder">Lihat semua</Link>
+            {/* Starter Built-in Templates */}
+            {builtInTemplates.map((template) => (
+              <FormCard
+                key={template.id}
+                form={template}
+                mode="template-builtin"
+              />
+            ))}
           </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Nama Form</th>
-                <th>Status</th>
-                <th>Update</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentForms.map((form) => (
-                <tr key={form.name}>
-                  <td>{form.name}</td>
-                  <td>
-                    <span className={`status ${form.status === 'Published' ? 'published' : 'draft'}`}>
-                      {form.status}
-                    </span>
-                  </td>
-                  <td>{form.updated}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </section>
-      </main>
-    </div>
+
+        {/* Row Bottom: Recent History */}
+        <section className="recent-history-section">
+          <h2 className="section-heading">Recent History</h2>
+
+          {loading ? (
+            <p className="loading-text">Memuat riwayat form...</p>
+          ) : filteredForms.length === 0 ? (
+            <div className="empty-state">
+              <p>Belum ada form yang cocok. Ketuk "+ Create New Template" untuk membuat baru!</p>
+            </div>
+          ) : (
+            <div className="history-cards-grid">
+              {filteredForms.map((form) => (
+                <FormCard
+                  key={form.id}
+                  form={form}
+                  mode="recent-history"
+                  onDeleteSuccess={handleDeleteForm}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </MainLayout>
   )
 }
 

@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage'
 import FormBuilderPage from './pages/FormBuilderPage'
 import FormsPage from './pages/FormsPage'
 import TemplatesPage from './pages/TemplatesPage'
+import HistoryPage from './pages/HistoryPage'
 import CreateFormPage from './pages/CreateFormPage'
 import CreateTemplatePage from './pages/CreateTemplatePage'
 import EditFormPage from './pages/EditFormPage'
@@ -45,6 +46,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <TemplatesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <HistoryPage />
           </ProtectedRoute>
         }
       />
