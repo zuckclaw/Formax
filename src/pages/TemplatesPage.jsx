@@ -9,8 +9,11 @@ const TemplatesPage = () => {
   const [myTemplates, setMyTemplates] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showAllTemplates, setShowAllTemplates] = useState(false)
 
   const builtInTemplates = getBuiltInTemplates()
+  const initialTemplates = builtInTemplates.slice(0, 3)
+  const moreTemplates = builtInTemplates.slice(3)
 
   useEffect(() => {
     loadTemplatesData()
@@ -42,11 +45,16 @@ const TemplatesPage = () => {
         <section className="template-group-section">
           <div className="group-header">
             <h2 className="section-heading">Built-in Templates</h2>
-            <button className="view-all-link" onClick={() => navigate('/builder')}>View All</button>
+            <button 
+              className="view-all-link" 
+              onClick={() => setShowAllTemplates(!showAllTemplates)}
+            >
+              {showAllTemplates ? 'Close' : 'View All'}
+            </button>
           </div>
 
           <div className="template-cards-grid">
-            {builtInTemplates.map((template) => (
+            {initialTemplates.map((template) => (
               <FormCard
                 key={template.id}
                 form={template}
@@ -54,10 +62,21 @@ const TemplatesPage = () => {
               />
             ))}
           </div>
+
+          <div className={`more-templates-wrapper ${showAllTemplates ? 'expanded' : ''}`}>
+             <div className="more-templates-inner">
+                <div className="template-cards-grid">
+                  {moreTemplates.map((template) => (
+                    <FormCard key={template.id} form={template} mode="template-builtin" />
+                  ))}
+                </div>
+             </div>
+          </div>
         </section>
 
         {/* Section 2: My Templates */}
-        <section className="template-group-section mt-6">
+        {!showAllTemplates && (
+          <section className="template-group-section mt-6 template-fade-in">
           <h2 className="section-heading">My Templates</h2>
 
           <div className="history-cards-grid">
@@ -93,6 +112,7 @@ const TemplatesPage = () => {
             )}
           </div>
         </section>
+        )}
       </div>
     </MainLayout>
   )

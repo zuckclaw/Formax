@@ -280,9 +280,7 @@ const FormBuilderPage = () => {
                       <div className="q-options-list">
                         {q.options.map((opt, idx) => (
                           <div key={idx} className="q-option-item">
-                            <span className="opt-bullet">
-                              {q.type === 'cb' ? '🔲' : '⚪'}
-                            </span>
+                            <div className={`opt-bullet ${q.type === 'cb' ? 'opt-cb' : 'opt-radio'}`}></div>
                             <input
                               type="text"
                               className="opt-input"

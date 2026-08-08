@@ -54,6 +54,24 @@ const defaultBuiltInTemplates = [
     badge: 'Timer enabled by default',
     type: 'exam',
   },
+  {
+    id: 'contact',
+    title: 'Contact Information',
+    subtitle: 'Collect contact details',
+    type: 'contact',
+  },
+  {
+    id: 'rsvp',
+    title: 'Party Invite RSVP',
+    subtitle: 'Event management',
+    type: 'rsvp',
+  },
+  {
+    id: 'feedback',
+    title: 'Customer Feedback',
+    subtitle: 'Product & service surveys',
+    type: 'feedback',
+  },
 ]
 
 const defaultMyTemplates = [
