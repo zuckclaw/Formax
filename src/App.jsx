@@ -15,6 +15,8 @@ import FormResponsePage from './pages/FormResponsePage'
 import FormResponsesPage from './pages/FormResponsesPage'
 import ReportsPage from './pages/ReportsPage'
 import HomePage from './pages/HomePage'
+import TentangPage from './pages/TentangPage'
+import CaraPakaiPage from './pages/CaraPakaiPage'
 import './App.css'
 
 const AppRoutes = () => {
@@ -23,6 +25,8 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/tentang" element={<TentangPage />} />
+      <Route path="/cara-pakai" element={<CaraPakaiPage />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       <Route
