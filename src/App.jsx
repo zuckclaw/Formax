@@ -17,6 +17,7 @@ import ReportsPage from './pages/ReportsPage'
 import HomePage from './pages/HomePage'
 import TentangPage from './pages/TentangPage'
 import CaraPakaiPage from './pages/CaraPakaiPage'
+import ProfilePage from './pages/ProfilePage'
 import './App.css'
 
 const AppRoutes = () => {
@@ -114,6 +115,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />

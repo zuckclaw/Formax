@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getFormById, updateForm } from '../services/formService'
+import MainLayout from '../components/MainLayout'
 
 const EditFormPage = () => {
   const { formId } = useParams()
@@ -51,7 +52,7 @@ const EditFormPage = () => {
       const result = await updateForm(Number(formId), formData)
       setMessage(`Form "${result.title || formData.title}" berhasil diperbarui.`)
       setTimeout(() => navigate('/forms'), 500)
-    } catch (error) {
+    } catch {
       setMessage('Gagal memperbarui form.')
     } finally {
       setSaving(false)
@@ -59,28 +60,29 @@ const EditFormPage = () => {
   }
 
   if (loading) {
-    return <div className="page-shell"><main className="content"><p>Memuat form...</p></main></div>
+    return (
+      <MainLayout hideSearch={true}>
+        <p className="loading-text">Memuat form...</p>
+      </MainLayout>
+    )
   }
 
   return (
-    <div className="page-shell">
-      <aside className="sidebar">
-        <div className="brand">Formax</div>
-        <nav className="nav">
-          <Link to="/dashboard" className="nav-item">Dashboard</Link>
-          <Link to="/forms" className="nav-item active">Forms</Link>
-          <Link to="/templates" className="nav-item">Template</Link>
-          <Link to="/builder" className="nav-item">Form Builder</Link>
-        </nav>
-      </aside>
-
-      <main className="content">
-        <header className="topbar">
-          <div>
-            <p className="welcome">Form</p>
-            <h2>Edit Form</h2>
+    <MainLayout hideSearch={true}>
+      <div className="responses-view">
+        <div className="responses-header">
+          <div className="header-left">
+            <button className="back-btn" onClick={() => navigate(-1)} title="Kembali">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <div className="header-text">
+              <h2 className="responses-title">Edit Form</h2>
+              <p className="responses-subtitle">{formData.title || 'Ubah detail form Anda'}</p>
+            </div>
           </div>
-        </header>
+        </div>
 
         <section className="card form-card">
           <form onSubmit={handleSubmit} className="form-panel">
@@ -117,8 +119,8 @@ const EditFormPage = () => {
             </div>
           </form>
         </section>
-      </main>
-    </div>
+      </div>
+    </MainLayout>
   )
 }
 

@@ -1054,6 +1054,17 @@ th {
   align-items: center;
   gap: 10px;
   overflow: hidden;
+  flex: 1;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.profile-info:hover,
+.profile-info.active {
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .profile-avatar {
@@ -1089,6 +1100,62 @@ th {
 .profile-logout-btn:hover {
   background-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
+}
+
+/* Profile Page */
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 720px;
+}
+
+.profile-card {
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.profile-avatar-large {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 3px solid #eef2ff;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 700;
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-card-info h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+}
+
+.profile-card-info p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.profile-form-card {
+  background: #ffffff;
+}
+
+.profile-form-card .form-panel input:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 /* Layout Body & Topbar */
@@ -2562,62 +2629,70 @@ th {
 
 /* Sidebar */
 .hp-mock-sidebar {
-  width: 130px;
-  background: #9aadca;
-  padding: 14px 8px;
+  width: 230px;
+  background-color: #adc0d1;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 .hp-mock-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 .hp-mock-nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  font-size: 10px;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: rgba(255,255,255,0.85);
+  color: #ffffff;
   cursor: default;
+  transition: all 0.2s ease;
+}
+.hp-mock-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }
 .hp-mock-nav-active {
-  background: rgba(255,255,255,0.15);
-  color: #fff;
+  background-color: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 .hp-mock-nav-icon {
   display: inline-flex;
   align-items: center;
-  opacity: 0.9;
+  flex-shrink: 0;
+  opacity: 0.95;
 }
 .hp-mock-sidebar-footer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  gap: 10px;
+  padding: 10px 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 .hp-mock-avatar-wrap {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   overflow: hidden;
   background: #c084fc;
+  border: 1.5px solid #ffffff;
 }
 .hp-mock-user-name {
-  font-size: 9px;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #fff;
+  color: #ffffff;
   flex: 1;
   text-align: left;
 }
 .hp-mock-logout-btn {
-  color: rgba(255,255,255,0.8);
+  color: rgba(255, 255, 255, 0.9);
   display: inline-flex;
   align-items: center;
 }

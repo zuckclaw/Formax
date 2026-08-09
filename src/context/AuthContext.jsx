@@ -114,6 +114,33 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateProfile = async (payload) => {
+    if (!user) return null
+
+    const fallbackUser = { ...user, ...payload }
+    const applyResult = (data) => {
+      const normalized = { ...fallbackUser, ...(data || {}) }
+      setUser(normalized)
+      return normalized
+    }
+
+    try {
+      const response = await requestWithFallbacks('patch', ['/auth/profile', '/auth/me', '/profile', '/me'], payload)
+      const data = response.data?.data ?? response.data?.user ?? response.data
+      return applyResult(data)
+    } catch {
+      try {
+        const response = await requestWithFallbacks('put', ['/auth/profile', '/auth/me', '/profile', '/me'], payload)
+        const data = response.data?.data ?? response.data?.user ?? response.data
+        return applyResult(data)
+      } catch (err) {
+        console.warn('API update profile tidak merespon, menyimpan perubahan lokal:', err)
+        setUser(fallbackUser)
+        return fallbackUser
+      }
+    }
+  }
+
   const value = useMemo(
     () => ({
       user,
@@ -123,6 +150,7 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
       getProfile,
+      updateProfile,
       isAuthenticated: Boolean(token && user),
     }),
     [user, token, loading],

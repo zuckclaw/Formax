@@ -65,14 +65,14 @@ const MainLayout = ({ children, searchQuery, setSearchQuery, hideSearch = false 
 
         {/* Profil Pengguna di Bagian Bawah Kiri */}
         <div className="sidebar-profile">
-          <div className="profile-info">
+          <Link to="/profile" className={`profile-info ${isActive('/profile') ? 'active' : ''}`} title="Buka Profil">
             <img
               src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80"
               alt={userName}
               className="profile-avatar"
             />
             <span className="profile-name">{userName}</span>
-          </div>
+          </Link>
           <button className="profile-logout-btn" onClick={logout} title="Keluar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

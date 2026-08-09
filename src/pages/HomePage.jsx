@@ -261,9 +261,9 @@ const HomePage = () => {
             <Link to="/register" id="btn-daftar-gratis" className="hp-btn-primary">
               Daftar Gratis
             </Link>
-            <a href="#fitur" className="hp-btn-outline">
+            <Link to="/tentang" className="hp-btn-outline">
               Pelajari Lebih Lanjut
-            </a>
+            </Link>
           </div>
 
           {/* App Preview */}
