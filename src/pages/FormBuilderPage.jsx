@@ -190,7 +190,7 @@ const FormBuilderPage = () => {
   }
 
   return (
-    <MainLayout>
+    <MainLayout hideSearch={true}>
       <div className="builder-header-bar">
         <button className="back-arrow-btn" onClick={() => navigate('/dashboard')} title="Kembali ke Dashboard">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

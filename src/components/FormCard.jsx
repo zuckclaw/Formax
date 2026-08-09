@@ -61,8 +61,7 @@ const FormCard = ({ form, mode = 'history', onDeleteSuccess }) => {
 
   return (
     <div className="form-card-item">
-      {/* Thumbnail Document Preview */}
-      <div className="card-thumb-container" onClick={() => navigate(`/forms/${form.id}`)}>
+      <div className="card-thumb-container" onClick={() => navigate(`/forms/${form.id}/responses`)}>
         {renderDocumentThumbnail()}
       </div>
 

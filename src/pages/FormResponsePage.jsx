@@ -89,7 +89,7 @@ const FormResponsePage = () => {
 
         <section className="card form-card">
           <form onSubmit={handleSubmit} className="form-panel">
-            {form.questions.map((question) => (
+            {(form.questions || []).map((question) => (
               <div key={question.id} className="response-question">
                 <label className="question-label">
                   <span>

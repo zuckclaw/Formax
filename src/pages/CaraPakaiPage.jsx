@@ -51,55 +51,13 @@ const CaraPakaiPage = () => {
   const animationFrameRef = useRef(null)
 
   useEffect(() => {
-    const updateActiveStates = () => {
-      if (!containerRef.current) return
-      
-      const containerRect = containerRef.current.getBoundingClientRect()
-      // Current bottom position of the fill line in screen Y pixels
-      const yFillScreen = containerRect.top + 24 + (currentProgressRef.current * containerRect.height)
-
-      const updatedActive = stepRefs.map((ref) => {
-        if (!ref.current) return false
-        const stepRect = ref.current.getBoundingClientRect()
-        // Center of the step circle node in screen Y pixels (padding-top is 4px, half-height is 12px)
-        const nodeCenterScreenY = stepRect.top + 16
-        return yFillScreen >= nodeCenterScreenY
-      })
-      
-      setActiveSteps(updatedActive)
-    }
-
-    const updateProgress = () => {
-      const diff = targetProgressRef.current - currentProgressRef.current
-      
-      // Stop loop when difference is negligible
-      if (Math.abs(diff) < 0.001) {
-        currentProgressRef.current = targetProgressRef.current
-        const finalProgress = currentProgressRef.current * 100
-        setLineProgress(finalProgress)
-        updateActiveStates()
-        animationFrameRef.current = null
-        return
-      }
-
-      currentProgressRef.current += diff * 0.09 // interpolation speed factor
-      const newProgress = currentProgressRef.current * 100
-      setLineProgress(newProgress)
-      updateActiveStates()
-      
-      animationFrameRef.current = requestAnimationFrame(updateProgress)
-    }
-
     const handleScroll = () => {
       if (!containerRef.current) return
 
       const container = containerRef.current
       const rect = container.getBoundingClientRect()
       
-      // Trigger target y-coordinate in viewport (middle-ish area)
       const triggerY = window.innerHeight * 0.45
-      
-      // Scrolled calculation inside the timeline container
       const scrolled = triggerY - rect.top
       const totalHeight = rect.height
       const padding = 100
@@ -108,25 +66,35 @@ const CaraPakaiPage = () => {
       if (progress < 0) progress = 0
       if (progress > 1) progress = 1
       
-      targetProgressRef.current = progress
+      setLineProgress(progress * 100)
 
-      // Start the animation frame loop if not already running
-      if (!animationFrameRef.current) {
-        animationFrameRef.current = requestAnimationFrame(updateProgress)
-      }
+      // Calculate fill position in screen coordinates
+      const yFillScreen = rect.top + 24 + (progress * rect.height)
+
+      const updatedActive = stepRefs.map((ref) => {
+        if (!ref.current) return false
+        const stepRect = ref.current.getBoundingClientRect()
+        // Center of the step circle node in screen Y pixels
+        const nodeCenterScreenY = stepRect.top + 16
+        return yFillScreen >= nodeCenterScreenY
+      })
+      
+      setActiveSteps(updatedActive)
     }
 
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('resize', handleScroll)
-    // Run initial scroll check
+    
+    // Initial calculation
     handleScroll()
+    
+    // Safety check after a short delay to ensure layout is complete
+    const timeoutId = setTimeout(handleScroll, 100)
     
     return () => {
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('resize', handleScroll)
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
+      clearTimeout(timeoutId)
     }
   }, [])
 
