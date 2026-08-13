@@ -59,9 +59,17 @@ const FormCard = ({ form, mode = 'history', onDeleteSuccess }) => {
     )
   }
 
+  const handleCopyLink = (e) => {
+    e.stopPropagation()
+    setShowMenu(false)
+    const publicUrl = `${window.location.origin}/forms/public/${form.id}`
+    navigator.clipboard.writeText(publicUrl)
+    alert(`🔗 Link form "${form.title}" berhasil disalin ke clipboard:\n${publicUrl}`)
+  }
+
   return (
     <div className="form-card-item">
-      <div className="card-thumb-container" onClick={() => navigate(`/forms/${form.id}/responses`)}>
+      <div className="card-thumb-container" onClick={() => navigate(`/builder?id=${form.id}`)}>
         {renderDocumentThumbnail()}
       </div>
 
@@ -93,14 +101,20 @@ const FormCard = ({ form, mode = 'history', onDeleteSuccess }) => {
             </button>
             {showMenu && (
               <div className="card-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => { setShowMenu(false); navigate(`/forms/${form.id}/edit`); }}>
-                  Edit Form
+                <button onClick={() => { setShowMenu(false); navigate(`/builder?id=${form.id}`); }}>
+                  ✏️ Edit Form
+                </button>
+                <button onClick={handleCopyLink}>
+                  🔗 Salin Link
+                </button>
+                <button onClick={() => { setShowMenu(false); navigate(`/forms/public/${form.id}`); }}>
+                  📝 Buka & Isi Form
                 </button>
                 <button onClick={() => { setShowMenu(false); navigate(`/forms/${form.id}/responses`); }}>
-                  Lihat Hasil
+                  📊 Lihat Hasil
                 </button>
                 <button className="menu-danger" onClick={handleDelete}>
-                  Hapus Form
+                  🗑️ Hapus Form
                 </button>
               </div>
             )}

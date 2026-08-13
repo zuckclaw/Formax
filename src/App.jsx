@@ -5,7 +5,6 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import FormBuilderPage from './pages/FormBuilderPage'
-import FormsPage from './pages/FormsPage'
 import TemplatesPage from './pages/TemplatesPage'
 import HistoryPage from './pages/HistoryPage'
 import CreateFormPage from './pages/CreateFormPage'
@@ -17,6 +16,7 @@ import ReportsPage from './pages/ReportsPage'
 import HomePage from './pages/HomePage'
 import TentangPage from './pages/TentangPage'
 import CaraPakaiPage from './pages/CaraPakaiPage'
+import PublicFormPage from './pages/PublicFormPage'
 import ProfilePage from './pages/ProfilePage'
 import './App.css'
 
@@ -35,14 +35,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/forms"
-        element={
-          <ProtectedRoute>
-            <FormsPage />
           </ProtectedRoute>
         }
       />
@@ -66,7 +58,15 @@ const AppRoutes = () => {
         path="/forms/create"
         element={
           <ProtectedRoute>
-            <CreateFormPage />
+            <Navigate to="/builder" replace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/forms/public/:formId"
+        element={
+          <ProtectedRoute>
+            <PublicFormPage />
           </ProtectedRoute>
         }
       />
@@ -82,7 +82,7 @@ const AppRoutes = () => {
         path="/forms/:formId/edit"
         element={
           <ProtectedRoute>
-            <EditFormPage />
+            <Navigate to="/builder" replace />
           </ProtectedRoute>
         }
       />
@@ -90,7 +90,7 @@ const AppRoutes = () => {
         path="/forms/:formId"
         element={
           <ProtectedRoute>
-            <FormResponsePage />
+            <PublicFormPage />
           </ProtectedRoute>
         }
       />

@@ -105,14 +105,29 @@ const FormBuilderPage = () => {
       isQuiz,
     }
 
+    let savedTarget
     if (formId) {
-      await updateForm(formId, payload)
+      savedTarget = await updateForm(formId, payload)
     } else {
-      await createForm(payload)
+      savedTarget = await createForm(payload)
+    }
+
+    // Trigger storage event so open respondent tabs detect live update
+    try {
+      localStorage.setItem('formax_form_updated', String(Date.now()))
+    } catch (e) {
+      console.warn('Storage event error:', e)
     }
 
     alert('Form berhasil disimpan!')
     navigate('/dashboard')
+  }
+
+  const handleCopyBuilderLink = () => {
+    const targetId = formId || '1'
+    const publicUrl = `${window.location.origin}/forms/public/${targetId}`
+    navigator.clipboard.writeText(publicUrl)
+    alert(`🔗 Link form "${formTitle}" berhasil disalin ke clipboard:\n${publicUrl}`)
   }
 
   // Question Management
@@ -214,9 +229,14 @@ const FormBuilderPage = () => {
           </button>
         </div>
 
-        <button className="btn-simpan-draf" onClick={handleSaveForm}>
-          Simpan Draf
-        </button>
+        <div className="builder-top-actions">
+          <button className="btn-copy-link-header" onClick={handleCopyBuilderLink} title="Salin Link Publik">
+            🔗 Salin Link
+          </button>
+          <button className="btn-simpan-draf" onClick={handleSaveForm}>
+            Simpan Draf
+          </button>
+        </div>
       </div>
 
       {/* ===================================================================
