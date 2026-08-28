@@ -1,3 +1,5 @@
+import { requestWithFallbacks } from './api'
+
 const STORAGE_KEY_FORMS = 'formax_user_forms'
 const STORAGE_KEY_TEMPLATES = 'formax_user_templates'
 

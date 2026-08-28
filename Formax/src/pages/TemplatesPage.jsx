@@ -19,7 +19,7 @@ const TemplatesPage = () => {
     loadTemplatesData()
   }, [])
 
-  const loadTemplatesData = async () => {
+  async function loadTemplatesData() {
     try {
       const data = await getTemplates()
       setMyTemplates(data)

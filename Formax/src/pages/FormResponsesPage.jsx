@@ -116,13 +116,12 @@ const PieChart = ({ data, size = 200 }) => {
   const radius = size / 2 - 14
   const cx = size / 2
   const cy = size / 2
-  let cumulativeAngle = -90 // start from top
-
-  const slices = data.map((d, i) => {
+  
+  const { slices } = data.reduce((acc, d, i) => {
     const angle = (d.value / total) * 360
-    const startAngle = cumulativeAngle
-    const endAngle = cumulativeAngle + angle
-    cumulativeAngle = endAngle
+    const startAngle = acc.cumulativeAngle
+    const endAngle = acc.cumulativeAngle + angle
+    acc.cumulativeAngle = endAngle
 
     const startRad = (Math.PI / 180) * startAngle
     const endRad = (Math.PI / 180) * endAngle
@@ -136,7 +135,7 @@ const PieChart = ({ data, size = 200 }) => {
       ? `M ${cx} ${cy - radius} A ${radius} ${radius} 0 1 1 ${cx - 0.001} ${cy - radius} Z`
       : `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`
 
-    return (
+    acc.slices.push(
       <path
         key={i}
         d={pathData}

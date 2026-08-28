@@ -1169,6 +1169,9 @@ th {
 }
 
 .app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background-color: #0b76d4;
   padding: 18px 36px;
   display: flex;

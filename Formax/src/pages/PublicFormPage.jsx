@@ -35,7 +35,7 @@ const PublicFormPage = () => {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [formId])
 
-  const loadPublicForm = async () => {
+  async function loadPublicForm() {
     try {
       const data = await getFormById(formId)
       if (data) {
@@ -94,7 +94,7 @@ const PublicFormPage = () => {
     return () => clearInterval(timer)
   }, [isTimerRunning, timeLeftSeconds])
 
-  const handleAutoSubmit = () => {
+  function handleAutoSubmit() {
     alert('⏱️ Waktu pengerjaan form telah habis! Jawaban Anda otomatis terkirim.')
     executeSubmit()
   }

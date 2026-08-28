@@ -12,7 +12,7 @@ const HistoryPage = () => {
     loadHistory()
   }, [])
 
-  const loadHistory = async () => {
+  async function loadHistory() {
     try {
       const data = await getForms()
       setHistoryForms(data)
