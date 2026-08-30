@@ -857,6 +857,20 @@
 .db-drawer-backdrop { display: none; }
 .db-hamburger { display: none; }
 
+/* Global responsive images — jangan melebihi card di mobile */
+.detail-question-card img,
+.detail-answers-pane img,
+.analytics-question-card img,
+.detail-info-card img,
+.result-answer-item img,
+.result-card img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
 @media (max-width: 768px) {
   .db-sidebar {
     width: 260px;
