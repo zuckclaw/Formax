@@ -1349,24 +1349,85 @@
 }
 
 /* ============================================================
-   RESPONSIVE
-   ============================================================ */
+    RESPONSIVE — MOBILE WEB RAPIH (tanpa ubah desktop)
+    ============================================================ */
 @media (max-width: 768px) {
   .fb-main { margin-left: 72px; }
-  .fb-content { padding: 20px 16px; flex-direction: column; }
-  .fb-editor-area { max-width: 100%; }
+  .fb-content { padding: 16px 12px; flex-direction: column; gap: 14px; }
+  .fb-editor-area { max-width: 100%; gap: 12px; }
+
+  /* Topbar: 2 kolom grid — baris1 Import|Template, baris2 Simpan|Publish */
+  .fb-topbar {
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .fb-topbar-left { justify-content: space-between; }
+  .fb-topbar-center { width: 100%; justify-content: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+  .fb-tab { flex: 1; text-align: center; padding: 10px 8px; font-size: 13px; }
+  .fb-tab.active::after { bottom: -10px; width: 40%; }
+  .fb-topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .fb-import-btn, .fb-template-btn, .fb-save-btn, .fb-publish-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 10px;
+    font-size: 12.5px;
+    min-height: 44px;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
   .fb-float-actions {
     position: fixed;
-    bottom: 16px;
-    right: 16px;
+    bottom: 14px;
+    right: 12px;
     flex-direction: row;
+    padding: 6px;
+    border-radius: 12px;
+    z-index: 40;
   }
-  .fb-topbar { padding: 12px 16px; }
-  .fb-header-card, .fb-question-card, .fb-settings-card { padding: 18px; }
-  .fb-question-top { flex-direction: column; }
-  .fb-type-select { width: 100%; }
+  .fb-float-btn { width: 38px; height: 38px; }
+  .fb-header-card, .fb-question-card, .fb-settings-card { padding: 16px 12px; border-radius: 12px; }
+  .fb-title-input { font-size: 18px; }
+  .fb-banner-wrap { margin: -16px -12px 14px; border-radius: 12px 12px 0 0; overflow: hidden; }
+  .fb-banner-img { max-height: 160px; height: auto; }
+  .fb-banner-actions { bottom: 8px; right: 8px; }
+  .fb-banner-upload { padding: 16px 12px; }
+
+  /* Question card: tipe di bawah label — column */
+  .fb-question-top { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 10px; }
+  .fb-question-top > div:first-child { order: 1; }
+  .fb-type-select { width: 100%; order: 2; min-width: 0; }
+  .fb-question-wysiwyg-wrap .ql-toolbar.ql-snow { padding: 6px; gap: 4px; }
+  .fb-question-wysiwyg-wrap .ql-editor { padding: 10px 12px; }
+  .fb-wysiwyg-wrap .ql-editor { padding: 10px 12px; }
+  .fb-options-list { gap: 8px; }
+  .fb-option-row { gap: 8px; flex-wrap: wrap; }
+  .fb-option-input { min-width: 0; flex: 1; font-size: 13.5px; }
+  .fb-add-option-row { flex-wrap: wrap; gap: 8px; }
+  .fb-question-footer { flex-wrap: wrap; gap: 8px; padding-top: 10px; }
+  .fb-required-wrap { margin-left: 0; }
+
   .fb-date-inputs { grid-template-columns: 1fr; }
-  .fb-tab { padding: 8px 12px; font-size: 13px; }
+  .fb-import-modal { max-width: 95%; margin: 12px; }
+  .fb-import-guide-grid { grid-template-columns: 1fr; }
+  .fb-import-stats { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .fb-content { padding: 12px 10px; }
+  .fb-topbar { padding: 10px; }
+  .fb-topbar-actions { grid-template-columns: 1fr; }
+  .fb-header-card, .fb-question-card { padding: 14px 10px; }
+  .fb-title-input { font-size: 17px; }
+  .fb-progress-bar { height: 4px; }
+  .fb-add-question-btn { padding: 12px; font-size: 13px; }
 }
 
 /* ============================================================
