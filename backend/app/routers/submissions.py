@@ -21,9 +21,13 @@ def _window_now():
 
 
 def _window_dt(dt):
-    if dt is None or dt.tzinfo is not None:
-        return dt
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(WIB)
     return dt.replace(tzinfo=WIB)
+
+_GRACE = timedelta(seconds=60)
 
 
 # ------------------------------------------------------------------
@@ -95,7 +99,7 @@ def join_form(
             raise HTTPException(status_code=403, detail="Token salah atau belum diisi")
 
     now = _window_now()
-    if form.start_date and now < _window_dt(form.start_date):
+    if form.start_date and now + _GRACE < _window_dt(form.start_date):
         raise HTTPException(status_code=403, detail="Form belum dibuka")
     if form.end_date and now > _window_dt(form.end_date):
         raise HTTPException(status_code=403, detail="Waktu pengisian form sudah berakhir")

@@ -5,15 +5,17 @@ import 'package:flutter/foundation.dart';
 
 class ApiService {
   // Base URL dikonfigurasi via --dart-define=API_URL=...
-  // Default: 10.0.2.2:8000 (untuk Android Emulator)
-  // HP fisik via USB: jalankan `adb reverse tcp:8000 tcp:8000`
-  //   lalu `flutter run --dart-define=API_URL=http://127.0.0.1:8000`
+  // Default = URL backend RESMI (ngrok) yang sama dengan web Vercel,
+  //   https://wriggly-diffusion-flatfoot.ngrok-free.dev
+  // Untuk development lokal, override dengan:
+  //   Android Emulator: flutter run --dart-define=API_URL=http://10.0.2.2:8000
+  //   HP fisik via USB : adb reverse tcp:8000 tcp:8000 lalu --dart-define=API_URL=http://127.0.0.1:8000
+  static const String _defaultApiUrl = 'https://wriggly-diffusion-flatfoot.ngrok-free.dev';
+
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) return 'http://localhost:8000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:8000';
-    return 'http://127.0.0.1:8000';
+    return _defaultApiUrl;
   }
 
   // Frontend URL tempat publik mengisi form (link & QR yang dibagikan).

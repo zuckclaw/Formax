@@ -1,6 +1,6 @@
 {
-    "name": "form4xandroid",
-    "short_name": "form4xandroid",
+    "name": "Form4x",
+    "short_name": "Form4x",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

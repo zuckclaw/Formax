@@ -2,7 +2,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:form4xandroid/utils/quill_html.dart';
+import 'package:form4x/utils/quill_html.dart';
 
 void main() {
   test('HtmlToDelta parses common formatting', () {

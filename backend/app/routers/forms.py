@@ -153,9 +153,16 @@ def get_form_by_slug(slug: str, db: Session = Depends(get_db)):
     from datetime import datetime, timezone, timedelta
     WIB = timezone(timedelta(hours=7))
     def _now(): return datetime.now(WIB)
-    def _dt(dt): return dt.replace(tzinfo=WIB) if dt is not None and dt.tzinfo is None else dt
+    def _dt(dt):
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.astimezone(WIB)
+        return dt.replace(tzinfo=WIB)
     now = _now()
-    if form.start_date and now < _dt(form.start_date):
+    # Grace 60s untuk race publish→join & jam HP yang agak cepat (aman race, tidak ganggu web)
+    GRACE = timedelta(seconds=60)
+    if form.start_date and now + GRACE < _dt(form.start_date):
         raise HTTPException(status_code=403, detail="Form belum dibuka")
     if form.end_date and now > _dt(form.end_date):
         raise HTTPException(status_code=403, detail="Waktu pengisian form sudah berakhir")

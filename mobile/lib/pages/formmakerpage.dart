@@ -143,10 +143,15 @@ class _FormMakerPageState extends State<FormMakerPage>
   }
 
   Map<String, dynamic> _buildPublishSettings() {
+    // Fix: sesuaikan dengan web — hanya kirim start/end_date jika Form Timer benar-benar butuh window
+    // Jika Enable Timer OFF atau mode 'Start when respondent opens' (per-responden, bukan window global) → jangan kirim window
+    // Ini yang sebelumnya bikin publish langsung 403 'Form belum dibuka' karena start_date = now future + naive WIB mismatch
     DateTime? startDate;
     DateTime? endDate;
-    if (_enableTimer) {
-      startDate = DateTime.now();
+    final isPerRespondent = _timerMode == 'Start when respondent opens the form';
+    if (_enableTimer && !isPerRespondent) {
+      // Start at specific date and time → window global. Kurangi 60s untuk race/latency + pakai UTC biar tidak miss WIB
+      startDate = DateTime.now().toUtc().subtract(const Duration(seconds: 60));
       final durText = _durationCtrl.text.trim();
       final num =
           int.tryParse(RegExp(r'\d+').firstMatch(durText)?.group(0) ?? '1') ??
@@ -182,8 +187,9 @@ class _FormMakerPageState extends State<FormMakerPage>
       'reveal_answers': _correctAnswers,
       'accept_responses': _acceptResponses,
       'status': _formStatus,
-      if (startDate != null) 'start_date': startDate.toIso8601String(),
-      if (endDate != null) 'end_date': endDate.toIso8601String(),
+      // Kirim UTC (Z) biar backend tidak salah label WIB 1-7 jam (WITA/WIT/emulator UTC)
+      if (startDate != null) 'start_date': startDate.toUtc().toIso8601String(),
+      if (endDate != null) 'end_date': endDate.toUtc().toIso8601String(),
     };
   }
 

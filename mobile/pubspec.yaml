@@ -1,4 +1,4 @@
-name: form4xandroid
+name: form4x
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -48,6 +48,7 @@ dependencies:
   path_provider: ^2.1.6
   file_picker: ^12.1.2
   url_launcher: ^6.3.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -62,7 +63,12 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
-
+flutter_launcher_icons:
+  android: true
+  iOS: true
+  image_path: "assets/icons/iconform4x.png"
+  image_path_ios: "assets/icons/iconform4x.png"
+  image_path_android: "assets/icons/iconform4x.png"
 # The following section is specific to Flutter packages.
 flutter:
 

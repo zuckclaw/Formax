@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:form4xandroid/widgets/rich_text_view.dart';
+import 'package:form4x/widgets/rich_text_view.dart';
 
 void main() {
   const pathologicalHtml =

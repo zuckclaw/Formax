@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:form4xandroid/utils/quill_html.dart';
-import 'package:form4xandroid/widgets/rich_text_view.dart';
+import 'package:form4x/utils/quill_html.dart';
+import 'package:form4x/widgets/rich_text_view.dart';
 
 void main() {
   testWidgets('warna kuning 8-digit (ARGB) dirender kuning setelah normalisasi',

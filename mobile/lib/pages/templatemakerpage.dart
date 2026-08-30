@@ -295,10 +295,12 @@ class _TemplateMakerPageState extends State<TemplateMakerPage> {
     final baseSlug = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
     final slug = '$baseSlug-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
 
+    // Fix: parity dengan web — hanya window jika Enable Timer ON dan mode bukan per-responden
     DateTime? startDate;
     DateTime? endDate;
-    if (_enableTimer) {
-      startDate = DateTime.now();
+    final isPerRespondent = _timerMode == 'Start when respondent opens the form';
+    if (_enableTimer && !isPerRespondent) {
+      startDate = DateTime.now().toUtc().subtract(const Duration(seconds: 60));
       final durText = _durationCtrl.text.trim();
       final num = int.tryParse(RegExp(r'\d+').firstMatch(durText)?.group(0) ?? '1') ?? 1;
       if (durText.contains('jam')) endDate = startDate.add(Duration(hours: num));
@@ -315,8 +317,8 @@ class _TemplateMakerPageState extends State<TemplateMakerPage> {
       'max_submissions': _limitOneResponse ? 1 : 0,
       'require_fullscreen': false,
       'reveal_answers': _correctAnswers,
-      if (startDate != null) 'start_date': startDate.toIso8601String(),
-      if (endDate != null) 'end_date': endDate.toIso8601String(),
+      if (startDate != null) 'start_date': startDate.toUtc().toIso8601String(),
+      if (endDate != null) 'end_date': endDate.toUtc().toIso8601String(),
       'use_join_token': false,
     };
 
