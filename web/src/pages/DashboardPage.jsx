@@ -74,6 +74,20 @@ export default function DashboardPage() {
   const [activityDetailSub, setActivityDetailSub] = useState(null); // submission yang sedang dilihat detail/bukti
 
   const token = localStorage.getItem('token');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Swipe open dari edge kiri
+  useEffect(() => {
+    let startX = 0;
+    const onTouchStart = (e) => { startX = e.touches[0].clientX; };
+    const onTouchEnd = (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (!drawerOpen && startX < 30 && dx > 80) setDrawerOpen(true);
+      if (drawerOpen && dx < -80) setDrawerOpen(false);
+    };
+    window.addEventListener('touchstart', onTouchStart);
+    window.addEventListener('touchend', onTouchEnd);
+    return () => { window.removeEventListener('touchstart', onTouchStart); window.removeEventListener('touchend', onTouchEnd); };
+  }, [drawerOpen]);
 
   const fetchTemplates = async () => {
     try {
@@ -505,8 +519,9 @@ export default function DashboardPage() {
 
   return (
     <div className="db-root">
-      {/* Sidebar - Preserved and always active */}
-      <aside className="db-sidebar">
+      {drawerOpen && <div className="db-drawer-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+      {/* Sidebar - Drawer di mobile, fixed di desktop */}
+      <aside className={`db-sidebar ${drawerOpen ? 'open' : ''}`}>
         <div className="db-logo">
           <div className="db-logo-icon">
             <img src={logoForm4x} alt="Form4x logo" className="db-logo-img" />
@@ -573,6 +588,7 @@ export default function DashboardPage() {
                 setHistorySubView('list');
                 setActivityResult(null);
                 setActivityDetailSub(null);
+                setDrawerOpen(false);
               }}
             >
               {item.icon}
@@ -615,6 +631,9 @@ export default function DashboardPage() {
       <main className="db-main">
         {/* Topbar */}
         <header className="db-topbar">
+          <button className="db-hamburger" onClick={() => setDrawerOpen((v) => !v)} aria-label="Toggle menu">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+          </button>
           {!(activeNav === 'history' && (historySubView === 'results' || historySubView === 'detail')) && (
             <div className="db-search-wrap">
               <svg className="db-search-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
