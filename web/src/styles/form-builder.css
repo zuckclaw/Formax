@@ -1350,37 +1350,82 @@
 
 /* ============================================================
     RESPONSIVE — MOBILE WEB RAPIH (tanpa ubah desktop)
+    Desktop >768px tetap space-between + grid 2 kolom sebelumnya.
+    Mobile ≤768px: topbar actions pindah ke bottom bar 1 baris kecil,
+    sidebar jadi drawer (lihat dashboard.css — .db-sidebar)
     ============================================================ */
+
+/* Mobile bottom bar — 1 baris kecil rapih, desktop hidden */
+.fb-mobile-bottom-bar { display: none; }
+.fb-hamburger { display: none; }
+.db-hamburger { display: none; }
+
 @media (max-width: 768px) {
-  .fb-main { margin-left: 72px; }
-  .fb-content { padding: 16px 12px; flex-direction: column; gap: 14px; }
+  .fb-main { margin-left: 0 !important; }
+  .fb-content { padding: 16px 12px; flex-direction: column; gap: 14px; padding-bottom: 76px; }
   .fb-editor-area { max-width: 100%; gap: 12px; }
 
-  /* Topbar: 2 kolom grid — baris1 Import|Template, baris2 Simpan|Publish */
+  /* Topbar: di mobile cuma Back + Tabs + Hamburger, actions sembunyi */
   .fb-topbar {
     padding: 10px 12px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .fb-topbar-left { justify-content: space-between; }
-  .fb-topbar-center { width: 100%; justify-content: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
-  .fb-tab { flex: 1; text-align: center; padding: 10px 8px; font-size: 13px; }
-  .fb-tab.active::after { bottom: -10px; width: 40%; }
-  .fb-topbar-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
-    width: 100%;
+    flex-wrap: nowrap;
   }
-  .fb-import-btn, .fb-template-btn, .fb-save-btn, .fb-publish-btn {
-    width: 100%;
+  .fb-topbar-left { flex-shrink: 0; }
+  .fb-topbar-center { flex: 1; justify-content: center; border-bottom: none; padding-bottom: 0; }
+  .fb-tab { flex: none; padding: 8px 10px; font-size: 13px; }
+  .fb-tab.active::after { bottom: -10px; width: 40%; }
+  .fb-topbar-actions { display: none !important; }
+
+  /* Bottom bar: 4 tombol kecil 1 baris, SVG minimal */
+  .fb-mobile-bottom-bar {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 20px rgba(15,23,42,0.06);
+  }
+  .fb-mobile-bottom-bar button {
+    flex: 1;
+    min-height: 34px;
+    height: 34px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 8px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    padding: 10px 10px;
-    font-size: 12.5px;
-    min-height: 44px;
-    white-space: normal;
-    line-height: 1.2;
+    gap: 5px;
+    line-height: 1;
+  }
+  .fb-mobile-bottom-bar button svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+  /* Hamburger — tampil mobile */
+  .fb-hamburger, .db-hamburger {
+    display: flex;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
   .fb-float-actions {

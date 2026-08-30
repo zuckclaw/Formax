@@ -47,6 +47,7 @@ export default function FormBuilderPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [templateSaving, setTemplateSaving] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('soal');
@@ -203,6 +204,20 @@ export default function FormBuilderPage() {
 
     load();
   }, [formId, templateId, token, navigate, showToast]);
+
+  // Drawer swipe open dari edge kiri
+  useEffect(() => {
+    let startX = 0;
+    const onTouchStart = (e) => { startX = e.touches[0].clientX; };
+    const onTouchEnd = (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (!drawerOpen && startX < 30 && dx > 80) setDrawerOpen(true);
+      if (drawerOpen && dx < -80) setDrawerOpen(false);
+    };
+    window.addEventListener('touchstart', onTouchStart);
+    window.addEventListener('touchend', onTouchEnd);
+    return () => { window.removeEventListener('touchstart', onTouchStart); window.removeEventListener('touchend', onTouchEnd); };
+  }, [drawerOpen]);
 
   // ============================================================
   // SAVE / CREATE FORM
@@ -866,7 +881,8 @@ export default function FormBuilderPage() {
   return (
     <div className="db-root">
       {/* Sidebar (shared with dashboard) */}
-      <aside className="db-sidebar">
+      {drawerOpen && <div className="db-drawer-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+      <aside className={`db-sidebar ${drawerOpen ? 'open' : ''}`}>
         <div className="db-logo">
           <div className="db-logo-icon">
             <img src={logoForm4x} alt="Form4x logo" className="db-logo-img" />
@@ -878,20 +894,20 @@ export default function FormBuilderPage() {
         </div>
 
         <nav className="db-nav">
-          <button className="db-nav-item" onClick={() => navigate('/dashboard')}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
               <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             <span>Dasbor</span>
           </button>
-          <button className="db-nav-item" onClick={() => navigate('/dashboard')}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
             </svg>
             <span>Templat</span>
           </button>
-          <button className="db-nav-item" onClick={() => navigate('/dashboard')}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.39" />
             </svg>
@@ -917,11 +933,14 @@ export default function FormBuilderPage() {
         </div>
       </aside>
 
-      {/* Main */}
+        {/* Main */}
       <main className="fb-main">
         {/* Topbar */}
         <header className="fb-topbar">
           <div className="fb-topbar-left">
+            <button className="fb-hamburger" onClick={() => setDrawerOpen((v) => !v)} aria-label="Toggle menu">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            </button>
             <button className="fb-back-btn" onClick={() => navigate('/dashboard', { state: { reloadTemplates: true } })} aria-label="Back to dashboard">
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <polyline points="15 18 9 12 15 6" />
@@ -960,10 +979,12 @@ export default function FormBuilderPage() {
               Import Word
             </button>
             <button className="fb-template-btn" onClick={handleSaveAsTemplate} disabled={templateSaving} title="Simpan soal-soal ini sebagai template baru">
-              {templateSaving ? 'Menyimpan...' : 'Simpan sebagai Template'}
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 12h6M12 9v6" /></svg>
+              {templateSaving ? 'Menyimpan...' : 'Template'}
             </button>
             <button className="fb-save-btn" onClick={() => handleSave(false)} disabled={saving}>
-              {saving ? 'Menyimpan...' : 'Simpan Draf'}
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="9 9 9 3 15 3 15 9" /></svg>
+              {saving ? '...' : 'Simpan'}
             </button>
             <button
               className={`fb-publish-btn ${formData.status === 'published' ? 'is-published' : ''}`}
@@ -971,14 +992,34 @@ export default function FormBuilderPage() {
               disabled={saving}
               title={formData.status === 'published' ? 'Perbarui publikasi' : 'Publikasikan agar link bisa diisi responden (Status → Published)'}
             >
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              {formData.status === 'published' ? 'Perbarui Publikasi' : 'Publikasikan'}
+              {formData.status === 'published' ? 'Perbarui' : 'Publish'}
             </button>
           </div>
         </header>
+
+        {/* Mobile bottom bar — 1 baris kecil rapih */}
+        <div className="fb-mobile-bottom-bar" aria-label="Aksi form">
+          <button className="fb-import-btn" onClick={() => { if (!formData.id) { showToast('Simpan form terlebih dahulu', 'error'); return; } setShowImportModal(true); }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 18 15 15" /></svg>
+            Import
+          </button>
+          <button className="fb-template-btn" onClick={handleSaveAsTemplate} disabled={templateSaving}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 12h6M12 9v6" /></svg>
+            Template
+          </button>
+          <button className="fb-save-btn" onClick={() => handleSave(false)} disabled={saving}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="17 21 17 13 7 13 7 21" /></svg>
+            Simpan
+          </button>
+          <button className={`fb-publish-btn ${formData.status === 'published' ? 'is-published' : ''}`} onClick={() => handleSave(true)} disabled={saving}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+            {formData.status === 'published' ? 'Perbarui' : 'Publish'}
+          </button>
+        </div>
 
         {/* Content */}
         <section className="fb-content">
