@@ -1214,6 +1214,7 @@
 @media (max-width: 480px) {
   .form-fill-header {
     padding: 8px 12px;
+    gap: 8px;
   }
 
   .form-fill-logo {
@@ -1232,6 +1233,51 @@
   .option-item {
     padding: 12px 14px;
   }
+}
+
+/* ============================================================
+    HASIL SUBMISSION — FIT HP tanpa swipe/zoom
+    Tetap row (sesuai request), badge di bawah label, desktop tidak berubah
+   ============================================================ */
+@media (max-width: 768px) {
+  .result-main { padding: 16px 12px 40px; }
+  .result-card { padding: 16px 12px; border-radius: 14px; }
+  .result-title { font-size: 20px; }
+  .result-subtitle { font-size: 13px; }
+  .score-card {
+    gap: 16px;
+    padding: 14px 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .score-card::-webkit-scrollbar { display: none; }
+  .score-ring { width: 84px; height: 84px; flex-shrink: 0; }
+  .score-value { font-size: 22px; }
+  .score-detail { gap: 12px; flex-shrink: 0; }
+  .score-stat-num { font-size: 18px; }
+  .score-stat-label { font-size: 11px; }
+  .result-answer-item { padding: 14px 12px; border-radius: 10px; }
+  .result-answer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .result-q-label { font-size: 13px; line-height: 1.5; }
+  .result-badge { align-self: flex-start; margin-left: 22px; }
+  .result-answer-body { padding-left: 0; }
+  .result-answer-body p { font-size: 12.5px; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .result-answer-text { word-break: break-word; }
+}
+
+@media (max-width: 480px) {
+  .result-main { padding: 12px 10px 32px; }
+  .result-card { padding: 14px 10px; }
+  .score-card { gap: 12px; padding: 12px 10px; }
+  .score-ring { width: 72px; height: 72px; }
+  .score-value { font-size: 20px; }
+  .score-label { font-size: 10px; }
 }
 
 /* ============================================================
