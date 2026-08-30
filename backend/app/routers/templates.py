@@ -18,7 +18,7 @@ def list_templates(db: Session = Depends(get_db), current_user: models.User = De
         db.query(models.Template)
         .options(selectinload(models.Template.questions).selectinload(models.Question.options))
         .filter(or_(models.Template.is_system == True, models.Template.owner_id == current_user.id))
-        .order_by(models.Template.is_system.desc(), models.Template.created_at.desc())
+        .order_by(models.Template.is_system.desc(), models.Template.created_at.asc(), models.Template.title.asc(), models.Template.id.asc())
         .all()
     )
 

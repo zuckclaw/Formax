@@ -89,18 +89,19 @@ export default function DashboardPage() {
       navigate('/auth');
       return;
     }
-    // FIX: Template tidak lagi di-load otomatis saat refresh/dashboard mount.
-    // Hanya user & forms yang di-load di awal. Template hanya di-load
-    // saat user masuk tab Template ATAU setelah konfirmasi simpan template.
+    // FIX: eager fetch template di dashboard mount biar tidak flash Indonesia→Inggris
+    // Deterministik: backend sudah asc, tapi tetap client sort untuk jaga bila DB lama
     Promise.all([
       getMe(token),
       getMyForms(token).catch(() => []),
+      getTemplates(token).catch(() => []),
     ])
-      .then(([userData, forms]) => {
+      .then(([userData, forms, tpls]) => {
         setUser(userData);
         const sorted = [...forms].sort((a, b) => parseServerTime(b.created_at) - parseServerTime(a.created_at));
         setAllForms(sorted);
         setRecentForms(sorted.slice(0, 3));
+        if (Array.isArray(tpls)) setTemplates(tpls);
       })
       .catch(() => {
         logout();
@@ -414,18 +415,48 @@ export default function DashboardPage() {
   const getInitials = (name = '') =>
     name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
-  const systemTemplates = templates.filter((t) => t.is_system);
+  // Deterministik: backend asc, tapi client sort lagi untuk jaga bila DB lama / timestamp kembar
+  // Keep seed Inggris (Blank/Attendance/Exam) — mobile tidak perlu migrasi, web mapping bilingual
+  const systemTemplates = templates
+    .filter((t) => t.is_system)
+    .sort((a, b) => {
+      const ca = parseServerTime(a.created_at)?.getTime() ?? 0;
+      const cb = parseServerTime(b.created_at)?.getTime() ?? 0;
+      if (ca !== cb) return ca - cb;
+      const ta = (a.title || '').toLowerCase();
+      const tb = (b.title || '').toLowerCase();
+      if (ta !== tb) return ta.localeCompare(tb);
+      return String(a.id).localeCompare(String(b.id));
+    });
 
   const filteredForms = allForms.filter((f) =>
     f.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Helper bilingual: form ujian <-> exam form , kehadiran <-> attendance , kosong <-> blank
+  const matchesTemplateQuery = (t, qq) => {
+    const title = (t.title || '').toLowerCase();
+    const desc = (t.description || '').toLowerCase();
+    if (title.includes(qq) || desc.includes(qq)) return true;
+    // alias Indonesia <-> Inggris
+    const aliases = {
+      'ujian': ['exam'],
+      'exam': ['ujian'],
+      'kehadiran': ['attendance'],
+      'attendance': ['kehadiran'],
+      'kosong': ['blank'],
+      'blank': ['kosong'],
+    };
+    for (const [k, vals] of Object.entries(aliases)) {
+      if (qq.includes(k) && vals.some((v) => title.includes(v) || desc.includes(v))) return true;
+    }
+    return false;
+  };
+
   // Search untuk Dasbor & Templat (sebelumnya hanya Riwayat yang jalan)
   const q = searchQuery.trim().toLowerCase();
   const filteredSystemTemplates = q
-    ? systemTemplates.filter(
-        (t) => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))
-      )
+    ? systemTemplates.filter((t) => matchesTemplateQuery(t, q))
     : systemTemplates;
   const filteredRecentForms = q ? filteredForms.slice(0, 6) : recentForms;
   const filteredTemplates = q
@@ -621,9 +652,15 @@ export default function DashboardPage() {
                 </button>
 
                 {filteredSystemTemplates.length > 0 ? (
-                  filteredSystemTemplates.map((tpl, idx) => {
-                    const bgClass = idx === 0 ? 'blank-bg' : idx === 1 ? 'attendance-bg' : 'exam-bg';
-                    const subtitles = ['Mulai dari kosong', 'Pelacakan acara atau kelas', 'Penilaian & Kuis'];
+                  filteredSystemTemplates.map((tpl) => {
+                    // Deterministik per title, bukan idx — fix klik form ujian malah kosong saat order shuffle
+                    const lower = (tpl.title || '').toLowerCase();
+                    const isBlank = lower.includes('kosong') || lower.includes('blank');
+                    const isAttendance = lower.includes('hadir') || lower.includes('attendance');
+                    const isExam = lower.includes('ujian') || lower.includes('exam');
+                    const bgClass = isBlank ? 'blank-bg' : isAttendance ? 'attendance-bg' : 'exam-bg';
+                    const subtitle = isBlank ? 'Mulai dari kosong' : isAttendance ? 'Pelacakan acara atau kelas' : 'Penilaian & Kuis';
+                    const showBadge = isExam;
                     return (
                       <div
                         key={tpl.id}
@@ -631,7 +668,7 @@ export default function DashboardPage() {
                         onClick={() => handleTemplateClick(tpl)}
                       >
                         <div className={`db-card-preview ${bgClass}`}>
-                          {idx === 2 && (
+                          {showBadge && (
                             <span className="db-badge">
                               <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <circle cx="12" cy="12" r="10" />
@@ -649,7 +686,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="db-card-info">
                           <p className="db-card-title">{stripHtml(tpl.title)}</p>
-                          <p className="db-card-subtitle">{subtitles[idx] || tpl.description || ''}</p>
+                          <p className="db-card-subtitle">{subtitle}</p>
                         </div>
                       </div>
                     );
@@ -657,6 +694,11 @@ export default function DashboardPage() {
                 ) : q ? (
                   <div className="db-empty-state" style={{ gridColumn: 'span 3', padding: '24px' }}>
                     <p>Tidak ada template untuk "{searchQuery}"</p>
+                  </div>
+                ) : loading ? (
+                  <div className="db-empty-state" style={{ gridColumn: 'span 3', padding: '24px' }}>
+                    <div className="db-spinner" style={{ margin: '0 auto 12px' }} />
+                    <p>Memuat template...</p>
                   </div>
                 ) : (
                   <>

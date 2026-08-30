@@ -27,7 +27,7 @@ def search(
         sys_query = sys_query.filter(
             func.lower(models.Template.title).contains(q.lower())
         )
-    system_templates = sys_query.order_by(models.Template.created_at.desc()).all()
+    system_templates = sys_query.order_by(models.Template.created_at.asc(), models.Template.title.asc(), models.Template.id.asc()).all()
 
     # --- User templates --------------------------------------------------
     usr_query = db.query(models.Template).filter(
@@ -37,7 +37,7 @@ def search(
         usr_query = usr_query.filter(
             func.lower(models.Template.title).contains(q.lower())
         )
-    user_templates = usr_query.order_by(models.Template.created_at.desc()).all()
+    user_templates = usr_query.order_by(models.Template.created_at.desc()).all()  # keep desc: My Template terbaru dulu
 
     # --- Published forms (published / closed) ----------------------------
     form_query = db.query(models.Form).filter(
