@@ -1594,36 +1594,71 @@
   .result-title { font-size: 18px; line-height: 1.3; word-break: break-word; }
   .result-subtitle { font-size: 12.5px; margin-bottom: 14px; }
   .score-card {
-    gap: 12px;
-    padding: 12px 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
+    gap: 14px;
+    padding: 14px 12px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: flex-start;
     width: 100%;
     box-sizing: border-box;
-    overflow-x: visible;
+    overflow-x: hidden;
   }
-  .score-ring { width: 68px; height: 68px; flex-shrink: 0; }
-  .score-value { font-size: 18px; }
+  .score-ring { width: 84px; height: 84px; flex-shrink: 0; }
+  .score-value { font-size: 20px; }
   .score-label { font-size: 10px; }
-  .score-detail { gap: 10px; justify-content: center; width: 100%; }
-  .score-stat { min-width: 48px; flex: 1; }
+  /* Kanan: benar paling atas, lalu salah, lalu dinilai — stack vertikal di kanan bulat */
+  .score-detail {
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: auto;
+    min-width: 0;
+  }
+  .score-stat {
+    min-width: 0;
+    flex: none;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
   .score-stat-num { font-size: 16px; }
-  .score-stat-label { font-size: 10px; text-align: center; }
+  .score-stat-label { font-size: 11px; text-align: left; flex: 1; }
   .result-answers { gap: 10px; margin-bottom: 20px; }
   .result-answer-item { padding: 12px 10px; border-radius: 10px; width: 100%; box-sizing: border-box; overflow: hidden; }
   .result-q-label img,
   .result-answer-body img { max-width: 100% !important; width: 100% !important; height: auto !important; }
   .result-card img { max-width: 100% !important; height: auto !important; }
+  /* Header: nomor kiri, badge benar/salah di atas kanan sejajar nomor */
   .result-answer-header {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 8px;
+    flex-wrap: wrap;
   }
-  .result-q-number { font-size: 13px; }
-  .result-q-label { font-size: 13px; line-height: 1.4; word-break: break-word; }
-  .result-badge { align-self: flex-start; margin-left: 20px; font-size: 10px; padding: 2px 8px; }
+  .result-q-number { font-size: 13px; flex-shrink: 0; }
+  .result-q-label { font-size: 13px; line-height: 1.4; word-break: break-word; flex: 1; min-width: 0; }
+  .result-badge {
+    align-self: flex-start;
+    margin-left: 0;
+    font-size: 10px;
+    padding: 3px 8px;
+    flex-shrink: 0;
+    order: 2;
+  }
+  /* Saat header wrap, badge tetap di kanan atas sejajar nomor */
+  .result-answer-header .result-q-number { order: 0; }
+  .result-answer-header .result-q-label { order: 1; flex-basis: 100%; }
+  .result-answer-header .result-badge { order: 0; margin-left: auto; }
   .result-answer-body { padding-left: 0; width: 100%; }
   .result-answer-body p { font-size: 12.5px; flex-direction: column; gap: 4px; align-items: flex-start; width: 100%; }
   .result-answer-text { word-break: break-word; width: 100%; }
