@@ -49,16 +49,19 @@
    ============================================================ */
 .db-sidebar {
   width: 220px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  height: 100svh;
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
-  padding: 24px 16px 20px;
+  padding: 24px 16px 12px;
   position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
   z-index: 100;
+  overflow: hidden;
 }
 
 /* Logo */
@@ -106,13 +109,19 @@
   font-weight: 500;
 }
 
-/* Nav */
+/* Nav — scroll internal, footer tetap nempel bawah */
 .db-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 8px;
 }
+.db-nav::-webkit-scrollbar { display: none; }
 
 .db-nav-item {
   display: flex;
@@ -143,13 +152,20 @@
   font-weight: 600;
 }
 
-/* Sidebar Footer */
+/* Sidebar Footer — sticky bawah, navbar tetap */
 .db-sidebar-footer {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 16px;
+  padding-top: 12px;
+  padding-bottom: 4px;
   border-top: 1px solid var(--sidebar-footer-border);
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-sidebar);
+  flex-shrink: 0;
+  margin-top: auto;
+  z-index: 1;
 }
 
 .db-user {
@@ -840,14 +856,28 @@
 @media (max-width: 768px) {
   .db-sidebar {
     width: 72px;
-    padding: 20px 10px;
+    padding: 16px 8px 10px;
+    height: 100dvh;
+    height: 100svh;
   }
+  .db-logo { margin-bottom: 20px; justify-content: center; padding-left: 0; }
   .db-logo-text, .db-user-info, .db-nav-item span { display: none; }
-  .db-nav-item { justify-content: center; padding: 10px; }
-  .db-user { justify-content: center; }
+  .db-nav { gap: 6px; padding-bottom: 6px; }
+  .db-nav-item { justify-content: center; padding: 11px 8px; min-height: 44px; }
+  .db-sidebar-footer {
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 10px;
+    padding-bottom: 6px;
+    align-items: center;
+  }
+  .db-user { justify-content: center; padding: 4px; margin: 0; flex: none; }
+  .db-user-info { display: none !important; }
+  .db-logout-btn { padding: 8px; min-width: 44px; min-height: 44px; justify-content: center; }
+  .db-avatar { width: 40px; height: 40px; }
   .db-main { margin-left: 72px; }
   .db-content { padding: 20px 16px; }
-  .db-topbar { padding: 16px; }
+  .db-topbar { padding: 16px 12px; }
   .db-templates-row {
     grid-template-columns: 1fr;
   }
@@ -1344,6 +1374,74 @@
 
 .resp-table-wrap {
   overflow-x: auto;
+}
+
+.results-cards-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+.results-mobile-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+}
+
+.results-mobile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.results-mobile-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.results-mobile-email {
+  font-size: 12px;
+  color: #64748b;
+  word-break: break-all;
+  margin-top: 2px;
+}
+
+.results-mobile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.results-mobile-score {
+  font-weight: 800;
+  color: #0053db;
+  font-size: 13px;
+}
+
+.results-mobile-footer {
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.results-mobile-footer .btn-table-view {
+  flex: 1;
+  justify-content: center;
+  padding: 10px 14px;
+  font-size: 13px;
 }
 
 .resp-data-table {
@@ -2396,6 +2494,12 @@
     flex: 1;
     min-width: 140px;
   }
+}
+
+/* Riwayat Lihat Hasil — cards fit HP tanpa scroll kanan */
+@media (max-width: 768px) {
+  .resp-table-wrap { display: none !important; }
+  .results-cards-mobile { display: flex !important; }
 }
 
 /* ============================================================

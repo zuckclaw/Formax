@@ -1061,6 +1061,7 @@ export default function DashboardPage() {
                         <p>Belum ada data responden yang sesuai.</p>
                       </div>
                     ) : (
+                      <>
                       <div className="resp-table-wrap">
                         <table className="resp-data-table">
                           <thead>
@@ -1115,6 +1116,45 @@ export default function DashboardPage() {
                           </tbody>
                         </table>
                       </div>
+                      {/* Mobile cards — fit HP tanpa zoom/scroll kanan */}
+                      <div className="results-cards-mobile">
+                        {filteredRespondents.map((sub) => {
+                          const name = sub.user?.full_name || 'Responden (User)';
+                          const email = sub.user?.email || '-';
+                          const isCompleted = sub.isCompleted;
+                          return (
+                            <div key={sub.id} className="results-mobile-card">
+                              <div className="results-mobile-top">
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div className="results-mobile-name">{name}</div>
+                                  <div className="results-mobile-email">{email}</div>
+                                </div>
+                                {sub.is_cheated ? (
+                                  <span className="status-pill cheated">• Curang</span>
+                                ) : (
+                                  <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>• {isCompleted ? 'Selesai' : 'Proses'}</span>
+                                )}
+                              </div>
+                              <div className="results-mobile-meta">
+                                <span>{formatDateString(sub.submitted_at || sub.started_at)}</span>
+                                <span className="results-mobile-score">{sub.scorePercent !== null ? `${sub.scorePercent}/100` : '- Skor'}</span>
+                              </div>
+                              <div className="results-mobile-footer">
+                                <button
+                                  className="btn-table-view"
+                                  onClick={() => {
+                                    setSelectedRespondent(sub);
+                                    setHistorySubView('detail');
+                                  }}
+                                >
+                                  Lihat Jawaban »
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      </>
                     )}
 
                     <div className="table-card-footer">
