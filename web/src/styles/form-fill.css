@@ -1553,3 +1553,56 @@
   color: #16a34a;
   font-weight: 600;
 }
+
+/* ============================================================
+    HASIL SUBMISSION — FIT HP tanpa swipe/zoom (kecil & wrap)
+    Override sebelumnya yang masih nowrap -> sekarang wrap biar 360px fit
+   ============================================================ */
+@media (max-width: 768px) {
+  .result-main { padding: 12px 10px 32px; max-width: 100%; box-sizing: border-box; }
+  .result-card { padding: 14px 10px; border-radius: 12px; width: 100%; box-sizing: border-box; margin: 0; }
+  .result-title { font-size: 18px; line-height: 1.3; word-break: break-word; }
+  .result-subtitle { font-size: 12.5px; margin-bottom: 14px; }
+  .score-card {
+    gap: 12px;
+    padding: 12px 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: visible;
+  }
+  .score-ring { width: 68px; height: 68px; flex-shrink: 0; }
+  .score-value { font-size: 18px; }
+  .score-label { font-size: 10px; }
+  .score-detail { gap: 10px; justify-content: center; width: 100%; }
+  .score-stat { min-width: 48px; flex: 1; }
+  .score-stat-num { font-size: 16px; }
+  .score-stat-label { font-size: 10px; text-align: center; }
+  .result-answers { gap: 10px; margin-bottom: 20px; }
+  .result-answer-item { padding: 12px 10px; border-radius: 10px; width: 100%; box-sizing: border-box; }
+  .result-answer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .result-q-number { font-size: 13px; }
+  .result-q-label { font-size: 13px; line-height: 1.4; word-break: break-word; }
+  .result-badge { align-self: flex-start; margin-left: 20px; font-size: 10px; padding: 2px 8px; }
+  .result-answer-body { padding-left: 0; width: 100%; }
+  .result-answer-body p { font-size: 12.5px; flex-direction: column; gap: 4px; align-items: flex-start; width: 100%; }
+  .result-answer-text { word-break: break-word; width: 100%; }
+  .result-label { font-size: 11px; }
+  .cheated-banner { font-size: 12px; padding: 10px 12px; }
+}
+
+@media (max-width: 480px) {
+  .result-main { padding: 10px 8px 24px; }
+  .result-card { padding: 12px 8px; }
+  .score-card { gap: 10px; padding: 10px 8px; }
+  .score-ring { width: 60px; height: 60px; }
+  .score-value { font-size: 16px; }
+  .result-title { font-size: 17px; }
+}
