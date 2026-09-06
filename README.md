@@ -42,19 +42,19 @@ Aplikasi terdiri dari tiga bagian utama yang berbagi satu REST API:
 
 - **Backend** — FastAPI + SQLAlchemy + PostgreSQL (juga kompatibel SQLite untuk development)
     <td align="center" width="96">
-    <img src="https://skillicons.dev/icons?i=rust" width="48" height="48" alt="FastAPI" />
+    <img src="https://skillicons.dev/icons?i=FastAPI" width="48" height="48" alt="FastAPI" />
     <br>FastAPI
   </td>
       <td align="center" width="96">
-    <img src="https://skillicons.dev/icons?i=rust" width="48" height="48" alt="SQLAlchemy" />
+    <img src="https://skillicons.dev/icons?i=SQLAlchemy" width="48" height="48" alt="SQLAlchemy" />
     <br>SQLAlchemy
   </td>
     <td align="center" width="96">
-    <img src="https://skillicons.dev/icons?i=rust" width="48" height="48" alt="PostgreSQL" />
+    <img src="https://skillicons.dev/icons?i=PostgreSQL" width="48" height="48" alt="PostgreSQL" />
     <br>PostgreSQL
   </td>
   <td align="center" width="96">
-    <img src="https://skillicons.dev/icons?i=rust" width="48" height="48" alt="SQLite" />
+    <img src="https://skillicons.dev/icons?i=SQLite" width="48" height="48" alt="SQLite" />
     <br>SQLite
   </td>
 - **Web** — React + Vite + React Router + React Quill
