@@ -38,6 +38,27 @@ function plainLabel(html, fallback = 'Pertanyaan tanpa judul') {
   return t || fallback;
 }
 
+function splitSections(questions) {
+  const sorted = [...(questions || [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sections = [];
+  let cur = { pb: null, questions: [] };
+  sorted.forEach((q) => {
+    if (q.type === 'page_break') {
+      if (cur.questions.length > 0 || cur.pb) {
+        sections.push(cur);
+        cur = { pb: q, questions: [] };
+      } else {
+        cur.pb = q;
+      }
+    } else {
+      cur.questions.push(q);
+    }
+  });
+  sections.push(cur);
+  if (sections.length === 0) sections.push(cur);
+  return sections;
+}
+
 function getCardGradient(str = '') {
   const gradients = [
     'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
@@ -167,7 +188,7 @@ export default function DashboardPage() {
           }
           localStorage.removeItem('template-just-saved');
         }
-      } catch {}
+      } catch { }
       // Juga cek location.state (navigasi dengan state)
       if (location.state?.newTemplate) {
         const nt = location.state.newTemplate;
@@ -190,7 +211,7 @@ export default function DashboardPage() {
           setTemplates((prev) => (prev.some((t) => t.id === created.id) ? prev : [...prev, created]));
         }
       }
-    } catch {}
+    } catch { }
     if (location.state?.newTemplate) {
       const nt = location.state.newTemplate;
       setTemplates((prev) => (prev.some((t) => t.id === nt.id) ? prev : [...prev, nt]));
@@ -348,7 +369,7 @@ export default function DashboardPage() {
         let correctCount = 0;
         let totalGradable = 0;
 
-        const questions = (detail.questions || []).sort((a, b) => a.order_index - b.order_index);
+        const questions = (detail.questions || []).filter((q) => q.type !== 'page_break').sort((a, b) => a.order_index - b.order_index);
 
         questions.forEach((q) => {
           const correctOpts = (q.options || []).filter((o) => o.is_correct).map((o) => o.label);
@@ -496,8 +517,8 @@ export default function DashboardPage() {
   const filteredRecentForms = q ? filteredForms.slice(0, 6) : recentForms;
   const filteredTemplates = q
     ? templates.filter(
-        (t) => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))
-      )
+      (t) => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))
+    )
     : templates;
 
   // Filter respondents by search & status
@@ -666,12 +687,12 @@ export default function DashboardPage() {
                 {activeNav === 'activity'
                   ? (activityDetailSub ? 'Bukti Pengisian' : 'Aktivitas Saya')
                   : activeNav === 'dashboard'
-                  ? 'Dasbor'
-                  : activeNav === 'template'
-                  ? 'Galeri Templat'
-                  : activeNav === 'history'
-                  ? (historySubView === 'results' || historySubView === 'detail' ? 'Hasil Responden' : 'Riwayat Form')
-                  : 'Form4x'}
+                    ? 'Dasbor'
+                    : activeNav === 'template'
+                      ? 'Galeri Templat'
+                      : activeNav === 'history'
+                        ? (historySubView === 'results' || historySubView === 'detail' ? 'Hasil Responden' : 'Riwayat Form')
+                        : 'Form4x'}
               </span>
             </div>
           </div>
@@ -1126,98 +1147,98 @@ export default function DashboardPage() {
                       </div>
                     ) : (
                       <>
-                      <div className="resp-table-wrap">
-                        <table className="resp-data-table">
-                          <thead>
-                            <tr>
-                              <th>NAMA</th>
-                              <th>EMAIL</th>
-                              <th>TANGGAL SUBMIT</th>
-                              <th>SKOR</th>
-                              <th>STATUS</th>
-                              <th style={{ textAlign: 'right' }}>AKSI</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredRespondents.map((sub) => {
-                              const name = sub.user?.full_name || 'Responden (User)';
-                              const email = sub.user?.email || '-';
-                              const isCompleted = sub.isCompleted;
+                        <div className="resp-table-wrap">
+                          <table className="resp-data-table">
+                            <thead>
+                              <tr>
+                                <th>NAMA</th>
+                                <th>EMAIL</th>
+                                <th>TANGGAL SUBMIT</th>
+                                <th>SKOR</th>
+                                <th>STATUS</th>
+                                <th style={{ textAlign: 'right' }}>AKSI</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredRespondents.map((sub) => {
+                                const name = sub.user?.full_name || 'Responden (User)';
+                                const email = sub.user?.email || '-';
+                                const isCompleted = sub.isCompleted;
 
-                              return (
-                                <tr key={sub.id}>
-                                  <td className="td-user-name">{name}</td>
-                                  <td className="td-user-email">{email}</td>
-                                  <td>{formatDateString(sub.submitted_at || sub.started_at)}</td>
-                                  <td className="td-score-val">
-                                    {sub.scorePercent !== null ? `${sub.scorePercent}/100` : '-'}
-                                  </td>
-                                  <td>
-                                    {sub.is_cheated ? (
-                                      <span className="status-pill cheated" title="Responden keluar dari mode full screen">
-                                        • Curang
-                                      </span>
-                                    ) : (
-                                      <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>
-                                        • {isCompleted ? 'Selesai' : 'Proses'}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td style={{ textAlign: 'right' }}>
-                                    <button
-                                      className="btn-table-view"
-                                      onClick={() => {
-                                        setSelectedRespondent(sub);
-                                        setHistorySubView('detail');
-                                      }}
-                                    >
-                                      Lihat Jawaban »
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      {/* Mobile cards — fit HP tanpa zoom/scroll kanan */}
-                      <div className="results-cards-mobile">
-                        {filteredRespondents.map((sub) => {
-                          const name = sub.user?.full_name || 'Responden (User)';
-                          const email = sub.user?.email || '-';
-                          const isCompleted = sub.isCompleted;
-                          return (
-                            <div key={sub.id} className="results-mobile-card">
-                              <div className="results-mobile-top">
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  <div className="results-mobile-name">{name}</div>
-                                  <div className="results-mobile-email">{email}</div>
+                                return (
+                                  <tr key={sub.id}>
+                                    <td className="td-user-name">{name}</td>
+                                    <td className="td-user-email">{email}</td>
+                                    <td>{formatDateString(sub.submitted_at || sub.started_at)}</td>
+                                    <td className="td-score-val">
+                                      {sub.scorePercent !== null ? `${sub.scorePercent}/100` : '-'}
+                                    </td>
+                                    <td>
+                                      {sub.is_cheated ? (
+                                        <span className="status-pill cheated" title="Responden keluar dari mode full screen">
+                                          • Curang
+                                        </span>
+                                      ) : (
+                                        <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>
+                                          • {isCompleted ? 'Selesai' : 'Proses'}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td style={{ textAlign: 'right' }}>
+                                      <button
+                                        className="btn-table-view"
+                                        onClick={() => {
+                                          setSelectedRespondent(sub);
+                                          setHistorySubView('detail');
+                                        }}
+                                      >
+                                        Lihat Jawaban »
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Mobile cards — fit HP tanpa zoom/scroll kanan */}
+                        <div className="results-cards-mobile">
+                          {filteredRespondents.map((sub) => {
+                            const name = sub.user?.full_name || 'Responden (User)';
+                            const email = sub.user?.email || '-';
+                            const isCompleted = sub.isCompleted;
+                            return (
+                              <div key={sub.id} className="results-mobile-card">
+                                <div className="results-mobile-top">
+                                  <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div className="results-mobile-name">{name}</div>
+                                    <div className="results-mobile-email">{email}</div>
+                                  </div>
+                                  {sub.is_cheated ? (
+                                    <span className="status-pill cheated">• Curang</span>
+                                  ) : (
+                                    <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>• {isCompleted ? 'Selesai' : 'Proses'}</span>
+                                  )}
                                 </div>
-                                {sub.is_cheated ? (
-                                  <span className="status-pill cheated">• Curang</span>
-                                ) : (
-                                  <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>• {isCompleted ? 'Selesai' : 'Proses'}</span>
-                                )}
+                                <div className="results-mobile-meta">
+                                  <span>{formatDateString(sub.submitted_at || sub.started_at)}</span>
+                                  <span className="results-mobile-score">{sub.scorePercent !== null ? `${sub.scorePercent}/100` : '- Skor'}</span>
+                                </div>
+                                <div className="results-mobile-footer">
+                                  <button
+                                    className="btn-table-view"
+                                    onClick={() => {
+                                      setSelectedRespondent(sub);
+                                      setHistorySubView('detail');
+                                    }}
+                                  >
+                                    Lihat Jawaban »
+                                  </button>
+                                </div>
                               </div>
-                              <div className="results-mobile-meta">
-                                <span>{formatDateString(sub.submitted_at || sub.started_at)}</span>
-                                <span className="results-mobile-score">{sub.scorePercent !== null ? `${sub.scorePercent}/100` : '- Skor'}</span>
-                              </div>
-                              <div className="results-mobile-footer">
-                                <button
-                                  className="btn-table-view"
-                                  onClick={() => {
-                                    setSelectedRespondent(sub);
-                                    setHistorySubView('detail');
-                                  }}
-                                >
-                                  Lihat Jawaban »
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
                       </>
                     )}
 
@@ -1334,138 +1355,149 @@ export default function DashboardPage() {
                     );
                   })()}
 
-                  {/* Visual Analytics & Question Summary Charts */}
+                  {/* Visual Analytics — per Bagian */}
                   <div className="analytics-section">
-                    <div className="analytics-section-header">
-                      <div>
-                        <h3 className="analytics-section-title">
-                          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2" />
-                          </svg>
-                          Ringkasan & Visualisasi Jawaban
-                        </h3>
-                        <p className="analytics-section-subtitle">Analisis statistik distribusi jawaban responden per pertanyaan</p>
-                      </div>
-                    </div>
-
                     <div className="analytics-questions-grid">
-                      {(formDetail?.questions || [])
-                        .sort((a, b) => a.order_index - b.order_index)
-                        .map((q, idx) => {
-                          const typeLabels = {
-                            text: 'Teks', single_choice: 'Pilihan Ganda', checkbox: 'Checkbox',
-                            dropdown: 'Dropdown', date: 'Tanggal', file_upload: 'Upload File',
-                          };
-
-                          // Find all answers for this question across all submissions
-                          const allAnsForQ = submissionsList
-                            .map((sub) => ({
-                              ans: (sub.answers || []).find((a) => a.question_id === q.id),
-                              user: sub.user,
-                              submittedAt: sub.submitted_at,
-                            }))
-                            .filter((item) => {
-                              const a = item.ans;
-                              if (!a) return false;
-                              return !!(a.answer_text || (Array.isArray(a.answer_options) && a.answer_options.length > 0) || a.file_url);
-                            });
-
-                          const answeredCountForQ = allAnsForQ.length;
-                          const isOptionType = ['single_choice', 'checkbox', 'dropdown'].includes(q.type) && q.options?.length > 0;
-                          const colorPalette = [
-                            'linear-gradient(90deg, #0053db, #2563eb)',
-                            'linear-gradient(90deg, #10b981, #059669)',
-                            'linear-gradient(90deg, #f59e0b, #d97706)',
-                            'linear-gradient(90deg, #8b5cf6, #7c3aed)',
-                            'linear-gradient(90deg, #ec4899, #db2777)',
-                            'linear-gradient(90deg, #6366f1, #4f46e5)',
-                          ];
-
-                          return (
-                            <div key={q.id} className="analytics-question-card">
-                              <div className="analytics-q-header">
-                                <h4 className="analytics-q-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: `${idx + 1}. ${prepareMathHtml(q.label || '')}` }}>
-                                </h4>
-                                <div className="analytics-q-tags">
-                                  <span className="analytics-type-badge">{typeLabels[q.type] || q.type}</span>
-                                  <span className="analytics-resp-badge">{answeredCountForQ} Respons</span>
+                      {(() => {
+                        const allSorted = (formDetail?.questions || []).sort((a, b) => a.order_index - b.order_index);
+                        const sections = splitSections(allSorted);
+                        return sections.map((sec, sIdx) => (
+                          <div key={`sec-analytics-${sIdx}`} className="analytics-section-wrapper-card">
+                            {(sec.pb || sections.length > 1) && (
+                              <div className="analytics-section-header">
+                                <div className="analytics-section-header-left">
+                                  <div className="analytics-section-badge-row">
+                                    <span className="analytics-section-badge">Bagian {sIdx + 1}</span>
+                                    <h3 className="analytics-section-title ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb?.label || `Bagian ${sIdx + 1}`) }} />
+                                  </div>
+                                  {sec.pb?.settings?.description && <p className="analytics-section-desc ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb.settings.description) }} />}
                                 </div>
+                                <span className="analytics-section-qcount">{sec.questions.length} Pertanyaan</span>
                               </div>
+                            )}
 
-                              {/* Option Charts */}
-                              {isOptionType ? (
-                                <div className="analytics-chart-wrap">
-                                  {q.options.map((opt, oIdx) => {
-                                    // Calculate how many respondents picked this option
-                                    const pickCount = allAnsForQ.filter((item) => {
-                                      const a = item.ans;
-                                      if (Array.isArray(a.answer_options)) {
-                                        return a.answer_options.includes(opt.label);
-                                      }
-                                      return a.answer_text === opt.label;
-                                    }).length;
+                            <div className="analytics-section-questions-list">
+                              {sec.questions.map((q, localIdx) => {
+                                const typeLabels = {
+                                  text: 'Teks', single_choice: 'Pilihan Ganda', checkbox: 'Checkbox',
+                                  dropdown: 'Dropdown', date: 'Tanggal', file_upload: 'Upload File',
+                                };
 
-                                    const percent = answeredCountForQ > 0 ? Math.round((pickCount / answeredCountForQ) * 100) : 0;
-                                    const gradient = colorPalette[oIdx % colorPalette.length];
+                                // Find all answers for this question across all submissions
+                                const allAnsForQ = submissionsList
+                                  .map((sub) => ({
+                                    ans: (sub.answers || []).find((a) => a.question_id === q.id),
+                                    user: sub.user,
+                                    submittedAt: sub.submitted_at,
+                                  }))
+                                  .filter((item) => {
+                                    const a = item.ans;
+                                    if (!a) return false;
+                                    return !!(a.answer_text || (Array.isArray(a.answer_options) && a.answer_options.length > 0) || a.file_url);
+                                  });
 
-                                    return (
-                                      <div key={opt.id} className="analytics-bar-item">
-                                        <div className="analytics-bar-info">
-                                          <div className="analytics-opt-label">
-                                            <span className="ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(opt.label || '') }} />
-                                            {opt.is_correct && <span className="analytics-correct-key">✓ Kunci Jawaban</span>}
-                                          </div>
-                                          <span className="analytics-opt-stats">
-                                            <strong>{percent}%</strong> ({pickCount} responden)
-                                          </span>
-                                        </div>
-                                        <div className="analytics-bar-track">
-                                          <div
-                                            className="analytics-bar-fill"
-                                            style={{
-                                              width: `${percent}%`,
-                                              background: gradient,
-                                            }}
-                                          />
-                                        </div>
+                                const answeredCountForQ = allAnsForQ.length;
+                                const isOptionType = ['single_choice', 'checkbox', 'dropdown'].includes(q.type) && q.options?.length > 0;
+                                const colorPalette = [
+                                  'linear-gradient(90deg, #0053db, #2563eb)',
+                                  'linear-gradient(90deg, #10b981, #059669)',
+                                  'linear-gradient(90deg, #f59e0b, #d97706)',
+                                  'linear-gradient(90deg, #8b5cf6, #7c3aed)',
+                                  'linear-gradient(90deg, #ec4899, #db2777)',
+                                  'linear-gradient(90deg, #6366f1, #4f46e5)',
+                                ];
+
+                                return (
+                                  <div key={q.id} className="analytics-question-card">
+                                    <div className="analytics-q-header">
+                                      <div className="analytics-q-title-wrap">
+                                        <span className="q-number-span">{localIdx + 1}.</span>
+                                        <h4 className="analytics-q-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: prepareMathHtml(q.label || '') }} />
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                /* Text / Date / File Upload feed summary */
-                                <div className="analytics-text-feed">
-                                  {allAnsForQ.length === 0 ? (
-                                    <p className="analytics-empty-text">Belum ada jawaban untuk pertanyaan ini.</p>
-                                  ) : (
-                                    allAnsForQ.slice(0, 5).map((item, itemIdx) => (
-                                      <div key={itemIdx} className="analytics-feed-row">
-                                        <div className="analytics-feed-user">
-                                          <strong>{item.user?.full_name || 'Responden'}</strong>
-                                          <span>• {item.submittedAt ? formatDateString(item.submittedAt) : 'Proses'}</span>
-                                        </div>
-                                        <div className="analytics-feed-ans">
-                                          {q.type === 'file_upload' && item.ans.file_url ? (
-                                            <a href={item.ans.file_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0053db', fontWeight: 600 }}>
-                                              Lihat File Upload ↗
-                                            </a>
-                                          ) : (
-                                            item.ans.answer_text || '-'
-                                          )}
-                                        </div>
+                                      <div className="analytics-q-tags">
+                                        <span className="analytics-type-badge">{typeLabels[q.type] || q.type}</span>
+                                        <span className="analytics-resp-badge">{answeredCountForQ} Respons</span>
                                       </div>
-                                    ))
-                                  )}
-                                  {allAnsForQ.length > 5 && (
-                                    <div className="analytics-feed-more">
-                                      + {allAnsForQ.length - 5} jawaban lainnya (lihat di detail responden)
                                     </div>
-                                  )}
-                                </div>
-                              )}
+
+                                    {/* Option Charts */}
+                                    {isOptionType ? (
+                                      <div className="analytics-chart-wrap">
+                                        {q.options.map((opt, oIdx) => {
+                                          // Calculate how many respondents picked this option
+                                          const pickCount = allAnsForQ.filter((item) => {
+                                            const a = item.ans;
+                                            if (Array.isArray(a.answer_options)) {
+                                              return a.answer_options.includes(opt.label);
+                                            }
+                                            return a.answer_text === opt.label;
+                                          }).length;
+
+                                          const percent = answeredCountForQ > 0 ? Math.round((pickCount / answeredCountForQ) * 100) : 0;
+                                          const gradient = colorPalette[oIdx % colorPalette.length];
+
+                                          return (
+                                            <div key={opt.id} className="analytics-bar-item">
+                                              <div className="analytics-bar-info">
+                                                <div className="analytics-opt-label">
+                                                  <span className="ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(opt.label || '') }} />
+                                                  {opt.is_correct && <span className="analytics-correct-key">✓ Kunci Jawaban</span>}
+                                                </div>
+                                                <span className="analytics-opt-stats">
+                                                  <strong>{percent}%</strong> ({pickCount} responden)
+                                                </span>
+                                              </div>
+                                              <div className="analytics-bar-track">
+                                                <div
+                                                  className="analytics-bar-fill"
+                                                  style={{
+                                                    width: `${percent}%`,
+                                                    background: gradient,
+                                                  }}
+                                                />
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : (
+                                      /* Text / Date / File Upload feed summary */
+                                      <div className="analytics-text-feed">
+                                        {allAnsForQ.length === 0 ? (
+                                          <p className="analytics-empty-text">Belum ada jawaban untuk pertanyaan ini.</p>
+                                        ) : (
+                                          allAnsForQ.slice(0, 5).map((item, itemIdx) => (
+                                            <div key={itemIdx} className="analytics-feed-row">
+                                              <div className="analytics-feed-user">
+                                                <strong>{item.user?.full_name || 'Responden'}</strong>
+                                                <span>• {item.submittedAt ? formatDateString(item.submittedAt) : 'Proses'}</span>
+                                              </div>
+                                              <div className="analytics-feed-ans">
+                                                {q.type === 'file_upload' && item.ans.file_url ? (
+                                                  <a href={item.ans.file_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0053db', fontWeight: 600 }}>
+                                                    Lihat File Upload ↗
+                                                  </a>
+                                                ) : (
+                                                  item.ans.answer_text || '-'
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))
+                                        )}
+                                        {allAnsForQ.length > 5 && (
+                                          <div className="analytics-feed-more">
+                                            + {allAnsForQ.length - 5} jawaban lainnya (lihat di detail responden)
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1554,140 +1586,163 @@ export default function DashboardPage() {
                       )}
 
                       <div className="detail-answers-list">
-                    {(formDetail?.questions || [])
-                      .sort((a, b) => a.order_index - b.order_index)
-                      .map((q, idx) => {
-                        const ans = (selectedRespondent.answers || []).find((a) => a.question_id === q.id);
-                        const points = q.settings?.points || null;
-                        const correctOpts = (q.options || []).filter((o) => o.is_correct).map((o) => o.label);
-                        const isQuizQ = correctOpts.length > 0;
-                        const userSelected = ans?.answer_options || (ans?.answer_text ? [ans.answer_text] : []);
+                        {(() => {
+                          const allSorted = (formDetail?.questions || []).sort((a, b) => a.order_index - b.order_index);
+                          const sections = splitSections(allSorted);
+                          return sections.map((sec, sIdx) => (
+                            <div key={`sec-detail-${sIdx}`} className="detail-section-wrapper-card">
+                              {(sec.pb || sections.length > 1) && (
+                                <div className="detail-section-header">
+                                  <div className="detail-section-header-left">
+                                    <div className="detail-section-badge-row">
+                                      <span className="detail-section-badge">Bagian {sIdx + 1}</span>
+                                      <h3 className="detail-section-title ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb?.label || `Bagian ${sIdx + 1}`) }} />
+                                    </div>
+                                    {sec.pb?.settings?.description && <p className="detail-section-desc ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb.settings.description) }} />}
+                                  </div>
+                                  <span className="detail-section-qcount">{sec.questions.length} Pertanyaan</span>
+                                </div>
+                              )}
 
-                        // Type label for badge
-                        const typeLabels = {
-                          text: 'Teks', single_choice: 'Pilihan Ganda', checkbox: 'Checkbox',
-                          dropdown: 'Dropdown', date: 'Tanggal', file_upload: 'Upload File',
-                        };
+                              <div className="detail-section-questions-list">
+                                {sec.questions.map((q, localIdx) => {
+                                  const ans = (selectedRespondent.answers || []).find((a) => a.question_id === q.id);
+                                  const points = q.settings?.points || null;
+                                  const correctOpts = (q.options || []).filter((o) => o.is_correct).map((o) => o.label);
+                                  const isQuizQ = correctOpts.length > 0;
+                                  const userSelected = ans?.answer_options || (ans?.answer_text ? [ans.answer_text] : []);
 
-                        // Determine if this question has renderable options (single_choice, checkbox, dropdown)
-                        const hasOptionType = ['single_choice', 'checkbox', 'dropdown'].includes(q.type) && q.options?.length > 0;
+                                  // Type label for badge
+                                  const typeLabels = {
+                                    text: 'Teks', single_choice: 'Pilihan Ganda', checkbox: 'Checkbox',
+                                    dropdown: 'Dropdown', date: 'Tanggal', file_upload: 'Upload File',
+                                  };
 
-                        return (
-                          <div key={q.id} className="detail-question-card">
-                            <div className="detail-question-header">
-                              <h3 className="detail-question-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: `${idx + 1}. ${prepareMathHtml(q.label || '')}` }}>
-                              </h3>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                <span style={{ background: '#f1f5f9', color: '#64748b', fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '6px' }}>
-                                  {typeLabels[q.type] || q.type}
-                                </span>
-                                {points !== null && <span className="detail-points-badge">{points} Poin</span>}
-                              </div>
-                            </div>
-
-                            {/* Option-based questions (single_choice, checkbox, dropdown) */}
-                            {hasOptionType ? (
-                              <div>
-                                {q.options.map((opt) => {
-                                  const isSelected = userSelected.includes(opt.label);
-                                  const isCorrectKey = opt.is_correct;
-
-                                  let cardClass = 'detail-option-card';
-                                  if (isSelected && isCorrectKey) {
-                                    cardClass += ' selected-correct';
-                                  } else if (isSelected && !isCorrectKey && isQuizQ) {
-                                    cardClass += ' selected-incorrect';
-                                  } else if (isSelected && !isQuizQ) {
-                                    cardClass += ' selected-correct';
-                                  } else if (!isSelected && isCorrectKey && isQuizQ) {
-                                    cardClass += ' is-correct-key';
-                                  }
+                                  // Determine if this question has renderable options (single_choice, checkbox, dropdown)
+                                  const hasOptionType = ['single_choice', 'checkbox', 'dropdown'].includes(q.type) && q.options?.length > 0;
 
                                   return (
-                                    <div key={opt.id} className={cardClass}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div
-                                          style={{
-                                            width: '18px',
-                                            height: '18px',
-                                            borderRadius: q.type === 'checkbox' ? '4px' : '50%',
-                                            border: isSelected
-                                              ? (isQuizQ ? (isCorrectKey ? '5px solid #0053DB' : '5px solid #E11D48') : '5px solid #0053DB')
-                                              : '2px solid #CBD5E1',
-                                            backgroundColor: isSelected ? '#FFFFFF' : 'transparent',
-                                            flexShrink: 0,
-                                          }}
-                                        />
-                                        <span className="ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(opt.label || '') }} />
+                                    <div key={q.id} className="detail-question-card">
+                                      <div className="detail-question-header">
+                                        <div className="detail-question-title-wrap">
+                                          <span className="q-number-span">{localIdx + 1}.</span>
+                                          <h3 className="detail-question-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: prepareMathHtml(q.label || '') }} />
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                          <span className="detail-type-badge">
+                                            {typeLabels[q.type] || q.type}
+                                          </span>
+                                          {points !== null && <span className="detail-points-badge">{points} Poin</span>}
+                                        </div>
                                       </div>
 
-                                      {/* Indicator */}
-                                      {isSelected && isQuizQ && isCorrectKey && (
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#0053DB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✓</div>
-                                      )}
-                                      {isSelected && isQuizQ && !isCorrectKey && (
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#E11D48', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✕</div>
-                                      )}
-                                      {isSelected && !isQuizQ && (
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#0053DB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✓</div>
-                                      )}
-                                      {!isSelected && isCorrectKey && isQuizQ && (
-                                        <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: 600 }}>Kunci Jawaban</span>
+                                      {/* Option-based questions (single_choice, checkbox, dropdown) */}
+                                      {hasOptionType ? (
+                                        <div>
+                                          {q.options.map((opt) => {
+                                            const isSelected = userSelected.includes(opt.label);
+                                            const isCorrectKey = opt.is_correct;
+
+                                            let cardClass = 'detail-option-card';
+                                            if (isSelected && isCorrectKey) {
+                                              cardClass += ' selected-correct';
+                                            } else if (isSelected && !isCorrectKey && isQuizQ) {
+                                              cardClass += ' selected-incorrect';
+                                            } else if (isSelected && !isQuizQ) {
+                                              cardClass += ' selected-correct';
+                                            } else if (!isSelected && isCorrectKey && isQuizQ) {
+                                              cardClass += ' is-correct-key';
+                                            }
+
+                                            return (
+                                              <div key={opt.id} className={cardClass}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                  <div
+                                                    style={{
+                                                      width: '18px',
+                                                      height: '18px',
+                                                      borderRadius: q.type === 'checkbox' ? '4px' : '50%',
+                                                      border: isSelected
+                                                        ? (isQuizQ ? (isCorrectKey ? '5px solid #0053DB' : '5px solid #E11D48') : '5px solid #0053DB')
+                                                        : '2px solid var(--border-medium, #CBD5E1)',
+                                                      backgroundColor: isSelected ? '#FFFFFF' : 'transparent',
+                                                      flexShrink: 0,
+                                                    }}
+                                                  />
+                                                  <span className="ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(opt.label || '') }} />
+                                                </div>
+
+                                                {/* Indicator */}
+                                                {isSelected && isQuizQ && isCorrectKey && (
+                                                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#0053DB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✓</div>
+                                                )}
+                                                {isSelected && isQuizQ && !isCorrectKey && (
+                                                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#E11D48', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✕</div>
+                                                )}
+                                                {isSelected && !isQuizQ && (
+                                                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#0053DB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✓</div>
+                                                )}
+                                                {!isSelected && isCorrectKey && isQuizQ && (
+                                                  <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: 600 }}>Kunci Jawaban</span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : q.type === 'text' ? (
+                                        /* Text Answer */
+                                        <div className="resp-answer-value">
+                                          {ans?.answer_text || <span style={{ color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic' }}>Tidak dijawab</span>}
+                                        </div>
+                                      ) : q.type === 'date' ? (
+                                        /* Date Answer */
+                                        <div className="resp-answer-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          </svg>
+                                          {ans?.answer_text
+                                            ? new Date(ans.answer_text).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                                            : <span style={{ color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic' }}>Tidak dijawab</span>}
+                                        </div>
+                                      ) : q.type === 'file_upload' ? (
+                                        /* File Upload Answer */
+                                        <div className="resp-answer-value">
+                                          {ans?.file_url ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--accent, #0053db)" strokeWidth={1.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                              </svg>
+                                              <div>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-primary, #0f172a)', fontSize: '14px' }}>
+                                                  {ans.answer_text || 'File terlampir'}
+                                                </span>
+                                                <br />
+                                                <a href={ans.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #0053db)', fontWeight: 500, fontSize: '13px', textDecoration: 'none' }}>
+                                                  Unduh / Lihat File ↗
+                                                </a>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <span style={{ color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic' }}>Tidak ada file diupload</span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        /* Fallback for any other type */
+                                        <div className="resp-answer-value">
+                                          {ans?.answer_text || ans?.file_url || <span style={{ color: 'var(--text-muted, #94a3b8)', fontStyle: 'italic' }}>Tidak dijawab</span>}
+                                        </div>
                                       )}
                                     </div>
                                   );
                                 })}
                               </div>
-                            ) : q.type === 'text' ? (
-                              /* Text Answer */
-                              <div className="resp-answer-value">
-                                {ans?.answer_text || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Tidak dijawab</span>}
-                              </div>
-                            ) : q.type === 'date' ? (
-                              /* Date Answer */
-                              <div className="resp-answer-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                {ans?.answer_text
-                                  ? new Date(ans.answer_text).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                                  : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Tidak dijawab</span>}
-                              </div>
-                            ) : q.type === 'file_upload' ? (
-                              /* File Upload Answer */
-                              <div className="resp-answer-value">
-                                {ans?.file_url ? (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#0053db" strokeWidth={1.5}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <div>
-                                      <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>
-                                        {ans.answer_text || 'File terlampir'}
-                                      </span>
-                                      <br />
-                                      <a href={ans.file_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0053db', fontWeight: 500, fontSize: '13px', textDecoration: 'none' }}>
-                                        Unduh / Lihat File ↗
-                                      </a>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Tidak ada file diupload</span>
-                                )}
-                              </div>
-                            ) : (
-                              /* Fallback for any other type */
-                              <div className="resp-answer-value">
-                                {ans?.answer_text || ans?.file_url || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Tidak dijawab</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </section>
+                  </div>
                 </div>
-              </div>
               )}
             </>
           )}

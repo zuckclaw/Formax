@@ -186,7 +186,7 @@ def export_submissions_to_excel(
 
     questions = (
         db.query(models.Question)
-        .filter(models.Question.form_id == form_id)
+        .filter(models.Question.form_id == form_id, models.Question.type != models.QuestionType.page_break)
         .order_by(models.Question.order_index)
         .all()
     )

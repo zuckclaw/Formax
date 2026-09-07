@@ -578,13 +578,47 @@ body,
   border-color: rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
+[data-theme="dark"] .analytics-section-wrapper-card,
+[data-theme="dark"] .detail-section-wrapper-card {
+  background: var(--bg-card, #23233f);
+  border-color: var(--border, #2d2d4a);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .analytics-section-header,
+[data-theme="dark"] .detail-section-header {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(96, 165, 250, 0.25);
+  border-left: 4px solid #60a5fa;
+}
+[data-theme="dark"] .analytics-section-badge,
+[data-theme="dark"] .detail-section-badge {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+}
+[data-theme="dark"] .analytics-section-qcount,
+[data-theme="dark"] .detail-section-qcount {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted, #94a3b8);
+}
+[data-theme="dark"] .analytics-section-title,
+[data-theme="dark"] .detail-section-title {
+  color: var(--text-primary, #eef2ff);
+}
+[data-theme="dark"] .analytics-section-desc,
+[data-theme="dark"] .detail-section-desc {
+  color: var(--text-secondary, #cbd5e1);
+}
 [data-theme="dark"] .detail-question-card {
-  background: var(--bg-card);
-  border-color: var(--border);
+  background: var(--bg-input, #1a1a2e);
+  border-color: var(--border, #2d2d4a);
   box-shadow: var(--shadow-sm);
 }
 [data-theme="dark"] .detail-question-title {
   color: var(--text-primary);
+}
+[data-theme="dark"] .detail-type-badge {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 [data-theme="dark"] .detail-points-badge {
   background: rgba(96, 165, 250, 0.12);
@@ -610,6 +644,11 @@ body,
   background: rgba(34, 197, 94, 0.15);
   border-color: #4ade80;
   color: #86efac;
+}
+[data-theme="dark"] .resp-answer-value {
+  background: var(--bg-input);
+  border-color: var(--border);
+  color: var(--text-primary);
 }
 
 /* Landing, Tentang, & Cara Pakai Dark Mode */

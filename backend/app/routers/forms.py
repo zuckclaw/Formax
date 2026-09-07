@@ -82,6 +82,8 @@ def create_form(
         max_submissions=payload.max_submissions,
         require_fullscreen=payload.require_fullscreen,
         reveal_answers=payload.reveal_answers,
+        shuffle_questions=getattr(payload, "shuffle_questions", False) or False,
+        shuffle_options=getattr(payload, "shuffle_options", False) or False,
         # FIX publish bug: persist status & accept_responses dari payload (web publish new form)
         # Default tetap draft/True agar kompatibel dengan mobile yang tidak kirim status.
         status=payload.status if payload.status is not None else models.FormStatus.draft,

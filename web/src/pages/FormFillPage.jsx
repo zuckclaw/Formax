@@ -13,10 +13,105 @@ import 'katex/dist/katex.min.css';
 import '../styles/form-fill.css';
 import { prepareMathHtml } from '../utils/mathRender';
 
-const QUESTIONS_PER_PAGE = 5;
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 10;
+
+// section helpers — split flat questions by page_break
+function splitSections(questions) {
+  const sorted = [...(questions || [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sections = [];
+  let cur = { pb: null, questions: [] };
+  sorted.forEach((q) => {
+    if (q.type === 'page_break') {
+      if (cur.questions.length > 0 || cur.pb) {
+        sections.push(cur);
+        cur = { pb: q, questions: [] };
+      } else {
+        cur.pb = q;
+      }
+    } else {
+      cur.questions.push(q);
+    }
+  });
+  sections.push(cur);
+  if (sections.length === 0) sections.push(cur);
+  // filter out empty trailing sections without questions and without pb? keep at least one
+  return sections;
+}
+function applyShuffledOrder(questions, shuffledOrder, shuffledOptions) {
+  if (!questions || !shuffledOrder || !Array.isArray(shuffledOrder) || shuffledOrder.length === 0) {
+    // still handle options shuffle alone
+    if (shuffledOptions && typeof shuffledOptions === 'object') {
+      return questions.map((q) => {
+        const order = shuffledOptions[String(q.id)];
+        if (!order || !Array.isArray(order) || !q.options) return q;
+        const map = new Map(q.options.map((o) => [String(o.id), o]));
+        const reordered = order.map((id) => map.get(String(id))).filter(Boolean);
+        // append any missing options (fallback)
+        q.options.forEach((o) => { if (!reordered.find((x) => String(x.id) === String(o.id))) reordered.push(o); });
+        return { ...q, options: reordered };
+      });
+    }
+    return questions;
+  }
+  const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sections = splitSections(sorted);
+  const isPerSection = Array.isArray(shuffledOrder[0]);
+  let reorderedQuestions = [];
+  if (isPerSection) {
+    // per-section list-of-lists
+    const qMap = new Map(sorted.filter((q) => q.type !== 'page_break').map((q) => [String(q.id), q]));
+    sections.forEach((sec, idx) => {
+      if (sec.pb) reorderedQuestions.push(sec.pb);
+      const order = shuffledOrder[idx] || [];
+      order.forEach((qid) => {
+        const q = qMap.get(String(qid));
+        if (q) reorderedQuestions.push(q);
+      });
+      // any missing questions in this section that not in shuffled (fallback)
+      sec.questions.forEach((q) => {
+        if (!order.includes(String(q.id))) reorderedQuestions.push(q);
+      });
+    });
+  } else {
+    // flat list
+    const qMap = new Map(sorted.map((q) => [String(q.id), q]));
+    const pbQs = sorted.filter((q) => q.type === 'page_break');
+    // flat shuffled contains all qids, interleave pbs by original section structure not trivial
+    // fallback: just order all non-pb by flat list, then re-insert pbs by original sections
+    const flatOrder = shuffledOrder;
+    const orderedNonPb = flatOrder.map((id) => qMap.get(String(id))).filter(Boolean);
+    // reconstruct with sections: need to keep section grouping, but flat loses grouping
+    // approximate: distribute orderedNonPb back into sections by original counts
+    let ptr = 0;
+    sections.forEach((sec) => {
+      if (sec.pb) reorderedQuestions.push(sec.pb);
+      const cnt = sec.questions.length;
+      for (let k = 0; k < cnt && ptr < orderedNonPb.length; k++) reorderedQuestions.push(orderedNonPb[ptr++]);
+    });
+    // any leftovers
+    while (ptr < orderedNonPb.length) reorderedQuestions.push(orderedNonPb[ptr++]);
+    // ensure pbs preserved if missing
+    if (reorderedQuestions.filter((q) => q.type === 'page_break').length !== pbQs.length) {
+      // fallback to just flat ordered + pbs at start
+      reorderedQuestions = [...pbQs, ...orderedNonPb];
+    }
+  }
+  // apply shuffled options if any
+  if (shuffledOptions && typeof shuffledOptions === 'object') {
+    reorderedQuestions = reorderedQuestions.map((q) => {
+      const order = shuffledOptions[String(q.id)];
+      if (!order || !Array.isArray(order) || !q.options) return q;
+      const map = new Map(q.options.map((o) => [String(o.id), o]));
+      const reordered = order.map((id) => map.get(String(id))).filter(Boolean);
+      q.options.forEach((o) => { if (!reordered.find((x) => String(x.id) === String(o.id))) reordered.push(o); });
+      return { ...q, options: reordered };
+    });
+  }
+  // reassign order_index sequentially for rendering stability (keep page_breaks as delimiters)
+  return reorderedQuestions.map((q, i) => ({ ...q, order_index: i }));
+}
 
 // Normalisasi warna hex 8-digit ARGB (format lama dari editor mobile, mis.
 // #FF4FC3F7) menjadi #RGB 6-digit. Browser mengartikan 8-digit sebagai
@@ -126,14 +221,23 @@ export default function FormFillPage() {
   // Pagination & Navigation
   const [currentPage, setCurrentPage] = useState(0);
   const [activeQuestionId, setActiveQuestionId] = useState(null);
-  const [mobileNavExpanded, setMobileNavExpanded] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(true);
   const navScrollRef = useRef(null);
 
   const handleSelectQuestion = (q, idx) => {
-    const targetPage = Math.floor(idx / QUESTIONS_PER_PAGE);
-    setCurrentPage(targetPage);
+    // idx not used for paging now — find section containing q.id
+    try {
+      const secs = splitSections(form?.questions || []);
+      let targetPage = 0;
+      for (let s = 0; s < secs.length; s++) {
+        if (secs[s].questions.find((x) => String(x.id) === String(q.id))) { targetPage = s; break; }
+      }
+      setCurrentPage(targetPage);
+    } catch { setCurrentPage(0); }
     setActiveQuestionId(q.id);
-    setMobileNavExpanded(false);
+    if (window.innerWidth <= 900) {
+      setIsNavOpen(false);
+    }
 
     if (navScrollRef.current) {
       const activeBtn = navScrollRef.current.querySelector(`[data-nav-id="${q.id}"]`);
@@ -293,6 +397,13 @@ export default function FormFillPage() {
           joiningRef.current = true;
           const sub = await joinForm(getToken(), slug);
           setSubmissionId(sub.id);
+          // apply shuffled order per-section if any
+          if (sub.shuffled_order || sub.shuffled_options) {
+            try {
+              const reordered = applyShuffledOrder(formData.questions || [], sub.shuffled_order, sub.shuffled_options);
+              setForm((prev) => prev ? { ...prev, questions: reordered } : prev);
+            } catch {}
+          }
           if (sub.submitted_at) {
             setIsSubmitted(true);
             if (sub.is_auto_submitted) setIsAutoSubmitted(true);
@@ -341,6 +452,13 @@ export default function FormFillPage() {
     try {
       const sub = await joinForm(getToken(), slug, joinTokenInput);
       setSubmissionId(sub.id);
+      if (sub.shuffled_order || sub.shuffled_options) {
+        try {
+          const curQs = form?.questions || [];
+          const reordered = applyShuffledOrder(curQs, sub.shuffled_order, sub.shuffled_options);
+          setForm((prev) => prev ? { ...prev, questions: reordered } : prev);
+        } catch {}
+      }
       setShowJoinModal(false);
       if (sub.submitted_at) {
         setIsSubmitted(true);
@@ -367,11 +485,20 @@ export default function FormFillPage() {
     }
   };
 
+  // Helper inline untuk cek terisi (avoid forward ref lint)
+  const _isAns = useCallback((qId) => {
+    const ans = answers[qId];
+    if (!ans) return false;
+    if (ans.answer_text && ans.answer_text.trim().length > 0) return true;
+    if (Array.isArray(ans.answer_options) && ans.answer_options.length > 0) return true;
+    if (ans.file_url) return true;
+    return false;
+  }, [answers]);
   // Validasi wajib diisi — dipakai sebelum submit (disable + scroll)
   const getMissingRequired = useCallback(() => {
     if (!form || !form.questions) return [];
-    return form.questions.filter((q) => q.is_required && !isQuestionAnswered(q.id));
-  }, [form, answers]);
+    return form.questions.filter((q) => q.type !== 'page_break' && q.is_required && !_isAns(q.id));
+  }, [form, _isAns]);
 
   // Handle Final Submit (dengan validasi wajib)
   const handleFinalSubmit = async () => {
@@ -379,17 +506,16 @@ export default function FormFillPage() {
     const missing = getMissingRequired();
     if (missing.length > 0) {
       setValidationErrors(new Set(missing.map((q) => q.id)));
-      // pindah ke halaman yang berisi soal wajib pertama
-      const idx = (form?.questions || []).findIndex((q) => q.id === missing[0].id);
-      if (idx >= 0) {
-        const page = Math.floor(idx / QUESTIONS_PER_PAGE);
-        setCurrentPage(page);
+      // pindah ke section yang berisi soal wajib pertama
+      const secsTmp = splitSections(form?.questions || []);
+      let target = 0;
+      for (let s = 0; s < secsTmp.length; s++) if (secsTmp[s].questions.find((x) => String(x.id) === String(missing[0].id))) { target = s; break; }
+      setCurrentPage(target);
         // close modal dulu biar scroll terlihat
         setShowSubmitModal(false);
         setTimeout(() => {
           document.getElementById(`q-${missing[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 120);
-      }
       return;
     }
     try {
@@ -412,12 +538,12 @@ export default function FormFillPage() {
         const miss = getMissingRequired();
         if (miss.length > 0) {
           setValidationErrors(new Set(miss.map((q) => q.id)));
-          const idx2 = (form?.questions || []).findIndex((q) => q.id === miss[0].id);
-          if (idx2 >= 0) {
-            setCurrentPage(Math.floor(idx2 / QUESTIONS_PER_PAGE));
+          const secsTmp2 = splitSections(form?.questions || []);
+          let t2 = 0;
+          for (let s = 0; s < secsTmp2.length; s++) if (secsTmp2[s].questions.find((x) => String(x.id) === String(miss[0].id))) { t2 = s; break; }
+          setCurrentPage(t2);
             setShowSubmitModal(false);
             setTimeout(() => document.getElementById(`q-${miss[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
-          }
         }
       }
       alert(err.message || 'Gagal mengirimkan form');
@@ -965,17 +1091,7 @@ export default function FormFillPage() {
           </div>
         </header>
 
-        <div className="form-closed-card" style={{
-          background: 'var(--bg-card, #ffffff)',
-          border: '1px solid var(--border-color, #e2e8f0)',
-          borderRadius: '20px',
-          padding: '40px 32px',
-          maxWidth: '480px',
-          width: '100%',
-          textAlign: 'center',
-          boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.1)',
-          marginTop: '60px'
-        }}>
+        <div className="form-closed-card">
           <div className="form-closed-icon-wrap" style={{
             width: '72px',
             height: '72px',
@@ -997,22 +1113,14 @@ export default function FormFillPage() {
               </svg>
             )}
           </div>
-          <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '10px', color: 'var(--text-h, #0f172a)' }}>
+          <h2 className="form-closed-title">
             {isClosedOrExpired ? 'Form Tidak Dapat Diakses' : 'Terjadi Kesalahan'}
           </h2>
-          <p style={{ fontSize: '15px', color: 'var(--text, #64748b)', lineHeight: '1.6', marginBottom: '24px' }}>
+          <p className="form-closed-desc">
             {errorMsg}
           </p>
           {isClosedOrExpired && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.08)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              fontSize: '13px',
-              color: '#ef4444',
-              marginBottom: '24px'
-            }}>
+            <div className="form-closed-badge">
               Formulir ini telah ditutup atau waktunya sudah berakhir. Respons baru tidak dapat diterima.
             </div>
           )}
@@ -1242,11 +1350,16 @@ export default function FormFillPage() {
     );
   }
 
-  const questions = (form?.questions || []).sort((a, b) => a.order_index - b.order_index);
-  const totalQuestions = questions.length;
-  const totalPages = Math.max(1, Math.ceil(totalQuestions / QUESTIONS_PER_PAGE));
-  const currentQuestions = questions.slice(currentPage * QUESTIONS_PER_PAGE, (currentPage + 1) * QUESTIONS_PER_PAGE);
-  const answeredCount = questions.filter((q) => isQuestionAnswered(q.id)).length;
+  // questions sorted, filtered page_break untuk hitungan
+  const allQuestionsSorted = (form?.questions || []).sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sections = splitSections(allQuestionsSorted);
+  const answerableQuestions = allQuestionsSorted.filter((q) => q.type !== 'page_break');
+  const totalQuestions = answerableQuestions.length;
+  const totalPages = Math.max(1, sections.length);
+  const currentSection = sections[currentPage] || sections[0] || { pb: null, questions: [] };
+  const currentQuestions = currentSection.questions;
+  const answeredCount = answerableQuestions.filter((q) => isQuestionAnswered(q.id)).length;
+  const currentSectionAnswered = currentQuestions.filter((q) => isQuestionAnswered(q.id)).length;
 
   return (
     <div className="form-fill-container">
@@ -1307,42 +1420,89 @@ export default function FormFillPage() {
       {/* Main Grid Content */}
       <main className="form-fill-main">
         {/* Left Column: Question Navigator */}
-        <aside className="question-navigator">
-          <div className="navigator-header">
+        <aside className={`question-navigator ${isNavOpen ? 'expanded' : 'collapsed'}`}>
+          <div
+            className="navigator-header"
+            onClick={() => setIsNavOpen(!isNavOpen)}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isNavOpen}
+            aria-label={isNavOpen ? 'Tutup Question Navigator' : 'Buka Question Navigator'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsNavOpen(!isNavOpen);
+              }
+            }}
+          >
             <div>
               <h2 className="navigator-title">Question Navigator</h2>
               <p className="navigator-subtitle">{answeredCount} dari {totalQuestions} Soal Terisi</p>
             </div>
+            <button
+              type="button"
+              className="navigator-toggle-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsNavOpen(!isNavOpen);
+              }}
+              aria-expanded={isNavOpen}
+              aria-label={isNavOpen ? 'Tutup Question Navigator' : 'Buka Question Navigator'}
+              title={isNavOpen ? 'Tutup Question Navigator' : 'Buka Question Navigator'}
+            >
+              <span className="toggle-btn-text">{isNavOpen ? 'Tutup' : 'Buka'}</span>
+              <svg
+                className={`nav-chevron-icon ${isNavOpen ? 'is-open' : ''}`}
+                width="16"
+                height="16"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
 
-          <div className="navigator-grid">
-            {questions.map((q, idx) => {
-              const isAns = isQuestionAnswered(q.id);
-              const isBm = bookmarked.has(q.id);
-              const qPage = Math.floor(idx / QUESTIONS_PER_PAGE);
-              const isCurrentPage = qPage === currentPage;
-              const isActiveQ = activeQuestionId === q.id;
-
-              let boxState = 'unanswered';
-              if (isBm && !isAns) boxState = 'bookmarked';
-              else if (isAns) boxState = 'answered';
-              const bmClass = isBm && isAns ? ' bookmarked' : '';
-
-              const finalClass = `navigator-box ${boxState}${bmClass} ${isCurrentPage ? 'current-page' : ''} ${isActiveQ ? 'active-question' : ''}`;
-
-              return (
-                <div
-                  key={q.id}
-                  data-nav-id={q.id}
-                  className={finalClass}
-                  onClick={() => handleSelectQuestion(q, idx)}
-                  title={`Soal #${idx + 1} (${isAns ? 'Sudah Diisi' : 'Belum Diisi'}${isBm ? ' • Ditandai' : ''})`}
-                >
-                  {idx + 1}
-                </div>
-              );
-            })}
-          </div>
+          {isNavOpen && (
+            <div className="navigator-grid-wrap">
+              {sections.map((sec, sIdx) => {
+                const secTitle = sec.pb ? (sec.pb.label ? String(sec.pb.label).replace(/<[^>]*>/g,'').trim() || `Bagian ${sIdx+1}` : `Bagian ${sIdx+1}`) : (sIdx===0 ? 'Bagian 1' : `Bagian ${sIdx+1}`);
+                const secDesc = sec.pb?.settings?.description || '';
+                return (
+                  <div key={sIdx} className={`nav-section ${sIdx===currentPage ? 'active-section' : ''}`}>
+                    <div className="nav-section-title" onClick={() => { setCurrentPage(sIdx); window.scrollTo({top:0,behavior:'smooth'}); }}>
+                      <span className="nav-section-badge">{sIdx+1}</span>
+                      <span className="nav-section-label">{secTitle}</span>
+                      <span className="nav-section-count">{sec.questions.filter((qq)=>isQuestionAnswered(qq.id)).length}/{sec.questions.length}</span>
+                    </div>
+                    {secDesc && <div className="nav-section-desc">{secDesc.slice(0,60)}</div>}
+                    <div className="navigator-grid">
+                      {sec.questions.map((q) => {
+                        const isAns = isQuestionAnswered(q.id);
+                        const isBm = bookmarked.has(q.id);
+                        const isCurrentPage = sIdx === currentPage;
+                        const isActiveQ = activeQuestionId === q.id;
+                        let boxState = 'unanswered';
+                        if (isBm && !isAns) boxState = 'bookmarked';
+                        else if (isAns) boxState = 'answered';
+                        const bmClass = isBm && isAns ? ' bookmarked' : '';
+                        const finalClass = `navigator-box ${boxState}${bmClass} ${isCurrentPage ? 'current-page' : ''} ${isActiveQ ? 'active-question' : ''}`;
+                        const globalIdx = answerableQuestions.findIndex((x) => String(x.id) === String(q.id));
+                        return (
+                          <div key={q.id} data-nav-id={q.id} className={finalClass} onClick={() => handleSelectQuestion(q)} title={`${secTitle} — Soal #${globalIdx+1} (${isAns?'Sudah Diisi':'Belum Diisi'}${isBm?' • Ditandai':''})`}>
+                            {globalIdx + 1}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </aside>
 
         {/* Right Column: Questions Form Content */}
@@ -1371,9 +1531,28 @@ export default function FormFillPage() {
             </div>
           )}
 
-          {/* Paginated Questions */}
+          {/* Section Header — compact */}
+          {currentSection.pb && (
+            <div className="ff-section-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="ff-section-badge">Bagian {currentPage+1}</span>
+                <h3 className="ff-section-title" dangerouslySetInnerHTML={richHtml(currentSection.pb.label || `Bagian ${currentPage+1}`)} />
+                <span className="ff-section-count-tag">{currentQuestions.length} soal</span>
+              </div>
+              {currentSection.pb.settings?.description && <p className="ff-section-desc" dangerouslySetInnerHTML={richHtml(currentSection.pb.settings.description)} />}
+              {currentSection.pb.settings?.shuffle && <span className="ff-section-shuffle-hint">🔀 Diacak per responden</span>}
+            </div>
+          )}
+          {!currentSection.pb && totalPages > 1 && (
+            <div className="ff-section-header simple">
+              <span className="ff-section-badge">Bagian {currentPage+1} / {totalPages}</span>
+              <span className="ff-section-count-text">{currentSectionAnswered}/{currentQuestions.length} terjawab</span>
+            </div>
+          )}
+
+          {/* Paginated Questions — nomor reset per Bagian */}
           {currentQuestions.map((q, localIdx) => {
-            const globalNumber = currentPage * QUESTIONS_PER_PAGE + localIdx + 1;
+            const displayNumber = localIdx + 1;
             const currentAnswer = answers[q.id] || {};
             const points = q.settings?.points || null;
             const contextText = q.settings?.context || q.settings?.reading_text || null;
@@ -1383,7 +1562,7 @@ export default function FormFillPage() {
               <div key={q.id} className={`question-card ${isReqError ? 'required-error' : ''}`} id={`q-${q.id}`}>
                 <div className="question-card-header">
                   <div className="question-label">
-                    <span className="question-number">{globalNumber}.</span>
+                    <span className="question-number">{displayNumber}.</span>
                     <QuestionLabelWithAudio html={q.label} />
                     {q.is_required && <span className="required-star" title="Wajib diisi">*</span>}
                   </div>
@@ -1445,20 +1624,25 @@ export default function FormFillPage() {
               </button>
             </div>
 
+            {/* Section Progress */}
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <span className="ff-bottom-page-text">Bagian {currentPage+1}/{totalPages}</span>
+              {currentSection.pb?.settings?.shuffle && <span className="ff-bottom-shuffle-badge">🔀 acak</span>}
+            </div>
+
             <button className="btn-submit-final" onClick={() => {
               const miss = getMissingRequired();
               if (miss.length > 0) {
                 setValidationErrors(new Set(miss.map((q) => q.id)));
-                const idx = (form?.questions || []).findIndex((q) => q.id === miss[0].id);
-                if (idx >= 0) {
-                  const page = Math.floor(idx / QUESTIONS_PER_PAGE);
-                  setCurrentPage(page);
-                  setTimeout(() => document.getElementById(`q-${miss[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-                }
+                const secsMiss = splitSections(form?.questions || []);
+                let tp = 0;
+                for (let s=0;s<secsMiss.length;s++) if (secsMiss[s].questions.find((x)=>String(x.id)===String(miss[0].id))) { tp=s; break; }
+                setCurrentPage(tp);
+                setTimeout(() => document.getElementById(`q-${miss[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
               }
               setShowSubmitModal(true);
             }}>
-              <span>Kirim Jawaban</span>
+              <span>{currentPage === totalPages-1 ? 'Kirim Jawaban' : 'Simpan & Lanjut'}</span>
               <span>»</span>
             </button>
           </div>

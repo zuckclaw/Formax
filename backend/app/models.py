@@ -109,6 +109,10 @@ class Form(Base):
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
 
+    # section / shuffle
+    shuffle_questions = Column(Boolean, default=False)  # acak soal per-section untuk responden
+    shuffle_options = Column(Boolean, default=False)    # acak opsi jawaban per-soal
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -176,6 +180,8 @@ class Submission(Base):
     is_auto_submitted = Column(Boolean, default=False)
     submitted_at = Column(DateTime, nullable=True)
     is_cheated = Column(Boolean, default=False)  # ditandai curang jika keluar mode fullscreen
+    shuffled_order = Column(JSON, nullable=True)  # snapshot urutan soal teracak per-section {section_idx: [qid,...]}
+    shuffled_options = Column(JSON, nullable=True)  # snapshot opsi teracak {qid: [opt_idx,...]}
 
     form = relationship("Form", back_populates="submissions")
     user = relationship("User", back_populates="submissions")

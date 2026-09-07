@@ -27,7 +27,31 @@ const QUESTION_TYPES = [
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'date', label: 'Tanggal' },
   { value: 'file_upload', label: 'Upload File' },
+  { value: 'page_break', label: 'Section / Halaman' },
 ];
+
+// helper split flat questions jadi sections untuk render & fill
+function getSections(questions) {
+  const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sections = [];
+  let cur = { pb: null, pbIndex: -1, questions: [] };
+  sorted.forEach((q) => {
+    if (q.type === 'page_break') {
+      if (cur.questions.length > 0 || cur.pb) {
+        sections.push(cur);
+        cur = { pb: q, pbIndex: questions.indexOf(q), questions: [] };
+      } else {
+        cur.pb = q;
+        cur.pbIndex = questions.indexOf(q);
+      }
+    } else {
+      cur.questions.push({ q, idx: questions.indexOf(q) });
+    }
+  });
+  sections.push(cur);
+  if (sections.length === 0) sections.push(cur);
+  return sections;
+}
 
 function generateSlug(title) {
   return title
@@ -86,6 +110,8 @@ export default function FormBuilderPage() {
     max_submissions: 0,
     require_fullscreen: false,
     reveal_answers: false,
+    shuffle_questions: false,
+    shuffle_options: false,
     banner_url: null,
     start_date: '',
     end_date: '',
@@ -135,6 +161,8 @@ export default function FormBuilderPage() {
             max_submissions: form.max_submissions ?? 0,
             require_fullscreen: form.require_fullscreen ?? false,
             reveal_answers: form.reveal_answers ?? false,
+            shuffle_questions: form.shuffle_questions ?? false,
+            shuffle_options: form.shuffle_options ?? false,
             banner_url: form.banner_url || null,
             start_date: form.start_date ? form.start_date.substring(0, 16) : '',
             end_date: form.end_date ? form.end_date.substring(0, 16) : '',
@@ -264,6 +292,8 @@ export default function FormBuilderPage() {
             max_submissions: formData.max_submissions,
             require_fullscreen: formData.require_fullscreen,
             reveal_answers: formData.reveal_answers,
+            shuffle_questions: !!formData.shuffle_questions,
+            shuffle_options: !!formData.shuffle_options,
             banner_url: formData.banner_url,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
@@ -282,7 +312,7 @@ export default function FormBuilderPage() {
                 try {
                   const patched = await updateForm(token, formData.id, { status: 'published' });
                   if (patched && patched.status === 'published') publishOk = true;
-                } catch {}
+                } catch { }
                 if (!publishOk) {
                   try {
                     await apiFetch(`${API_BASE_URL}/forms/${formData.id}/publish`, {
@@ -290,15 +320,15 @@ export default function FormBuilderPage() {
                       headers: { Authorization: `Bearer ${token}` },
                     });
                     publishOk = true;
-                  } catch {}
+                  } catch { }
                 }
                 if (publishOk) {
                   setFormData((prev) => ({ ...prev, status: 'published' }));
                   showToast('Form berhasil dipublikasikan! (Soal tidak diubah karena sudah ada jawaban)', 'success');
-                  try { const qr = await generateQR(token, formData.id); setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url })); } catch {}
+                  try { const qr = await generateQR(token, formData.id); setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url })); } catch { }
                   return;
                 }
-              } catch {}
+              } catch { }
             }
             showToast('Form sudah ada jawaban responden — hapus soal akan menghapus jawaban. Duplikasi form dulu jika perlu.', 'error');
             throw err;
@@ -352,6 +382,8 @@ export default function FormBuilderPage() {
           max_submissions: formData.max_submissions,
           require_fullscreen: formData.require_fullscreen,
           reveal_answers: formData.reveal_answers,
+          shuffle_questions: !!formData.shuffle_questions,
+          shuffle_options: !!formData.shuffle_options,
           slug,
           template_id: templateId || null,
           banner_url: formData.banner_url,
@@ -361,19 +393,20 @@ export default function FormBuilderPage() {
           questions: templateId
             ? []
             : questions.map((q, idx) => ({
-                type: q.type,
-                label: q.label,
-                placeholder: q.placeholder || '',
-                is_required: q.is_required,
-                order_index: idx,
-                settings: q.settings || {},
-                options: (q.options || []).map((o, oidx) => ({
-                  label: o.label,
-                  value: o.value || '',
-                  order_index: oidx,
-                  is_correct: o.is_correct || false,
-                })),
+              type: q.type,
+              label: q.label,
+              placeholder: q.placeholder || '',
+              is_required: q.is_required,
+              order_index: idx,
+              settings: q.settings || {},
+              options: (q.options || []).map((o, oidx) => ({
+                label: o.label,
+                value: o.value || '',
+                order_index: oidx,
+                is_correct: o.is_correct || false,
+                is_other: !!o.is_other,
               })),
+            })),
         };
 
         let created = await createForm(token, payload);
@@ -391,7 +424,7 @@ export default function FormBuilderPage() {
                 headers: { Authorization: `Bearer ${token}` },
               });
               created.status = 'published';
-            } catch {}
+            } catch { }
           }
         }
         setFormData((prev) => ({
@@ -508,6 +541,25 @@ export default function FormBuilderPage() {
   // ============================================================
   // QUESTION MANAGEMENT (local state)
   // ============================================================
+  const addSection = () => {
+    const newSec = {
+      _tempId: `temp-sec-${Date.now()}`,
+      type: 'page_break',
+      label: `Bagian ${getSections(questions).length + 1}`,
+      placeholder: '',
+      is_required: false,
+      order_index: questions.length,
+      settings: { description: '' },
+      options: [],
+    };
+    setQuestions((prev) => [...prev, newSec]);
+    setActiveQuestion(newSec._tempId || newSec.id);
+  };
+
+  const updateSectionSettings = (qIdx, updates) => {
+    setQuestions((prev) => prev.map((q, i) => (i === qIdx ? { ...q, settings: { ...(q.settings || {}), ...updates }, _saved: false } : q)));
+  };
+
   const addQuestion = () => {
     const newQ = {
       _tempId: `temp-${Date.now()}`,
@@ -625,19 +677,19 @@ export default function FormBuilderPage() {
       prev.map((q, i) =>
         i === qIndex
           ? {
-              ...q,
-              _saved: false,
-              options: [
-                ...q.options,
-                {
-                  _tempId: `temp-opt-${Date.now()}`,
-                  label: `Opsi ${q.options.length + 1}`,
-                  value: '',
-                  order_index: q.options.length,
-                  is_correct: false,
-                },
-              ],
-            }
+            ...q,
+            _saved: false,
+            options: [
+              ...q.options,
+              {
+                _tempId: `temp-opt-${Date.now()}`,
+                label: `Opsi ${q.options.length + 1}`,
+                value: '',
+                order_index: q.options.length,
+                is_correct: false,
+              },
+            ],
+          }
           : q
       )
     );
@@ -648,10 +700,10 @@ export default function FormBuilderPage() {
       prev.map((q, i) =>
         i === qIndex
           ? {
-              ...q,
-              _saved: false,
-              options: q.options.map((o, j) => (j === oIndex ? { ...o, ...updates, _saved: false } : o)),
-            }
+            ...q,
+            _saved: false,
+            options: q.options.map((o, j) => (j === oIndex ? { ...o, ...updates, _saved: false } : o)),
+          }
           : q
       )
     );
@@ -680,14 +732,14 @@ export default function FormBuilderPage() {
       prev.map((q, i) =>
         i === qIndex
           ? {
-              ...q,
+            ...q,
+            _saved: false,
+            options: q.options.map((o, j) => ({
+              ...o,
+              is_correct: j === oIndex ? !o.is_correct : false,
               _saved: false,
-              options: q.options.map((o, j) => ({
-                ...o,
-                is_correct: j === oIndex ? !o.is_correct : false,
-                _saved: false,
-              })),
-            }
+            })),
+          }
           : q
       )
     );
@@ -905,22 +957,25 @@ export default function FormBuilderPage() {
 
   const supportsCorrectAnswer = (type) => ['single_choice', 'dropdown'].includes(type);
 
+  const isSection = (type) => type === 'page_break';
+
   const getOptionIndicator = (type) => {
     if (type === 'single_choice') return 'fb-option-radio';
     if (type === 'checkbox') return 'fb-option-checkbox';
     return null;
   };
 
-  // Global wajib isi — bulk set semua pertanyaan (A)
-  const allRequired = questions.length > 0 && questions.every((q) => q.is_required);
+  // Global wajib isi — bulk set semua pertanyaan (A) — exclude section
+  const answerableQs = questions.filter((q) => q.type !== 'page_break');
+  const allRequired = answerableQs.length > 0 && answerableQs.every((q) => q.is_required);
   const setAllRequired = (val) => {
-    if (questions.length === 0) {
+    if (answerableQs.length === 0) {
       showToast('Tambah soal dulu', 'error');
       return;
     }
-    setQuestions((prev) => prev.map((q) => ({ ...q, is_required: val, _saved: false })));
+    setQuestions((prev) => prev.map((q) => (q.type === 'page_break' ? q : { ...q, is_required: val, _saved: false })));
     showToast(
-      val ? `Semua ${questions.length} soal dijadikan wajib diisi` : 'Semua soal dijadikan tidak wajib',
+      val ? `Semua ${answerableQs.length} soal dijadikan wajib diisi` : 'Semua soal dijadikan tidak wajib',
       'success'
     );
   };
@@ -997,7 +1052,7 @@ export default function FormBuilderPage() {
         </div>
       </aside>
 
-        {/* Main */}
+      {/* Main */}
       <main className="fb-main">
         {/* Topbar */}
         <header className="fb-topbar">
@@ -1223,7 +1278,53 @@ export default function FormBuilderPage() {
                   const qKey = q.id || q._tempId;
                   const isActive = activeQuestion === qKey;
                   const isBulkSelected = bulkSelected.has(qKey);
-
+                  // Section / page_break rendering
+                  if (isSection(q.type)) {
+                    const sectionNum = questions.filter((x, i) => i <= qIdx && x.type === 'page_break').length;
+                    const questionsInSection = (() => {
+                      let c = 0;
+                      for (let i = qIdx + 1; i < questions.length; i++) {
+                        if (questions[i].type === 'page_break') break;
+                        c++;
+                      }
+                      return c;
+                    })();
+                    return (
+                      <div
+                        key={qKey}
+                        className={`fb-section-card ${isActive ? 'active' : ''} ${isBulkSelected ? 'bulk-selected' : ''}`}
+                        onClick={() => setActiveQuestion(qKey)}
+                      >
+                        <div className="fb-section-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {bulkMode && (
+                              <label className="fb-bulk-card-check" onClick={(e) => e.stopPropagation()}>
+                                <input type="checkbox" checked={isBulkSelected} onChange={() => toggleBulkSelect(qKey)} />
+                                <span className="fb-bulk-card-checkmark" />
+                              </label>
+                            )}
+                            <span className="fb-section-badge">Bagian {sectionNum}</span>
+                            <span style={{ fontSize: '12px', color: '#64748b' }}>{questionsInSection} soal</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <select className="fb-type-select" style={{ minWidth: '130px', fontSize: '12px' }} value={q.type} onChange={(e) => updateQuestionLocal(qIdx, { type: e.target.value })}>
+                              {QUESTION_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                            </select>
+                            <button className="fb-q-action-btn danger" onClick={(e) => { e.stopPropagation(); setConfirmSingleIdx(qIdx); }} title="Hapus bagian"> <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg></button>
+                          </div>
+                        </div>
+                        <input className="fb-section-title-input" type="text" placeholder={`Judul Bagian ${sectionNum} — mis. Informasi Pribadi`} value={q.label} onChange={(e) => updateQuestionLocal(qIdx, { label: e.target.value })} onClick={(e) => e.stopPropagation()} />
+                        <textarea className="fb-section-desc-input" placeholder="Deskripsi bagian (opsional) — mis. Isi data diri dengan benar" value={q.settings?.description || ''} onChange={(e) => updateSectionSettings(qIdx, { description: e.target.value })} onClick={(e) => e.stopPropagation()} rows={2} />
+                        <div className="fb-section-footer">
+                          <label className="fb-section-shuffle" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" checked={!!q.settings?.shuffle} onChange={(e) => updateSectionSettings(qIdx, { shuffle: e.target.checked })} />
+                            <span>Acak soal di bagian ini</span>
+                          </label>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Hanya soal di bagian ini yang diacak, antar-bagian tetap berurutan</span>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <div
                       key={qKey}
@@ -1243,7 +1344,7 @@ export default function FormBuilderPage() {
                               <span className="fb-bulk-card-checkmark" />
                             </label>
                           )}
-                          <div className="fb-question-top-label">Pertanyaan {qIdx + 1}</div>
+                          <div className="fb-question-top-label">Pertanyaan {questions.filter((x, i) => i <= qIdx && x.type !== 'page_break').length}</div>
                         </div>
                         <select
                           className="fb-type-select"
@@ -1254,6 +1355,12 @@ export default function FormBuilderPage() {
                             // Add default option if switching to choice type and has no options
                             if (hasOptions(newType) && (!q.options || q.options.length === 0)) {
                               updates.options = [{ _tempId: `temp-opt-${Date.now()}`, label: 'Opsi 1', value: '', order_index: 0, is_correct: false }];
+                            }
+                            if (newType === 'page_break') {
+                              updates.label = updates.label || `Bagian ${getSections(questions).length + 1}`;
+                              updates.settings = { description: '', shuffle: false };
+                              updates.options = [];
+                              updates.is_required = false;
                             }
                             updateQuestionLocal(qIdx, updates);
                           }}
@@ -1330,19 +1437,19 @@ export default function FormBuilderPage() {
                                   prev.map((qq, i) =>
                                     i === qIdx
                                       ? {
-                                          ...qq,
-                                          _saved: false,
-                                          options: [
-                                            ...qq.options,
-                                            {
-                                              _tempId: `temp-opt-other-${Date.now()}`,
-                                              label: 'Lainnya',
-                                              value: '__other__',
-                                              order_index: qq.options.length,
-                                              is_correct: false,
-                                            },
-                                          ],
-                                        }
+                                        ...qq,
+                                        _saved: false,
+                                        options: [
+                                          ...qq.options,
+                                          {
+                                            _tempId: `temp-opt-other-${Date.now()}`,
+                                            label: 'Lainnya',
+                                            value: '__other__',
+                                            order_index: qq.options.length,
+                                            is_correct: false,
+                                          },
+                                        ],
+                                      }
                                       : qq
                                   )
                                 );
@@ -1447,15 +1554,26 @@ export default function FormBuilderPage() {
                   );
                 })}
 
-                {/* Add Question Button */}
-                <button className="fb-add-question-btn" onClick={addQuestion}>
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="16" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                  </svg>
-                  Tambah Pertanyaan
-                </button>
+                {/* Add Buttons */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button className="fb-add-question-btn" onClick={addQuestion}>
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="16" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                    Tambah Pertanyaan
+                  </button>
+                  <button className="fb-add-section-btn" onClick={addSection} title="Tambah Bagian/Section baru — pisahkan Informasi Pribadi & Soal Ujian">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <path d="M3 9h18M9 21V9" />
+                      <path d="M12 13h4M12 17h4" />
+                    </svg>
+                    Tambah Bagian
+                  </button>
+                </div>
+                <p style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', marginTop: '-6px' }}>Gunakan <strong>Tambah Bagian</strong> untuk buat Section 1 = Informasi Pribadi, Section 2 = Soal Ujian. Tiap bagian jadi 1 halaman di Fill.</p>
               </div>
 
               {/* Floating actions */}
@@ -1463,6 +1581,12 @@ export default function FormBuilderPage() {
                 <button className="fb-float-btn" onClick={addQuestion} title="Tambah pertanyaan">
                   <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path d="M4 7V4h16v3" /><path d="M9 20h6" /><path d="M12 4v16" />
+                  </svg>
+                </button>
+                <button className="fb-float-btn" onClick={addSection} title="Tambah bagian">
+                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
                   </svg>
                 </button>
               </div>
@@ -1708,6 +1832,36 @@ export default function FormBuilderPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Shuffle per-section */}
+                <div className="fb-settings-separator"><span>Acak Soal (Shuffle)</span></div>
+                <div className="fb-setting-row">
+                  <div>
+                    <p className="fb-setting-row-label">Acak Soal Per Bagian</p>
+                    <p className="fb-setting-row-desc">Jika aktif, soal di tiap bagian diacak per responden (Section 1 & 2 independen). Juga bisa atur per-bagian di kartu Section.</p>
+                  </div>
+                  <button className={`fb-toggle ${formData.shuffle_questions ? 'on' : 'off'}`} onClick={() => setFormData((prev) => ({ ...prev, shuffle_questions: !prev.shuffle_questions }))} />
+                </div>
+                <div className="fb-setting-row">
+                  <div>
+                    <p className="fb-setting-row-label">Acak Opsi Jawaban</p>
+                    <p className="fb-setting-row-desc">Acak urutan opsi A/B/C/D per soal (single/checkbox/dropdown)</p>
+                  </div>
+                  <button className={`fb-toggle ${formData.shuffle_options ? 'on' : 'off'}`} onClick={() => setFormData((prev) => ({ ...prev, shuffle_options: !prev.shuffle_options }))} />
+                </div>
+                {(formData.shuffle_questions || formData.shuffle_options) && (
+                  <div className="fb-info-box" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>
+                    <span>Shuffle disimpan per submission — responden yang refresh tetap lihat urutan sama. Antar responden beda. Owner tetap lihat urutan asli di builder.</span>
+                  </div>
+                )}
+                {/* per-section shuffle hint */}
+                {questions.some((q) => q.type === 'page_break' && q.settings?.shuffle) && !formData.shuffle_questions && (
+                  <div className="fb-info-box" style={{ background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e' }}>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>Ada {questions.filter((q) => q.type === 'page_break' && q.settings?.shuffle).length} bagian dengan shuffle per-bagian aktif.</span>
+                  </div>
+                )}
 
                 {/* QR Code */}
                 <div className="fb-setting-row" style={{ borderBottom: 'none', marginTop: '8px' }}>

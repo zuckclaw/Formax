@@ -9,54 +9,174 @@ from .routers import auth, templates, forms, submissions, uploads, export, quest
 from sqlalchemy import text, inspect
 
 # Buat semua tabel otomatis kalau belum ada (development).
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+    # dispose pool agar koneksi create_all tidak mengunci pool untuk migrasi berikut
+    # (fix hang: create_all + engine.begin() deadlock di postgres, lihat test_pg6.py)
+    try:
+        engine.dispose()
+    except Exception:
+        pass
+except Exception as _e:
+    print(f"[migrate] create_all failed: {_e}")
 
 
-def column_exists(table_name: str, column_name: str) -> bool:
-    """Cek apakah kolom ada di tabel - kompatibel dengan SQLite, PostgreSQL, dll."""
-    insp = inspect(engine)
-    if not insp.has_table(table_name):
-        return False
-    columns = insp.get_columns(table_name)
-    return any(col["name"] == column_name for col in columns)
-
-
-# Auto-migrate ringan & schema update
-with engine.begin() as conn:
-    dialect = engine.dialect.name
-
-    def add_column(table: str, column: str, coldef: str):
-        if not column_exists(table, column):
-            if dialect == "postgresql":
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coldef}"))
-            else:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coldef}"))
-
-    # Migrasi banner & opsi soal
-    if not column_exists("forms", "banner_url"):
-        conn.execute(text("ALTER TABLE forms ADD COLUMN banner_url VARCHAR;"))
-
-    if not column_exists("templates", "banner_url"):
-        conn.execute(text("ALTER TABLE templates ADD COLUMN banner_url VARCHAR;"))
-
-    if not column_exists("question_options", "is_correct"):
-        conn.execute(text("ALTER TABLE question_options ADD COLUMN is_correct BOOLEAN;"))
-
-    if not column_exists("question_options", "is_other"):
+def _column_exists_conn(conn, table_name: str, column_name: str, dialect: str) -> bool:
+    """Cek kolom pakai conn yang sama (hindari inspect(engine) di dalam transaksi -> deadlock SQLite)."""
+    try:
         if dialect == "postgresql":
-            conn.execute(text("ALTER TABLE question_options ADD COLUMN IF NOT EXISTS is_other BOOLEAN;"))
+            r = conn.execute(text(
+                "SELECT 1 FROM information_schema.columns WHERE table_name=:t AND column_name=:c"
+            ), {"t": table_name, "c": column_name}).first()
+            return r is not None
         else:
-            conn.execute(text("ALTER TABLE question_options ADD COLUMN is_other BOOLEAN;"))
+            rows = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+            # pragma: cid, name, type, notnull, dflt, pk
+            return any(row[1] == column_name for row in rows)
+    except Exception:
+        return False
 
-    # Backfill: opsi lama yang belum punya nilai dianggap bukan jawaban benar
-    conn.execute(text("UPDATE question_options SET is_correct = FALSE WHERE is_correct IS NULL;"))
-    conn.execute(text("UPDATE question_options SET is_other = FALSE WHERE is_other IS NULL;"))
 
-    # Tambah nilai enum baru untuk PostgreSQL (semua tipe baru)
-    if dialect == "postgresql":
-        raw = engine.raw_connection()
+def _table_exists_conn(conn, table_name: str, dialect: str) -> bool:
+    try:
+        if dialect == "postgresql":
+            r = conn.execute(text(
+                "SELECT 1 FROM information_schema.tables WHERE table_name=:t"
+            ), {"t": table_name}).first()
+            return r is not None
+        else:
+            r = conn.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=:t"
+            ), {"t": table_name}).first()
+            return r is not None
+    except Exception:
+        return False
+
+
+# Auto-migrate ringan & schema update — dibungkus try agar tidak bikin uvicorn stuck
+try:
+    with engine.begin() as conn:
+        dialect = engine.dialect.name
+
+        def add_column(table: str, column: str, coldef: str):
+            if not _column_exists_conn(conn, table, column, dialect):
+                if dialect == "postgresql":
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coldef}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coldef}"))
+
+        # Migrasi banner & opsi soal
+        if _table_exists_conn(conn, "forms", dialect) and not _column_exists_conn(conn, "forms", "banner_url", dialect):
+            conn.execute(text("ALTER TABLE forms ADD COLUMN banner_url VARCHAR;"))
+
+        if _table_exists_conn(conn, "templates", dialect) and not _column_exists_conn(conn, "templates", "banner_url", dialect):
+            conn.execute(text("ALTER TABLE templates ADD COLUMN banner_url VARCHAR;"))
+
+        if _table_exists_conn(conn, "question_options", dialect) and not _column_exists_conn(conn, "question_options", "is_correct", dialect):
+            conn.execute(text("ALTER TABLE question_options ADD COLUMN is_correct BOOLEAN;"))
+
+        if _table_exists_conn(conn, "question_options", dialect) and not _column_exists_conn(conn, "question_options", "is_other", dialect):
+            if dialect == "postgresql":
+                conn.execute(text("ALTER TABLE question_options ADD COLUMN IF NOT EXISTS is_other BOOLEAN;"))
+            else:
+                conn.execute(text("ALTER TABLE question_options ADD COLUMN is_other BOOLEAN;"))
+
+        # Backfill: opsi lama yang belum punya nilai dianggap bukan jawaban benar
+        if _table_exists_conn(conn, "question_options", dialect):
+            try:
+                conn.execute(text("UPDATE question_options SET is_correct = FALSE WHERE is_correct IS NULL;"))
+                conn.execute(text("UPDATE question_options SET is_other = FALSE WHERE is_other IS NULL;"))
+            except Exception:
+                pass
+
+        # Setting baru Form Builder
+        add_column("forms", "allow_see_result", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("forms", "max_submissions", "INTEGER NOT NULL DEFAULT 1")
+        add_column("forms", "require_fullscreen", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("forms", "reveal_answers", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("forms", "shuffle_questions", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("forms", "shuffle_options", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("submissions", "is_cheated", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("submissions", "shuffled_order", "JSON")
+        add_column("submissions", "shuffled_options", "JSON")
+        # Fix 500 /submissions/me — kolom baru untuk anonim (Google-Forms style)
+        add_column("submissions", "respondent_key", "VARCHAR(64)")
+        add_column("email_verifications", "purpose", "VARCHAR(20) NOT NULL DEFAULT 'signup'")
+        # user_id sekarang boleh NULL untuk submission anonim
         try:
-            raw_cursor = raw.cursor()
+            if dialect == "postgresql":
+                conn.execute(text("ALTER TABLE submissions ALTER COLUMN user_id DROP NOT NULL"))
+        except Exception:
+            pass
+
+        # Hapus unique constraint (form_id, user_id) supaya multi-submit bisa jalan — SQLite only
+        if dialect != "postgresql":
+            try:
+                indexes = conn.execute(
+                    text("SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='submissions'")
+                ).fetchall()
+                drop = False
+                for name, sql in indexes:
+                    if sql and "uq_one_submission_per_user_per_form" in sql:
+                        drop = True
+                        break
+                    if not sql and name and name.startswith("sqlite_autoindex_submissions"):
+                        cols = [r[2] for r in conn.execute(text(f"PRAGMA index_info({name})")).fetchall()]
+                        if cols == ["form_id", "user_id"] or cols == ["user_id", "form_id"]:
+                            drop = True
+                            break
+                if drop:
+                    # cek kolom existing pakai pragma di conn yang sama
+                    try:
+                        pragma_rows = conn.execute(text("PRAGMA table_info(submissions)")).fetchall()
+                        existing = {row[1] for row in pragma_rows}
+                    except Exception:
+                        existing = set()
+                    cols_all = ["id", "form_id", "user_id", "respondent_key", "started_at", "is_auto_submitted", "submitted_at", "is_cheated", "shuffled_order", "shuffled_options"]
+                    cols = [c for c in cols_all if c in existing or c in ("id","form_id")]
+                    if not cols:
+                        cols = ["id", "form_id", "user_id", "respondent_key", "started_at", "is_auto_submitted", "submitted_at", "is_cheated"]
+                    cols_sql = ", ".join(cols)
+                    conn.execute(text("DROP TABLE IF EXISTS submissions_new"))
+                    conn.execute(text("""CREATE TABLE submissions_new (
+                        id VARCHAR(36) NOT NULL,
+                        form_id VARCHAR(36) NOT NULL,
+                        user_id VARCHAR(36),
+                        respondent_key VARCHAR(64),
+                        started_at DATETIME,
+                        is_auto_submitted BOOLEAN,
+                        submitted_at DATETIME,
+                        is_cheated BOOLEAN NOT NULL DEFAULT 0,
+                        shuffled_order JSON,
+                        shuffled_options JSON,
+                        PRIMARY KEY (id)
+                    )"""))
+                    conn.execute(text(f"INSERT INTO submissions_new ({cols_sql}) SELECT {cols_sql} FROM submissions"))
+                    conn.execute(text("DROP TABLE submissions"))
+                    conn.execute(text("ALTER TABLE submissions_new RENAME TO submissions"))
+            except Exception as _e:
+                print(f"[migrate] sqlite submissions recreate failed: {_e}")
+
+        # PostgreSQL: drop constraint terpisah (tidak butuh rebuild)
+        if dialect == "postgresql":
+            try:
+                conn.execute(
+                    text("ALTER TABLE submissions DROP CONSTRAINT IF EXISTS uq_one_submission_per_user_per_form")
+                )
+            except Exception as _e:
+                print(f"[migrate] drop constraint failed: {_e}")
+
+except Exception as _e:
+    print(f"[migrate] auto-migrate failed (akan lanjut, cek manual): {_e}")
+    import traceback as _tb
+    _tb.print_exc()
+
+# Tambah nilai enum baru untuk PostgreSQL — harus di luar transaksi (ADD VALUE tidak boleh di dalam BEGIN)
+try:
+    if engine.dialect.name == "postgresql":
+        # gunakan engine dengan AUTOCOMMIT
+        with engine.connect() as c:
+            c = c.execution_options(isolation_level="AUTOCOMMIT")
             for val in [
                 'text',
                 'paragraph',
@@ -74,68 +194,13 @@ with engine.begin() as conn:
                 'image',
                 'text_block',
             ]:
-                raw_cursor.execute(f"ALTER TYPE questiontype ADD VALUE IF NOT EXISTS '{val}'")
-            raw.commit()
-            raw_cursor.close()
-        finally:
-            raw.close()
-
-    # Setting baru Form Builder
-    add_column("forms", "allow_see_result", "BOOLEAN NOT NULL DEFAULT FALSE")
-    add_column("forms", "max_submissions", "INTEGER NOT NULL DEFAULT 1")
-    add_column("forms", "require_fullscreen", "BOOLEAN NOT NULL DEFAULT FALSE")
-    add_column("forms", "reveal_answers", "BOOLEAN NOT NULL DEFAULT FALSE")
-    add_column("submissions", "is_cheated", "BOOLEAN NOT NULL DEFAULT FALSE")
-    # Fix 500 /submissions/me — kolom baru untuk anonim (Google-Forms style)
-    add_column("submissions", "respondent_key", "VARCHAR(64)")
-    add_column("email_verifications", "purpose", "VARCHAR(20) NOT NULL DEFAULT 'signup'")
-    # user_id sekarang boleh NULL untuk submission anonim
-    try:
-        if dialect == "postgresql":
-            conn.execute(text("ALTER TABLE submissions ALTER COLUMN user_id DROP NOT NULL"))
-        else:
-            # SQLite: tidak ada ALTER COLUMN DROP NOT NULL, recreate table sudah ditangani di bawah jika perlu
-            pass
-    except Exception:
-        pass
-
-    # Hapus unique constraint (form_id, user_id) supaya multi-submit bisa jalan.
-    if dialect == "postgresql":
-        conn.execute(
-            text("ALTER TABLE submissions DROP CONSTRAINT IF EXISTS uq_one_submission_per_user_per_form")
-        )
-    else:
-        indexes = conn.execute(
-            text("SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='submissions'")
-        ).fetchall()
-        drop = False
-        for name, sql in indexes:
-            if sql and "uq_one_submission_per_user_per_form" in sql:
-                drop = True
-                break
-            if not sql and name and name.startswith("sqlite_autoindex_submissions"):
-                cols = [r[2] for r in conn.execute(text(f"PRAGMA index_info({name})")).fetchall()]
-                if cols == ["form_id", "user_id"] or cols == ["user_id", "form_id"]:
-                    drop = True
-                    break
-        if drop:
-            cols = ["id", "form_id", "user_id", "respondent_key", "started_at", "is_auto_submitted", "submitted_at", "is_cheated"]
-            cols_sql = ", ".join(cols)
-            conn.execute(text("DROP TABLE IF EXISTS submissions_new"))
-            conn.execute(text("""CREATE TABLE submissions_new (
-                id VARCHAR(36) NOT NULL,
-                form_id VARCHAR(36) NOT NULL,
-                user_id VARCHAR(36),
-                respondent_key VARCHAR(64),
-                started_at DATETIME,
-                is_auto_submitted BOOLEAN,
-                submitted_at DATETIME,
-                is_cheated BOOLEAN NOT NULL DEFAULT 0,
-                PRIMARY KEY (id)
-            )"""))
-            conn.execute(text(f"INSERT INTO submissions_new ({cols_sql}) SELECT {cols_sql} FROM submissions"))
-            conn.execute(text("DROP TABLE submissions"))
-            conn.execute(text("ALTER TABLE submissions_new RENAME TO submissions"))
+                try:
+                    c.execute(text(f"ALTER TYPE questiontype ADD VALUE IF NOT EXISTS '{val}'"))
+                except Exception as _e:
+                    # enum sudah ada atau tidak bisa — skip
+                    pass
+except Exception as _e:
+    print(f"[migrate] enum add failed: {_e}")
 
 
 app = FastAPI(title="Form Maker API", version="2.0.0")

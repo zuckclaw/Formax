@@ -66,6 +66,88 @@ def _owns_submission(submission, current_user, respondent_key):
     return False
 
 
+# ------------------------------------------------------------------
+# SHUFFLE per-section helpers (web only, page_break as section delimiter)
+# ------------------------------------------------------------------
+def _split_sections(questions_sorted):
+    """Pecah flat questions (sorted order_index) jadi sections pakai page_break sebagai batas.
+    Return list of {pb: Question|None, questions: [Question,...]}. pb adalah page_break itu sendiri.
+    Section pertama sebelum page_break pertama punya pb=None.
+    """
+    sections = []
+    cur = {"pb": None, "questions": []}
+    for q in questions_sorted:
+        if str(getattr(q.type, "value", q.type)) == "page_break":
+            # tutup section sebelumnya jika ada isi atau sudah ada pb
+            if cur["questions"] or cur["pb"] is not None:
+                sections.append(cur)
+                cur = {"pb": q, "questions": []}
+            else:
+                # section kosong pertama, jadikan pb sebagai header section pertama
+                cur["pb"] = q
+        else:
+            cur["questions"].append(q)
+    sections.append(cur)
+    # jika form tanpa page_break, sections = [{"pb":None, questions:[...]}]
+    # jika form hanya page_break tanpa soal, tetap 1 entry
+    if not sections:
+        sections = [{"pb": None, "questions": []}]
+    return sections
+
+
+def _should_shuffle_section(form, pb):
+    """Apakah section ini harus diacak? Prioritas: per-section flag jika ada, else global."""
+    if pb is not None and isinstance(getattr(pb, "settings", None), dict):
+        s = pb.settings or {}
+        if "shuffle" in s or "shuffle_questions" in s:
+            # explicit per-section setting wins (True = shuffle, False = jangan)
+            return bool(s.get("shuffle") or s.get("shuffle_questions"))
+    return bool(getattr(form, "shuffle_questions", False))
+
+
+def _seeded_shuffle(items, seed_str):
+    """Shuffle deterministik pakai seed string (Fisher-Yates via random.Random)."""
+    import random, hashlib
+    h = hashlib.md5(seed_str.encode()).hexdigest()
+    seed = int(h[:8], 16)
+    rnd = random.Random(seed)
+    out = list(items)
+    rnd.shuffle(out)
+    return out
+
+
+def _build_shuffled_order(form, questions_sorted, submission_id):
+    """Bangun shuffled_order per-section untuk submission. Return list-of-lists [[qid,...],...]"""
+    sections = _split_sections(questions_sorted)
+    shuffled_sections = []
+    for idx, sec in enumerate(sections):
+        qids = [str(q.id) for q in sec["questions"]]
+        if len(qids) > 1 and _should_shuffle_section(form, sec["pb"]):
+            qids = _seeded_shuffle(qids, f"{submission_id}-sec-{idx}")
+        shuffled_sections.append(qids)
+    return shuffled_sections
+
+
+def _build_shuffled_options(form, questions_sorted, submission_id):
+    """Bangun shuffled_options {qid: [opt_id,...]} per-question jika shuffle_options aktif."""
+    if not getattr(form, "shuffle_options", False):
+        return None
+    result = {}
+    for q in questions_sorted:
+        if str(getattr(q.type, "value", q.type)) == "page_break":
+            continue
+        if not getattr(q, "options", None) or len(q.options) <= 1:
+            continue
+        # hanya acak tipe pilihan yang punya opsi
+        if str(getattr(q.type, "value", q.type)) not in ("single_choice", "checkbox", "dropdown"):
+            continue
+        opt_ids = [str(o.id) for o in q.options]
+        shuffled = _seeded_shuffle(opt_ids, f"{submission_id}-opts-{q.id}")
+        # jika shuffle tidak mengubah urutan (kebetulan sama), tetap simpan untuk konsistensi
+        result[str(q.id)] = shuffled
+    return result if result else None
+
+
 @router.post("/forms/public/{slug}/join", response_model=schemas.SubmissionOut)
 def join_form(
     slug: str,
@@ -115,6 +197,22 @@ def join_form(
         in_progress = in_progress.filter(models.Submission.respondent_key == rkey)
     existing = in_progress.first()
     if existing:
+        # lazy generate shuffled snapshot untuk submission lama yang belum punya (fitur shuffle baru diaktifkan setelah join)
+        try:
+            if getattr(existing, "shuffled_order", None) is None:
+                qs_sorted = db.query(models.Question).filter(models.Question.form_id == form.id).order_by(models.Question.order_index).all()
+                has_pb = any(str(getattr(q.type, "value", q.type)) == "page_break" for q in qs_sorted)
+                should = bool(getattr(form, "shuffle_questions", False) or (has_pb and any(_should_shuffle_section(form, sec["pb"]) for sec in _split_sections(qs_sorted))))
+                if should:
+                    existing.shuffled_order = _build_shuffled_order(form, qs_sorted, str(existing.id))
+                    if getattr(form, "shuffle_options", False):
+                        so2 = _build_shuffled_options(form, qs_sorted, str(existing.id))
+                        if so2:
+                            existing.shuffled_options = so2
+                    db.commit()
+                    db.refresh(existing)
+        except Exception:
+            pass
         return existing
 
     # 2) Cek batas jumlah submission yang sudah selesai.
@@ -150,6 +248,21 @@ def join_form(
     # 3) Belum pernah / masih boleh isi -> buat submission baru.
     submission = models.Submission(form_id=form.id, user_id=user_id, respondent_key=rkey)
     db.add(submission)
+    db.flush()  # perlu id untuk seed shuffle
+    # generate shuffled snapshot per-section jika fitur aktif
+    try:
+        qs_sorted = db.query(models.Question).filter(models.Question.form_id == form.id).order_by(models.Question.order_index).all()
+        has_page_break = any(str(getattr(q.type, "value", q.type)) == "page_break" for q in qs_sorted)
+        should_shuffle = bool(getattr(form, "shuffle_questions", False) or (has_page_break and any(_should_shuffle_section(form, sec["pb"]) for sec in _split_sections(qs_sorted))))
+        if should_shuffle:
+            submission.shuffled_order = _build_shuffled_order(form, qs_sorted, str(submission.id))
+        should_shuffle_opts = bool(getattr(form, "shuffle_options", False))
+        if should_shuffle_opts:
+            so = _build_shuffled_options(form, qs_sorted, str(submission.id))
+            if so:
+                submission.shuffled_options = so
+    except Exception as e:
+        print(f"[join shuffle] gagal: {e}")
     db.commit()
     db.refresh(submission)
     return submission
@@ -224,7 +337,11 @@ def get_progress(
     if not _owns_submission(submission, current_user, respondent_key):
         raise HTTPException(status_code=403, detail="Bukan submission milikmu")
 
-    total = db.query(func.count(models.Question.id)).filter(models.Question.form_id == submission.form_id).scalar()
+    # exclude page_break dari hitungan total (section header bukan soal)
+    total = db.query(func.count(models.Question.id)).filter(
+        models.Question.form_id == submission.form_id,
+        models.Question.type != models.QuestionType.page_break,
+    ).scalar()
     answered = db.query(func.count(models.Answer.id)).filter(models.Answer.submission_id == submission_id).scalar()
     return schemas.ProgressOut(answered=answered or 0, total=total or 0)
 
@@ -257,6 +374,7 @@ def submit_final(
         required_qs = db.query(models.Question).filter(
             models.Question.form_id == submission.form_id,
             models.Question.is_required == True,  # noqa: E712
+            models.Question.type != models.QuestionType.page_break,
         ).all()
         if required_qs:
             answers_map = {a.question_id: a for a in (submission.answers or [])}
@@ -339,7 +457,7 @@ def list_my_submissions(
             continue
 
         owner = db.query(models.User).filter(models.User.id == form.owner_id).first() if form.owner_id else None
-        total_q = db.query(func.count(models.Question.id)).filter(models.Question.form_id == form.id).scalar() or 0
+        total_q = db.query(func.count(models.Question.id)).filter(models.Question.form_id == form.id, models.Question.type != models.QuestionType.page_break).scalar() or 0
 
         form_brief = schemas.FormBriefOut(
             id=form.id,
@@ -461,12 +579,27 @@ def get_submission_result(
         .order_by(models.Question.order_index)
         .all()
     )
+    # filter page_break dari result (bukan soal)
+    questions_answerable = [q for q in questions if str(getattr(q.type, "value", q.type)) != "page_break"]
+    # order sesuai shuffle jika ada (agar urutan hasil sama seperti yang dilihat responden)
+    if getattr(submission, "shuffled_order", None):
+        try:
+            order = submission.shuffled_order
+            # support flat list or list-of-lists per-section
+            if order and isinstance(order[0], list):
+                flat = [qid for sec in order for qid in sec]
+            else:
+                flat = list(order)
+            pos = {qid: i for i, qid in enumerate(flat)}
+            questions_answerable = sorted(questions_answerable, key=lambda q: pos.get(str(q.id), 9999))
+        except Exception:
+            pass
     answers = {a.question_id: a for a in submission.answers}
     reveal = bool(form.reveal_answers)
 
-    total_graded = sum(1 for q in questions if _is_graded(q))
+    total_graded = sum(1 for q in questions_answerable if _is_graded(q))
     correct_count = sum(
-        1 for q in questions
+        1 for q in questions_answerable
         if _is_graded(q) and _is_answer_correct(q, answers.get(q.id))
     )
     score = round((correct_count / total_graded) * 100) if total_graded else None
@@ -480,7 +613,7 @@ def get_submission_result(
             is_correct=_is_answer_correct(q, answers.get(q.id)),
             correct_answer=", ".join(sorted(_correct_keys(q))) if reveal else None,
         )
-        for q in questions
+        for q in questions_answerable
     ]
 
     return schemas.SubmissionResultOut(

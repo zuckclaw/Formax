@@ -204,6 +204,8 @@ class FormCreate(BaseModel):
     max_submissions: int = 1
     require_fullscreen: bool = False
     reveal_answers: bool = False
+    shuffle_questions: bool = False     # acak soal per-section
+    shuffle_options: bool = False       # acak opsi per-soal
     # FIX publish bug: web kirim status=published saat klik Publish pada form baru,
     # tapi field ini tidak ada di FormCreate sehingga di-ignore Pydantic → selalu draft (403).
     # Tambahkan status & accept_responses agar create bisa langsung published.
@@ -229,7 +231,8 @@ class FormUpdate(BaseModel):
     max_submissions: Optional[int] = None
     require_fullscreen: Optional[bool] = None
     reveal_answers: Optional[bool] = None
-    use_join_token: Optional[bool] = None
+    shuffle_questions: Optional[bool] = None
+    shuffle_options: Optional[bool] = None
     questions: Optional[List[QuestionCreate]] = None  # draft/update: replace semua questions
 
     @field_validator("title", "description")
@@ -254,6 +257,8 @@ class FormOut(BaseModel):
     max_submissions: int
     require_fullscreen: bool
     reveal_answers: bool
+    shuffle_questions: bool = False
+    shuffle_options: bool = False
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     created_at: datetime
@@ -357,6 +362,8 @@ class SubmissionOut(BaseModel):
     is_auto_submitted: bool
     submitted_at: Optional[datetime]
     is_cheated: bool = False
+    shuffled_order: Optional[Any] = None
+    shuffled_options: Optional[Any] = None
     answers: List[AnswerOut] = []
 
     class Config:
