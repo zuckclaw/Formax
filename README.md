@@ -2,7 +2,7 @@
 
 Form4X adalah aplikasi pembuat formulir digital bergaya modern yang tersedia dalam versi **Web** dan **Mobile**. Aplikasi ini memungkinkan pengguna membuat, mengelola, membagikan, dan menganalisis formulir secara menyeluruh — mulai dari survei, pendaftaran, absensi, kuis, hingga pengumpulan data umum — dengan pengalaman yang familiar, cepat, dan responsif.
 
-**Demo Web:** `https://formax-seven.vercel.app`  
+**Demo Web:**
 
 ---
 
