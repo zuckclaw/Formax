@@ -41,6 +41,7 @@ Form4X dibangun sebagai alternatif Google Forms dengan fokus pada:
 Aplikasi terdiri dari tiga bagian utama yang berbagi satu REST API:
 
 - **Backend** — FastAPI + SQLAlchemy + PostgreSQL (juga kompatibel SQLite untuk development)
+ 
 - **Web** — React + Vite + React Router + React Quill
 - **Mobile** — Flutter (Android, iOS, Web, Desktop)
 
