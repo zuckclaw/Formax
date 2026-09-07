@@ -11,6 +11,7 @@ import NgrokImage from '../components/NgrokImage';
 import 'katex/dist/katex.min.css';
 import { prepareMathHtml } from '../utils/mathRender';
 import '../styles/dashboard.css';
+import '../styles/ai-builder.css';
 
 // Helper: ubah HTML WYSIWYG (Quill) menjadi teks polos agar tidak bocor tag di riwayat
 function stripHtml(html) {
@@ -2485,6 +2486,20 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* FAB Formax AI */}
+      <button className="fab-ai" onClick={() => navigate('/ai-builder')} aria-label="Formax AI" title="Buat form otomatis dengan AI">
+        <div className="fab-ai-logo-wrap">
+          <img src={logoForm4x} alt="Formax Logo" className="fab-ai-logo" />
+          <span className="fab-ai-sparkle" title="AI Powered">
+            <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+          </span>
+        </div>
+        <span className="fab-ai-text">Formax AI</span>
+        <span className="fab-ai-badge">AI</span>
+      </button>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import FormBuilderPage from './pages/FormBuilderPage';
 import FormFillPage from './pages/FormFillPage';
 import ProfilePage from './pages/ProfilePage';
+import AiFormBuilderPage from './pages/AiFormBuilderPage';
 import { getValidToken } from './utils/authStorage';
 
 function PrivateRoute({ children }) {
@@ -68,6 +69,14 @@ function App() {
           element={
             <PrivateRoute>
               <FormBuilderPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/ai-builder"
+          element={
+            <PrivateRoute>
+              <AiFormBuilderPage />
             </PrivateRoute>
           }
         />
