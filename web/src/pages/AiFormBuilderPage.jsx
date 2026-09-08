@@ -21,7 +21,7 @@ const QUESTION_TYPE_LABELS = {
 
 const PRESET_PROMPTS = [
   {
-    icon: '🎓',
+    icon: '-',
     label: 'Ujian Matematika SMA',
     title: 'Kuis Matematika SMA — Aljabar Kuadrat',
     description: 'Ujian pengukur pemahaman aljabar dan fungsi kuadrat kelas 10.',
@@ -31,7 +31,7 @@ const PRESET_PROMPTS = [
     useSections: true,
   },
   {
-    icon: '🏢',
+    icon: '-',
     label: 'Survei Kepuasan Pelanggan',
     title: 'Survei Kepuasan & Feedback Pelanggan',
     description: 'Kuesioner evaluasi kualitas layanan, rasa produk, dan keramahan staf.',
@@ -41,7 +41,7 @@ const PRESET_PROMPTS = [
     useSections: true,
   },
   {
-    icon: '📝',
+    icon: '-',
     label: 'Form Pendaftaran Event',
     title: 'Form Pendaftaran Webinar Nasional 2026',
     description: 'Pendaftaran peserta webinar teknologi dan kecerdasan buatan.',
@@ -51,7 +51,7 @@ const PRESET_PROMPTS = [
     useSections: true,
   },
   {
-    icon: '💼',
+    icon: '-',
     label: 'Evaluasi Kinerja Dosen',
     title: 'Survei Evaluasi Pembelajaran & Pengajar',
     description: 'Evaluasi rutin semesteran mengenai metode pengajaran dan kesiapan materi.',
@@ -233,7 +233,7 @@ export default function AiFormBuilderPage() {
               <h1 className="ai-title">Formax AI</h1>
               <span className="ai-badge-chip">Smart Engine 2.0</span>
             </div>
-            <p className="ai-subtitle">Buat kuis, survei &amp; form otomatis berstandar tinggi tanpa AI slop</p>
+            <p className="ai-subtitle">Buat kuis, survei &amp; form otomatis berstandar tinggi dengan kecerdasan buatan kami!</p>
           </div>
         </div>
         <div className="ai-header-right">
@@ -336,7 +336,7 @@ export default function AiFormBuilderPage() {
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span>Model AI: <strong>Gemma 4 / Gemini Smart Architect</strong> — Bebas slop &amp; mendukung LaTeX.</span>
+              <span>Model AI: <strong>Formax Smart Architect</strong> — Berkualitas Tinggi &amp; mendukung LaTeX.</span>
             </div>
 
             {error && (
