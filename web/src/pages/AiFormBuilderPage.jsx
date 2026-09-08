@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMe, logout } from '../api/auth';
 import { createForm } from '../api/forms';
 import { generateAiForm } from '../api/ai';
 import { getValidToken } from '../utils/authStorage';
@@ -10,15 +9,68 @@ import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
 
 const QUESTION_TYPE_LABELS = {
-  text: 'Teks',
+  text: 'Teks Singkat',
   paragraph: 'Paragraf',
   single_choice: 'Pilihan Ganda',
   checkbox: 'Checkbox',
   dropdown: 'Dropdown',
   date: 'Tanggal',
   file_upload: 'Upload File',
-  page_break: 'Bagian',
+  page_break: 'Bagian Header',
 };
+
+const PRESET_PROMPTS = [
+  {
+    icon: '🎓',
+    label: 'Ujian Matematika SMA',
+    title: 'Kuis Matematika SMA — Aljabar Kuadrat',
+    description: 'Ujian pengukur pemahaman aljabar dan fungsi kuadrat kelas 10.',
+    prompt: 'Buatkan kuis Matematika SMA kelas 10, 2 Bagian: Identitas Siswa & 5 soal pilihan ganda tentang aljabar kuadrat dan persamaan linear. Sertakan rumus matematika LaTeX \\(f(x) = ax^2 + bx + c\\) dan kunci jawaban akurat.',
+    questions: 5,
+    includeCorrect: true,
+    useSections: true,
+  },
+  {
+    icon: '🏢',
+    label: 'Survei Kepuasan Pelanggan',
+    title: 'Survei Kepuasan & Feedback Pelanggan',
+    description: 'Kuesioner evaluasi kualitas layanan, rasa produk, dan keramahan staf.',
+    prompt: 'Buatkan kuesioner survei kepuasan pelanggan restoran 5 soal pilihan ganda skala Likert (Sangat Puas s/d Sangat Tidak Puas) dan 1 soal paragraf untuk kritik & saran masukan.',
+    questions: 6,
+    includeCorrect: false,
+    useSections: true,
+  },
+  {
+    icon: '📝',
+    label: 'Form Pendaftaran Event',
+    title: 'Form Pendaftaran Webinar Nasional 2026',
+    description: 'Pendaftaran peserta webinar teknologi dan kecerdasan buatan.',
+    prompt: 'Buatkan formulir pendaftaran webinar 5 bidang: Nama Lengkap (text), Email (text), Instansi/Profesi (dropdown), Tanggal Lahir (date), dan Upload Bukti Transfer/Kartu Identitas (file_upload).',
+    questions: 5,
+    includeCorrect: false,
+    useSections: true,
+  },
+  {
+    icon: '💼',
+    label: 'Evaluasi Kinerja Dosen',
+    title: 'Survei Evaluasi Pembelajaran & Pengajar',
+    description: 'Evaluasi rutin semesteran mengenai metode pengajaran dan kesiapan materi.',
+    prompt: 'Buatkan kuesioner evaluasi dosen oleh mahasiswa 5 soal pilihan skala rating (Sangat Baik s/d Sangat Kurang) mengenai penguasaan materi, ketepatan waktu, dan kejelasan penjelasan.',
+    questions: 5,
+    includeCorrect: false,
+    useSections: true,
+  },
+  {
+    icon: '🇬🇧',
+    label: 'Kuis Bahasa Inggris',
+    title: 'English Proficiency Quiz — Grammar & Tenses',
+    description: 'Short quiz to assess basic English grammar, tenses, and daily vocabulary.',
+    prompt: 'Make an English exam for 10th grade students focusing on tenses (simple present, past tense, future tense) with 5 multiple choice questions and answer keys.',
+    questions: 5,
+    includeCorrect: true,
+    useSections: true,
+  },
+];
 
 function stripHtml(html) {
   if (!html) return '';
@@ -32,26 +84,39 @@ export default function AiFormBuilderPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [numQuestions, setNumQuestions] = useState(10);
+  const [numQuestions, setNumQuestions] = useState(5);
   const [includeCorrect, setIncludeCorrect] = useState(true);
   const [useSections, setUseSections] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
+  const [activePreset, setActivePreset] = useState(null);
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const handleApplyPreset = (preset, index) => {
+    setTitle(preset.title);
+    setDescription(preset.description);
+    setPrompt(preset.prompt);
+    setNumQuestions(preset.questions);
+    setIncludeCorrect(preset.includeCorrect);
+    setUseSections(preset.useSections);
+    setActivePreset(index);
+    setError('');
+    showToast(`Template "${preset.label}" berhasil diterapkan!`, 'info');
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim() || prompt.trim().length < 10) {
-      setError('Prompt minimal 10 karakter. Contoh: “Buatkan ujian matematika kelas 10, 2 Bagian: biodata & 10 soal aljabar pilihan ganda dengan kunci jawaban”');
+      setError('Prompt minimal 10 karakter. Jelaskan form yang ingin Anda buat.');
       return;
     }
     if (numQuestions < 3 || numQuestions > 30) {
-      setError('Jumlah soal harus 3-30');
+      setError('Jumlah soal harus antara 3 hingga 30.');
       return;
     }
     setError('');
@@ -67,10 +132,10 @@ export default function AiFormBuilderPage() {
         use_sections: useSections,
       });
       setPreview(data);
-      showToast('Form berhasil digenerate AI!', 'success');
+      showToast('Form cerdas berhasil digenerate!', 'success');
     } catch (err) {
       setError(err.message || 'Gagal generate form');
-      showToast(err.message || 'Gagal generate', 'error');
+      showToast(err.message || 'Gagal generate form', 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -85,9 +150,8 @@ export default function AiFormBuilderPage() {
     try {
       setIsGenerating(true);
       const payload = {
-        title: preview.title || title || 'Form Buatan AI',
+        title: preview.title || title || 'Form Buatan Formax AI',
         description: preview.description || description || '',
-        slug: '', // backend will generate
         questions: (preview.questions || []).map((q, idx) => ({
           type: q.type,
           label: q.label,
@@ -102,14 +166,12 @@ export default function AiFormBuilderPage() {
             is_correct: !!o.is_correct,
           })),
         })),
-        use_join_token: false,
-        status: 'draft',
       };
-      // gunakan createForm
+      
       const created = await createForm(token, {
         title: payload.title,
         description: payload.description,
-        slug: `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`,
+        slug: `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
         questions: payload.questions,
         status: 'draft',
         allow_see_result: false,
@@ -118,7 +180,7 @@ export default function AiFormBuilderPage() {
         reveal_answers: includeCorrect,
       });
       showToast('Form disimpan! Mengalihkan ke editor...', 'success');
-      setTimeout(() => navigate(`/form-builder/${created.id}`), 800);
+      setTimeout(() => navigate(`/form-builder/${created.id}`), 700);
     } catch (err) {
       showToast(err.message || 'Gagal menyimpan form', 'error');
     } finally {
@@ -128,7 +190,6 @@ export default function AiFormBuilderPage() {
 
   const handleBack = () => navigate('/dashboard');
 
-  // group preview questions into sections for display
   const previewSections = (() => {
     if (!preview?.questions) return [];
     const qs = preview.questions;
@@ -152,15 +213,12 @@ export default function AiFormBuilderPage() {
 
   return (
     <div className="ai-root">
-      {/* Ambient Wave Background Effect */}
+      {/* Ambient Waves */}
       <div className="ai-bg-waves" aria-hidden="true">
         <div className="ai-glow-orb orb-1" />
         <div className="ai-glow-orb orb-2" />
         <svg className="ai-wave-svg wave-1" viewBox="0 0 1440 320" preserveAspectRatio="none">
           <path fill="currentColor" d="M0,192L48,176C96,160,192,128,288,138.7C384,149,480,203,576,213.3C672,224,768,192,864,165.3C960,139,1056,117,1152,128C1248,139,1344,181,1392,202.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
-        </svg>
-        <svg className="ai-wave-svg wave-2" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="currentColor" d="M0,96L48,122.7C96,149,192,203,288,208C384,213,480,171,576,144C672,117,768,107,864,128C960,149,1056,203,1152,213.3C1248,224,1344,160,1392,128L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
         </svg>
       </div>
 
@@ -173,9 +231,9 @@ export default function AiFormBuilderPage() {
           <div className="ai-brand-wrap">
             <div className="ai-title-row">
               <h1 className="ai-title">Formax AI</h1>
-              <span className="ai-badge-chip">AI Generator</span>
+              <span className="ai-badge-chip">Smart Engine 2.0</span>
             </div>
-            <p className="ai-subtitle">Buat form otomatis cerdas — berikan prompt, sistem susun soal & bagian secara instan</p>
+            <p className="ai-subtitle">Buat kuis, survei &amp; form otomatis berstandar tinggi tanpa AI slop</p>
           </div>
         </div>
         <div className="ai-header-right">
@@ -194,41 +252,69 @@ export default function AiFormBuilderPage() {
                 </svg>
               </div>
               <div>
-                <h2 className="ai-card-title">Prompt AI</h2>
-                <p className="ai-card-desc">Jelaskan instruksi form. AI akan menyusun judul, deskripsi, soal, pilihan jawaban, hingga struktur bagian (section).</p>
+                <h2 className="ai-card-title">Instruksi AI (Prompt)</h2>
+                <p className="ai-card-desc">Tulis instruksi atau pilih template cepat untuk membuat form cerdas secara otomatis.</p>
+              </div>
+            </div>
+
+            {/* PRESET PROMPT CHIPS */}
+            <div className="ai-presets-container">
+              <span className="ai-presets-label">⚡ Template Prompt Cepat:</span>
+              <div className="ai-presets-grid">
+                {PRESET_PROMPTS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`ai-preset-chip ${activePreset === idx ? 'active' : ''}`}
+                    onClick={() => handleApplyPreset(preset, idx)}
+                  >
+                    <span className="ai-preset-icon">{preset.icon}</span>
+                    <span>{preset.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="ai-form-group">
-              <label className="ai-label">Judul Form <span className="ai-optional">(opsional, dapat diisi otomatis oleh AI)</span></label>
-              <input className="ai-input" type="text" placeholder="Contoh: Ujian Matematika Kelas 10 — Aljabar" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+              <label className="ai-label">Judul Form <span className="ai-optional">(opsional)</span></label>
+              <input className="ai-input" type="text" placeholder="Contoh: Kuis Matematika SMA — Aljabar" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
             </div>
 
             <div className="ai-form-group">
               <label className="ai-label">Deskripsi Form <span className="ai-optional">(opsional)</span></label>
-              <textarea className="ai-textarea" rows={2} placeholder="Contoh: Ujian pengukur pemahaman aljabar dasar, durasi 60 menit..." value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
+              <textarea className="ai-textarea" rows={2} placeholder="Contoh: Petunjuk pengerjaan dan durasi waktu..." value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
             </div>
 
             <div className="ai-form-group">
-              <label className="ai-label">Instruksi / Prompt AI <span className="ai-required">*</span></label>
-              <textarea className="ai-textarea ai-prompt" rows={5} placeholder="Contoh: Buatkan ujian Matematika kelas 10, 2 Bagian: Bagian 1 Biodata (nama, kelas, email) dan Bagian 2 berisi 10 soal pilihan ganda tentang aljabar (persamaan linear, kuadrat) dengan 4 opsi dan kunci jawaban. Soal di Bagian 2 diacak per siswa." value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={4000} />
+              <label className="ai-label">Instruksi Detail Prompt <span className="ai-required">*</span></label>
+              <textarea
+                className="ai-textarea ai-prompt"
+                rows={4}
+                placeholder="Contoh: Buatkan ujian Matematika SMA kelas 10 tentang fungsi kuadrat, 5 soal pilihan ganda dengan 4 opsi, kunci jawaban akurat, dan rumus LaTeX \(f(x) = ax^2 + bx + c\)..."
+                value={prompt}
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  setActivePreset(null);
+                }}
+                maxLength={4000}
+              />
               <div className="ai-char-count">{prompt.length} / 4000 karakter</div>
             </div>
 
             <div className="ai-form-group">
-              <label className="ai-label">Target Jumlah Soal</label>
+              <label className="ai-label">Target Jumlah Soal / Pertanyaan</label>
               <div className="ai-num-row">
                 <input type="range" min={3} max={30} value={numQuestions} onChange={(e) => setNumQuestions(Number(e.target.value))} className="ai-range" />
                 <div className="ai-num-badge">{numQuestions} Soal</div>
               </div>
-              <span className="ai-hint">Kisaran 3-30 soal (rekomendasi: 10)</span>
+              <span className="ai-hint">Kisaran 3-30 soal (rekomendasi: 5-10)</span>
             </div>
 
             <div className="ai-toggles">
               <label className="ai-toggle-row">
                 <div className="ai-toggle-info">
                   <span className="ai-toggle-title">Kunci Jawaban Otomatis</span>
-                  <span className="ai-toggle-sub">AI menandai opsi benar untuk soal pilihan ganda</span>
+                  <span className="ai-toggle-sub">AI menandai 1 opsi benar untuk tiap soal pilihan ganda</span>
                 </div>
                 <button type="button" className={`ai-toggle ${includeCorrect ? 'on' : 'off'}`} onClick={() => setIncludeCorrect((v) => !v)} aria-label="Toggle kunci jawaban">
                   <span className="ai-toggle-slider" />
@@ -238,7 +324,7 @@ export default function AiFormBuilderPage() {
               <label className="ai-toggle-row">
                 <div className="ai-toggle-info">
                   <span className="ai-toggle-title">Gunakan Bagian (Section)</span>
-                  <span className="ai-toggle-sub">Gunakan pemisah halaman (Bagian 1, 2, dst)</span>
+                  <span className="ai-toggle-sub">Pisahkan Bagian Identitas &amp; Bagian Pertanyaan</span>
                 </div>
                 <button type="button" className={`ai-toggle ${useSections ? 'on' : 'off'}`} onClick={() => setUseSections((v) => !v)} aria-label="Toggle bagian">
                   <span className="ai-toggle-slider" />
@@ -247,8 +333,10 @@ export default function AiFormBuilderPage() {
             </div>
 
             <div className="ai-billing-hint">
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              <span>Model: <strong>Gemini 1.5 Flash</strong> — proses cepat, responsif, dan hemat penggunaan token kuota.</span>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Model AI: <strong>Gemma 4 / Gemini Smart Architect</strong> — Bebas slop &amp; mendukung LaTeX.</span>
             </div>
 
             {error && (
@@ -262,16 +350,16 @@ export default function AiFormBuilderPage() {
               {isGenerating ? (
                 <>
                   <span className="ai-btn-spinner" />
-                  Generating Form...
+                  Formax AI Sedang Meracik...
                 </>
               ) : (
                 <>
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
-                  Generate Form Sekarang
+                  Generate Form Cerdas
                 </>
               )}
             </button>
-            <p className="ai-generate-hint">Mendukung Bahasa Indonesia &amp; Inggris secara otomatis</p>
+            <p className="ai-generate-hint">Otomatis mendeteksi Bahasa Indonesia &amp; Inggris secara mulus</p>
           </section>
 
           {/* RIGHT: Live Preview */}
@@ -286,12 +374,12 @@ export default function AiFormBuilderPage() {
                 </div>
                 <div>
                   <h2 className="ai-card-title">Preview Hasil Form</h2>
-                  <p className="ai-card-desc">Review struktur form yang telah dibuat AI sebelum disimpan ke editor.</p>
+                  <p className="ai-card-desc">Review struktur form sebelum dikonfirmasi dan dimasukkan ke Editor Form.</p>
                 </div>
               </div>
               {preview && (
                 <span className="ai-preview-count">
-                  {preview.questions.filter((q)=>q.type!=='page_break').length} Soal &bull; {previewSections.length} Bagian
+                  {preview.questions.filter((q) => q.type !== 'page_break').length} Pertanyaan &bull; {previewSections.length} Bagian
                 </span>
               )}
             </div>
@@ -305,7 +393,7 @@ export default function AiFormBuilderPage() {
                 </div>
                 <div className="ai-loading-text">
                   <strong>Formax AI sedang meracik form...</strong>
-                  <span>Menganalisis instruksi &amp; menyusun struktur pertanyaan</span>
+                  <span>Menganalisis instruksi, menyusun soal &amp; merender formula matematika</span>
                 </div>
                 <div className="ai-loading-shimmer">
                   <div className="ai-shimmer-line w-80" />
@@ -323,16 +411,16 @@ export default function AiFormBuilderPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 </div>
-                <p>Belum ada preview form</p>
-                <small>Tuliskan instruksi pada panel di sebelah kiri, kemudian klik tombol <strong>Generate Form Sekarang</strong> untuk melihat hasilnya.</small>
+                <p>Belum Ada Hasil Form</p>
+                <small>Pilih salah satu <strong>Template Prompt Cepat</strong> atau ketik instruksi di sebelah kiri, lalu klik <strong>Generate Form Cerdas</strong>.</small>
               </div>
             )}
 
             {!isGenerating && preview && (
               <div className="ai-preview-content">
                 <div className="ai-preview-form-header">
-                  <h3 className="ai-preview-title" dangerouslySetInnerHTML={{ __html: preview.title }} />
-                  {preview.description && <p className="ai-preview-desc" dangerouslySetInnerHTML={{ __html: preview.description }} />}
+                  <h3 className="ai-preview-title" dangerouslySetInnerHTML={{ __html: prepareMathHtml(preview.title) }} />
+                  {preview.description && <p className="ai-preview-desc" dangerouslySetInnerHTML={{ __html: prepareMathHtml(preview.description) }} />}
                 </div>
 
                 {previewSections.map((sec, sIdx) => (
@@ -348,7 +436,7 @@ export default function AiFormBuilderPage() {
                             </span>
                           )}
                         </div>
-                        <h4 className="ai-preview-section-title" dangerouslySetInnerHTML={{ __html: sec.pb.label }} />
+                        <h4 className="ai-preview-section-title" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb.label) }} />
                         {sec.pb.settings?.description && <p className="ai-preview-section-desc">{stripHtml(sec.pb.settings.description)}</p>}
                       </div>
                     )}
@@ -356,7 +444,7 @@ export default function AiFormBuilderPage() {
                       <div key={qIdx} className="ai-preview-q">
                         <div className="ai-preview-q-header">
                           <span className="ai-preview-q-num">{qIdx + 1}.</span>
-                          <span className="ai-preview-q-label" dangerouslySetInnerHTML={{ __html: q.label }} />
+                          <span className="ai-preview-q-label" dangerouslySetInnerHTML={{ __html: prepareMathHtml(q.label) }} />
                           {q.is_required && <span className="ai-preview-required" title="Wajib diisi">*</span>}
                           <span className="ai-preview-q-type">{QUESTION_TYPE_LABELS[q.type] || q.type}</span>
                         </div>
@@ -365,7 +453,7 @@ export default function AiFormBuilderPage() {
                             {q.options.map((o, oIdx) => (
                               <div key={oIdx} className={`ai-preview-opt ${o.is_correct ? 'correct' : ''}`}>
                                 <span className="ai-preview-opt-dot">{String.fromCharCode(65 + oIdx)}</span>
-                                <span dangerouslySetInnerHTML={{ __html: o.label }} />
+                                <span dangerouslySetInnerHTML={{ __html: prepareMathHtml(o.label) }} />
                                 {o.is_correct && (
                                   <span className="ai-preview-correct">
                                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12" /></svg>
@@ -376,12 +464,18 @@ export default function AiFormBuilderPage() {
                             ))}
                           </div>
                         )}
-                        {q.type === 'text' && <div className="ai-preview-placeholder">Jawaban teks singkat...</div>}
-                        {q.type === 'paragraph' && <div className="ai-preview-placeholder">Jawaban paragraf panjang...</div>}
+                        {q.type === 'text' && <div className="ai-preview-placeholder">{q.placeholder || 'Jawaban teks singkat...'}</div>}
+                        {q.type === 'paragraph' && <div className="ai-preview-placeholder">{q.placeholder || 'Jawaban paragraf panjang...'}</div>}
                         {q.type === 'date' && (
                           <div className="ai-preview-placeholder ai-date-placeholder">
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-                            Pilih tanggal
+                            Pilih Tanggal
+                          </div>
+                        )}
+                        {q.type === 'file_upload' && (
+                          <div className="ai-preview-placeholder ai-date-placeholder">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            Pilih berkas dokumen/gambar untuk diunggah...
                           </div>
                         )}
                       </div>
@@ -399,7 +493,7 @@ export default function AiFormBuilderPage() {
                     Confirm &amp; Buka Editor Form
                   </button>
                 </div>
-                <p className="ai-confirm-hint">Setelah Confirm, form otomatis tersimpan sebagai draft dan langsung dapat Anda kelola di editor.</p>
+                <p className="ai-confirm-hint">Setelah Confirm, form otomatis tersimpan sebagai draft dan langsung dapat Anda kelola di Editor Formax.</p>
               </div>
             )}
           </section>

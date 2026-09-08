@@ -272,6 +272,77 @@
   line-height: 1.5;
 }
 
+/* ============ Preset Prompt Quick Chips ============ */
+.ai-presets-container {
+  margin-bottom: 20px;
+}
+
+.ai-presets-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 8px;
+}
+
+.ai-presets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-medium, #cbd5e1);
+  background: var(--bg-input-alt, #f8fafc);
+  color: var(--text-body, #334155);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.ai-preset-chip:hover {
+  background: var(--accent-light, #eff6ff);
+  border-color: var(--accent-border, #bfdbfe);
+  color: var(--accent, #2563eb);
+  transform: translateY(-1px);
+}
+
+.ai-preset-chip.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+}
+
+.ai-preset-icon {
+  font-size: 13px;
+}
+
+[data-theme="dark"] .ai-preset-chip {
+  background: #1a1a2e;
+  border-color: #38386a;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .ai-preset-chip:hover {
+  background: #252545;
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .ai-preset-chip.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border-color: #60a5fa;
+}
+
 /* ============ Form Controls & Inputs ============ */
 .ai-form-group {
   margin-bottom: 18px;
