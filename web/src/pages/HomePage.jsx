@@ -32,42 +32,20 @@ const HomePage = () => {
     {
       icon: (
         <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="10" />
-          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-          <line x1="9" y1="9" x2="9.01" y2="9" />
-          <line x1="15" y1="9" x2="15.01" y2="9" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
         </svg>
       ),
-      title: 'Tema Menarik',
-      desc: 'Sesuaikan tampilan form Anda dengan berbagai pilihan tema profesional.',
+      title: 'Formax AI Builder',
+      desc: 'Buat form, kuis, dan ujian cerdas secara otomatis dalam hitungan detik menggunakan AI & formula LaTeX.',
     },
     {
       icon: (
         <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <rect x="2" y="3" width="20" height="14" rx="2" />
-          <path d="M8 21h8M12 17v4" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
-      title: 'Multi-Platform',
-      desc: 'Akses dan isi form dari browser web atau perangkat seluler dengan mudah.',
-    },
-    {
-      icon: (
-        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-        </svg>
-      ),
-      title: 'Sinkronisasi Otomatis',
-      desc: 'Data respons langsung tersinkronisasi ke spreadsheet secara real-time.',
-    },
-    {
-      icon: (
-        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-        </svg>
-      ),
-      title: 'Cepat & Andal',
-      desc: 'Infrastruktur yang dibangun untuk kecepatan dan keandalan maksimal tanpa waktu henti.',
+      title: 'Import Soal Word (.docx)',
+      desc: 'Unggah file Word (.docx) untuk mengimpor puluhan soal sekaligus secara otomatis tanpa mengetik manual.',
     },
     {
       icon: (
@@ -76,19 +54,36 @@ const HomePage = () => {
           <polyline points="12 6 12 12 16 14" />
         </svg>
       ),
-      title: 'Timer Real-time',
-      desc: 'Batasi waktu pengerjaan form dengan timer akurat, cocok untuk ujian atau kuis online.',
+      title: 'Timer & Auto-Submit',
+      desc: 'Batasi durasi pengerjaan dengan timer presisi yang otomatis mengumpulkan jawaban saat waktu habis.',
     },
     {
       icon: (
         <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="10" />
-          <line x1="2" y1="12" x2="22" y2="12" />
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
       ),
-      title: 'Gratis & Terbuka',
-      desc: 'Nikmati fitur dasar secara gratis dan kembangkan form tanpa batasan rutin.',
+      title: 'Mode Fullscreen Ujian',
+      desc: 'Fitur keamanan pengawas ujian dengan pengacak soal, pengacak opsi, dan mode fullscreen wajib.',
+    },
+    {
+      icon: (
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-4v-3m0 0h3m-3 0h-3m-2-5h4m-4 0v4m0-4V7m14 4v4m0 0h-3m3 0v3m-3-3h-3m3-3V7m-7 4h.01M7 4h10" />
+        </svg>
+      ),
+      title: 'Kode QR & Link Unik',
+      desc: 'Setiap form memiliki Kode QR instan dan tautan unik untuk dibagikan tanpa perlu instalasi aplikasi.',
+    },
+    {
+      icon: (
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      title: 'Export ke Spreadsheet',
+      desc: 'Rekap jawaban tersimpan rapi dan dapat diekspor langsung ke spreadsheet/Excel untuk analisis data.',
     },
   ];
 

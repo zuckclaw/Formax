@@ -199,8 +199,8 @@ const CaraPakaiPage = () => {
                 <div className="cp-subcard">
                   <div className="cp-num-badge">3</div>
                   <div className="cp-card-text">
-                    <h4>Atur Tema & Timer</h4>
-                    <p>Pilih tema tampilan, dan aktifkan timer auto-submit bila perlu.</p>
+                    <h4>Gunakan AI / Import Word / Timer</h4>
+                    <p>Manfaatkan Formax AI Builder, impor Word (.docx), atau aktifkan timer auto-submit.</p>
                   </div>
                 </div>
 
@@ -229,7 +229,7 @@ const CaraPakaiPage = () => {
             <div className="cp-step-content">
               <div className="cp-step-badge">LANGKAH 3</div>
               <h2 className="cp-step-title">
-                <span className="cp-step-icon">🔗</span> Bagikan & Pantau
+                <span className="cp-step-icon">🔗</span> Bagikan &amp; Pantau
               </h2>
               <p className="cp-step-desc">
                 Sebarkan form Anda dan pantau jawaban yang masuk secara real-time.
@@ -275,7 +275,7 @@ const CaraPakaiPage = () => {
                 <div className="cp-card-text">
                   <h4>Pengaturan Opsional</h4>
                   <p>
-                    Anda bisa mengubah tema, menambah pertanyaan baru, atau mengatur ulang timer kapan saja lewat menu Pengaturan Form.
+                    Anda dapat menggunakan Formax AI Builder, mengimpor file Word, atau mengaktifkan timer &amp; pengacak soal kapan saja lewat Editor Formax.
                   </p>
                 </div>
               </div>
@@ -292,20 +292,20 @@ const CaraPakaiPage = () => {
             <h2 className="cp-features-title">Fitur yang Tersedia</h2>
           </div>
           <p className="cp-features-sub">
-            Form4x hadir dengan berbagai fitur untuk membuat form Anda lebih rapi dan mudah dikelola.
+            Form4x hadir dengan berbagai fitur canggih untuk membuat form Anda lebih rapi, cepat, dan mudah dikelola.
           </p>
 
           <div className="cp-features-grid">
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">⚡</div>
-              <h3>Buat Form Cepat</h3>
-              <p>Susun form baru hanya dalam hitungan menit, tanpa proses yang rumit.</p>
+              <div className="cp-feature-icon-box">✨</div>
+              <h3>AI Form Builder</h3>
+              <p>Buat form, kuis, dan ujian cerdas secara otomatis dalam hitungan detik menggunakan AI.</p>
             </div>
 
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">🎨</div>
-              <h3>Tema Menarik</h3>
-              <p>Pilih tampilan yang rapi dan modern untuk setiap form yang Anda buat.</p>
+              <div className="cp-feature-icon-box">⚡</div>
+              <h3>Buat Form Cepat</h3>
+              <p>Susun form baru dengan editor serbaguna dan berbagai jenis pilihan pertanyaan.</p>
             </div>
 
             <div className="cp-feature-card">
@@ -316,20 +316,20 @@ const CaraPakaiPage = () => {
 
             <div className="cp-feature-card">
               <div className="cp-feature-icon-box">🔲</div>
-              <h3>Kode QR</h3>
-              <p>Setiap form otomatis mendapat kode QR sendiri, siap untuk dibagikan.</p>
+              <h3>Kode QR &amp; Link</h3>
+              <p>Setiap form otomatis mendapat kode QR &amp; tautan unik, siap untuk dibagikan.</p>
             </div>
 
             <div className="cp-feature-card">
               <div className="cp-feature-icon-box">📊</div>
               <h3>Export ke Spreadsheet</h3>
-              <p>Semua jawaban rapi terekspor ke spreadsheet, siap diolah kapan saja.</p>
+              <p>Semua jawaban rapi terekspor ke file Excel/Spreadsheet, siap diolah kapan saja.</p>
             </div>
 
             <div className="cp-feature-card">
               <div className="cp-feature-icon-box">🔒</div>
-              <h3>Akses Aman</h3>
-              <p>Masuk dengan akun pribadi Anda — data form dan respons tetap terjaga.</p>
+              <h3>Akses Aman &amp; Ujian</h3>
+              <p>Mode fullscreen wajib, pengacak opsi jawaban, dan perlindungan data yang terjaga.</p>
             </div>
           </div>
         </div>

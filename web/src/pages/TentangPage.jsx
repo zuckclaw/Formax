@@ -8,19 +8,19 @@ import LandingNav from '../components/LandingNav';
 /* ─── TentangPage ─── */
 const TentangPage = () => {
   const features = [
+    { title: 'Formax AI Builder', desc: 'Generate form, kuis, dan ujian cerdas secara otomatis dalam hitungan detik menggunakan AI & formula LaTeX.', icon: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z' },
     { title: 'Pembuatan Form Fleksibel', desc: 'Teks, pilihan ganda, checkbox, dropdown, tanggal, dan upload file dengan editor kaya, validasi, serta pengaturan poin.', icon: 'M9 12h6M12 8v8' },
     { title: 'Import Soal Word', desc: 'Upload file .docx, preview otomatis, dan impor puluhan soal sekaligus tanpa input manual satu per satu.', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6' },
-    { title: 'Penilaian Otomatis', desc: 'Kunci jawaban, skor real-time, dan rekap nilai per responden dengan visualisasi distribusi jawaban.', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { title: 'Keamanan & Kontrol', desc: 'Mode fullscreen wajib, deteksi keluar tab sebagai curang, batas pengisian, dan jadwal buka-tutup.', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6z M19 10V9a2 2 0 00-2-2h-1V6a5 5 0 00-10 0v1H5a2 2 0 00-2 2v1' },
-    { title: 'QR & Berbagi Cepat', desc: 'Generate tautan dan QR code unik per form, bagikan via link tanpa instalasi tambahan bagi responden.', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-2l-2-2H9L7 7H5z M8 11h8 M12 11v6' },
-    { title: 'Riwayat & Analitik', desc: 'Dasbor riwayat, ekspor Excel, dan ringkasan visual per pertanyaan untuk evaluasi pembelajaran.', icon: 'M3 3v18h18 M7 16l3-3 3 3 5-5' },
+    { title: 'Penilaian & Timer Otomatis', desc: 'Kunci jawaban presisi, skor real-time, dan timer auto-submit dengan visualisasi rekap jawaban.', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { title: 'Keamanan Mode Fullscreen', desc: 'Mode fullscreen wajib, pengacak soal, pengacak opsi jawaban, serta proteksi deteksi pindah tab.', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6z M19 10V9a2 2 0 00-2-2h-1V6a5 5 0 00-10 0v1H5a2 2 0 00-2 2v1' },
+    { title: 'QR & Export Spreadsheet', desc: 'Generate Kode QR & link unik per form, serta ekspor seluruh hasil respons ke file Excel/Spreadsheet.', icon: 'M3 3v18h18 M7 16l3-3 3 3 5-5' },
   ]
 
   const values = [
+    { title: 'Cerdas (AI-Powered)', desc: 'Pengemampuan AI untuk membuat kuis, survei, dan soal ujian otomatis dengan cepat.' },
     { title: 'Sederhana', desc: 'Antarmuka bersih dan langkah yang jelas, fokus pada isi bukan pengaturan rumit.' },
-    { title: 'Andal', desc: 'Dibangun di atas FastAPI dan PostgreSQL dengan autentikasi aman dan penyimpanan terstruktur.' },
-    { title: 'Inklusif', desc: 'Dapat diisi dengan atau tanpa akun, mendukung alur anonim via identitas per-browser.' },
-    { title: 'Transparan', desc: 'Responden dapat melihat hasil dan kunci jawaban sesuai pengaturan pengajar.' },
+    { title: 'Andal & Terstruktur', desc: 'Penyimpanan terstruktur dengan autentikasi aman dan ekspor data yang akurat.' },
+    { title: 'Inklusif', desc: 'Dapat diisi dengan atau tanpa akun, mendukung pengisian anonim via identitas browser.' },
   ]
 
   const team = [
@@ -50,7 +50,7 @@ const TentangPage = () => {
             <Link to="/cara-pakai" className="tp-btn-ghost">Pelajari Cara Pakai</Link>
           </div>
           <div className="tp-hero-stats">
-            <div className="tp-stat"><strong>6+</strong><span>Jenis Pertanyaan</span></div>
+            <div className="tp-stat"><strong>AI Form</strong><span>Generate Otomatis</span></div>
             <div className="tp-stat-dot" />
             <div className="tp-stat"><strong>Import</strong><span>.docx Sekaligus</span></div>
             <div className="tp-stat-dot" />
@@ -67,15 +67,16 @@ const TentangPage = () => {
               <span className="tp-section-kicker">Apa itu Form4x</span>
               <h2 className="tp-section-title">Dirancang untuk Kebutuhan Formulir yang Sesungguhnya</h2>
               <p className="tp-section-desc">
-                Form4x berfokus pada kejelasan alur dan keandalan data. Anda dapat menyusun form dari kosong, menggunakan template, atau mengimpor soal dari Word, lalu membagikannya melalui tautan atau QR code tanpa langkah tambahan bagi responden.
+                Form4x berfokus pada kejelasan alur dan keandalan data. Anda dapat menyusun form secara otomatis dengan Formax AI Builder, mengimpor soal dari Word (.docx), atau menyusun dari awal, lalu membagikannya melalui tautan atau Kode QR tanpa langkah tambahan bagi responden.
               </p>
               <p className="tp-section-desc">
-                Sistem mendukung penilaian otomatis, kontrol akses berbasis token, batas pengisian, jadwal, serta mode fullscreen untuk integritas ujian. Hasil tersaji dalam rekap yang dapat diekspor dan divisualisasikan per pertanyaan.
+                Sistem mendukung penilaian otomatis, kontrol akses berbasis token, batas pengisian, timer auto-submit, serta mode fullscreen untuk integritas ujian. Hasil tersaji dalam rekap yang dapat diekspor ke spreadsheet dan divisualisasikan per pertanyaan.
               </p>
               <ul className="tp-checklist">
+                <li>Integrasi Formax AI Builder untuk pembuatan form instan</li>
                 <li>Cocok untuk pendidikan, pelatihan, survei internal, dan pendataan</li>
                 <li>Tidak memerlukan instalasi di sisi responden</li>
-                <li>Data tersimpan terstruktur dan siap dianalisis</li>
+                <li>Data tersimpan terstruktur dan siap diekspor ke Excel</li>
               </ul>
             </div>
             <div className="tp-about-card">
