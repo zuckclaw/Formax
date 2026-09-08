@@ -35,11 +35,11 @@
 }
 
 .ai-glow-orb.orb-1 {
-  width: 500px;
-  height: 500px;
+  width: 520px;
+  height: 520px;
   top: -120px;
   right: -80px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.22) 0%, rgba(124, 58, 237, 0.06) 70%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, rgba(124, 58, 237, 0.08) 70%);
   animation: aiOrbFloat1 12s ease-in-out infinite alternate;
 }
 
@@ -48,8 +48,17 @@
   height: 550px;
   bottom: -150px;
   left: -120px;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.18) 0%, rgba(16, 185, 129, 0.05) 70%);
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, rgba(16, 185, 129, 0.06) 70%);
   animation: aiOrbFloat2 14s ease-in-out infinite alternate;
+}
+
+.ai-glow-orb.orb-3 {
+  width: 450px;
+  height: 450px;
+  top: 35%;
+  left: 40%;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.04) 70%);
+  animation: aiOrbFloat3 16s ease-in-out infinite alternate;
 }
 
 @keyframes aiOrbFloat1 {
@@ -62,36 +71,56 @@
   100% { transform: translate(50px, -35px) scale(1.08); }
 }
 
+@keyframes aiOrbFloat3 {
+  0% { transform: translate(0, 0) scale(0.9); opacity: 0.3; }
+  100% { transform: translate(-30px, -40px) scale(1.15); opacity: 0.6; }
+}
+
 .ai-wave-svg {
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 240px;
-  color: #3b82f6;
   pointer-events: none;
 }
 
 .ai-wave-svg.wave-1 {
-  opacity: 0.12;
-  height: 280px;
-  animation: aiWaveMotion1 14s ease-in-out infinite alternate;
+  color: #2563eb;
+  opacity: 0.14;
+  height: 290px;
+  animation: aiWaveMotion1 12s ease-in-out infinite alternate;
 }
 
 .ai-wave-svg.wave-2 {
+  color: #7c3aed;
+  opacity: 0.10;
+  height: 230px;
+  animation: aiWaveMotion2 15s ease-in-out infinite alternate;
+}
+
+.ai-wave-svg.wave-3 {
+  color: #0284c7;
   opacity: 0.08;
-  height: 210px;
-  animation: aiWaveMotion2 10s ease-in-out infinite alternate;
+  height: 180px;
+  animation: aiWaveMotion3 10s ease-in-out infinite alternate;
 }
 
 @keyframes aiWaveMotion1 {
-  0% { transform: translateY(0) scaleY(1); }
-  100% { transform: translateY(-15px) scaleY(1.1); }
+  0% { transform: translateY(0) scaleY(1) skewX(0deg); }
+  50% { transform: translateY(-16px) scaleY(1.1) skewX(1deg); }
+  100% { transform: translateY(-6px) scaleY(1.04) skewX(-1deg); }
 }
 
 @keyframes aiWaveMotion2 {
-  0% { transform: translateY(0) scaleY(1); }
-  100% { transform: translateY(12px) scaleY(0.95); }
+  0% { transform: translateY(0) scaleY(1) translateX(0); }
+  50% { transform: translateY(14px) scaleY(0.92) translateX(-18px); }
+  100% { transform: translateY(-10px) scaleY(1.08) translateX(12px); }
+}
+
+@keyframes aiWaveMotion3 {
+  0% { transform: translateY(0) scaleY(1) translateX(0); }
+  50% { transform: translateY(-10px) scaleY(1.12) translateX(20px); }
+  100% { transform: translateY(8px) scaleY(0.96) translateX(-12px); }
 }
 
 /* ============ Sticky Glass Header ============ */
@@ -143,11 +172,11 @@
 }
 
 .ai-logo {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
-  border-radius: 9px;
-  box-shadow: 0 2px 8px rgba(37,99,235,0.18);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.22);
 }
 
 .ai-brand-wrap {
@@ -162,30 +191,56 @@
   gap: 8px;
 }
 
+/* Header Animated Title Font Gradient */
 .ai-title {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 21px;
+  font-weight: 900;
   margin: 0;
-  letter-spacing: -0.4px;
-  color: var(--text-heading, #0f172a);
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 30%, #7c3aed 65%, #db2777 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: aiTitleGradient 6s ease infinite;
+}
+
+@keyframes aiTitleGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .ai-badge-chip {
   font-size: 10.5px;
   font-weight: 800;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.15));
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(124, 58, 237, 0.18));
   color: #2563eb;
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  letter-spacing: 0.3px;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  letter-spacing: 0.4px;
+  animation: aiBadgeGlow 3s ease-in-out infinite alternate;
 }
 
+@keyframes aiBadgeGlow {
+  0% { box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15); }
+  100% { box-shadow: 0 4px 14px rgba(124, 58, 237, 0.32); }
+}
+
+/* Dynamic Changing Subtitle Text */
 .ai-subtitle {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted, #64748b);
   margin: 0;
   font-weight: 500;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  display: inline-block;
+}
+
+.ai-subtitle.fading {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .ai-header-right {
@@ -1139,7 +1194,11 @@
 }
 
 [data-theme="dark"] .ai-title {
-  color: #f1f5ff;
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 45%, #f472b6 85%, #38bdf8 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 [data-theme="dark"] .ai-badge-chip {

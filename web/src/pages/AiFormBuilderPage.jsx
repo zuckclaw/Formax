@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createForm } from '../api/forms';
 import { generateAiForm } from '../api/ai';
@@ -7,6 +7,13 @@ import { prepareMathHtml } from '../utils/mathRender';
 import ThemeToggle from '../components/ThemeToggle';
 import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
+
+const DYNAMIC_SUBTITLES = [
+  'Buat kuis, survei & form otomatis berstandar tinggi dengan kecerdasan buatan kami!',
+  'Susun soal matematika lengkap dengan rumus LaTeX instan & akurat',
+  'Generate form pendaftaran & kuesioner interaktif dalam hitungan detik',
+  'Solusi kecerdasan buatan terbaik untuk pembuatan formulir modern tanpa ribet',
+];
 
 const QUESTION_TYPE_LABELS = {
   text: 'Teks Singkat',
@@ -21,7 +28,7 @@ const QUESTION_TYPE_LABELS = {
 
 const PRESET_PROMPTS = [
   {
-    icon: '-',
+    icon: '📐',
     label: 'Ujian Matematika SMA',
     title: 'Kuis Matematika SMA — Aljabar Kuadrat',
     description: 'Ujian pengukur pemahaman aljabar dan fungsi kuadrat kelas 10.',
@@ -31,7 +38,7 @@ const PRESET_PROMPTS = [
     useSections: true,
   },
   {
-    icon: '-',
+    icon: '📊',
     label: 'Survei Kepuasan Pelanggan',
     title: 'Survei Kepuasan & Feedback Pelanggan',
     description: 'Kuesioner evaluasi kualitas layanan, rasa produk, dan keramahan staf.',
@@ -41,7 +48,7 @@ const PRESET_PROMPTS = [
     useSections: true,
   },
   {
-    icon: '-',
+    icon: '🎓',
     label: 'Form Pendaftaran Event',
     title: 'Form Pendaftaran Webinar Nasional 2026',
     description: 'Pendaftaran peserta webinar teknologi dan kecerdasan buatan.',
@@ -51,7 +58,7 @@ const PRESET_PROMPTS = [
     useSections: true,
   },
   {
-    icon: '-',
+    icon: '💼',
     label: 'Evaluasi Kinerja Dosen',
     title: 'Survei Evaluasi Pembelajaran & Pengajar',
     description: 'Evaluasi rutin semesteran mengenai metode pengajaran dan kesiapan materi.',
@@ -92,6 +99,21 @@ export default function AiFormBuilderPage() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
   const [activePreset, setActivePreset] = useState(null);
+
+  // Dynamic Subtitle Cycling Animation State
+  const [subtitleIndex, setSubtitleIndex] = useState(0);
+  const [isSubtitleFading, setIsSubtitleFading] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsSubtitleFading(true);
+      setTimeout(() => {
+        setSubtitleIndex((prev) => (prev + 1) % DYNAMIC_SUBTITLES.length);
+        setIsSubtitleFading(false);
+      }, 400);
+    }, 3800);
+    return () => clearInterval(timer);
+  }, []);
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type });
@@ -213,12 +235,19 @@ export default function AiFormBuilderPage() {
 
   return (
     <div className="ai-root">
-      {/* Ambient Waves */}
+      {/* Animated Ambient Waves Background */}
       <div className="ai-bg-waves" aria-hidden="true">
         <div className="ai-glow-orb orb-1" />
         <div className="ai-glow-orb orb-2" />
+        <div className="ai-glow-orb orb-3" />
         <svg className="ai-wave-svg wave-1" viewBox="0 0 1440 320" preserveAspectRatio="none">
           <path fill="currentColor" d="M0,192L48,176C96,160,192,128,288,138.7C384,149,480,203,576,213.3C672,224,768,192,864,165.3C960,139,1056,117,1152,128C1248,139,1344,181,1392,202.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
+        </svg>
+        <svg className="ai-wave-svg wave-2" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path fill="currentColor" d="M0,96L48,122.7C96,149,192,203,288,208C384,213,480,171,576,144C672,117,768,107,864,128C960,149,1056,203,1152,213.3C1248,224,1344,160,1392,128L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
+        </svg>
+        <svg className="ai-wave-svg wave-3" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path fill="currentColor" d="M0,224L60,213.3C120,203,240,181,360,186.7C480,192,600,224,720,213.3C840,203,960,149,1080,138.7C1200,128,1320,160,1380,176L1440,192L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z" />
         </svg>
       </div>
 
@@ -233,7 +262,9 @@ export default function AiFormBuilderPage() {
               <h1 className="ai-title">Formax AI</h1>
               <span className="ai-badge-chip">Smart Engine 2.0</span>
             </div>
-            <p className="ai-subtitle">Buat kuis, survei &amp; form otomatis berstandar tinggi dengan kecerdasan buatan kami!</p>
+            <p className={`ai-subtitle ${isSubtitleFading ? 'fading' : ''}`}>
+              {DYNAMIC_SUBTITLES[subtitleIndex]}
+            </p>
           </div>
         </div>
         <div className="ai-header-right">
