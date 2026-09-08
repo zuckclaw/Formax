@@ -3644,6 +3644,12 @@
   text-transform: uppercase;
 }
 
+.fb-section-count {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
 .fb-section-title-input {
   width: 100%;
   border: 1.5px solid #cbd5e1;
@@ -3706,6 +3712,11 @@
   accent-color: #2563eb;
 }
 
+.fb-section-hint {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
 .fb-add-section-btn {
   display: flex;
   align-items: center;
@@ -3728,4 +3739,39 @@
   background: #dbeafe;
   border-color: #2563eb;
   transform: translateY(-1px);
+}
+
+.fb-preview-text-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px dashed #cbd5e1;
+  padding: 8px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #94a3b8;
+  outline: none;
+  background: transparent;
+}
+
+.fb-preview-date-input {
+  width: 200px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #94a3b8;
+  outline: none;
+  background: #fafbfc;
+}
+
+.fb-preview-file-upload {
+  margin-top: 8px;
+  border: 2px dashed #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  background: #fafbfc;
 }

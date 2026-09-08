@@ -1189,6 +1189,113 @@ body,
 [data-theme="dark"] .fb-confirm-btn.secondary { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--border); }
 [data-theme="dark"] .fb-confirm-btn.secondary:hover { background: var(--bg-hover-strong); color: var(--text-primary); }
 
+/* ---- Section / Page Break Card ---- */
+[data-theme="dark"] .fb-section-card {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.16) 0%, #23233f 100%);
+  border-color: rgba(96, 165, 250, 0.3);
+  border-left-color: #60a5fa;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .fb-section-card.active {
+  border-color: #60a5fa;
+  box-shadow: 0 4px 20px rgba(96, 165, 250, 0.25);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, #28284a 100%);
+}
+[data-theme="dark"] .fb-section-card.bulk-selected {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+[data-theme="dark"] .fb-section-title-input {
+  background: var(--bg-input);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .fb-section-title-input::placeholder {
+  color: var(--text-faint);
+}
+[data-theme="dark"] .fb-section-title-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+}
+[data-theme="dark"] .fb-section-desc-input {
+  background: var(--bg-input);
+  border-color: var(--border);
+  color: var(--text-body);
+}
+[data-theme="dark"] .fb-section-desc-input::placeholder {
+  color: var(--text-faint);
+}
+[data-theme="dark"] .fb-section-desc-input:focus {
+  border-color: var(--accent);
+}
+[data-theme="dark"] .fb-section-footer {
+  border-top-color: var(--border);
+}
+[data-theme="dark"] .fb-section-shuffle {
+  color: #93c5fd;
+}
+[data-theme="dark"] .fb-section-count {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .fb-section-hint {
+  color: var(--text-faint);
+}
+[data-theme="dark"] .fb-add-section-btn {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+}
+[data-theme="dark"] .fb-add-section-btn:hover {
+  background: rgba(37, 99, 235, 0.25);
+  border-color: #60a5fa;
+  color: #93c5fd;
+}
+
+/* ---- Question Field Previews & Banner Buttons ---- */
+[data-theme="dark"] .fb-preview-text-input {
+  border-bottom-color: var(--border-medium);
+  color: var(--text-faint);
+}
+[data-theme="dark"] .fb-preview-date-input {
+  border-color: var(--border);
+  background: var(--bg-input);
+  color: var(--text-faint);
+}
+[data-theme="dark"] .fb-preview-file-upload {
+  border-color: var(--border-medium);
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .fb-banner-btn {
+  background: rgba(35, 35, 63, 0.92);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .fb-banner-btn:hover {
+  background: var(--bg-hover-strong);
+}
+[data-theme="dark"] .fb-banner-btn.danger {
+  color: #fca5a5;
+}
+[data-theme="dark"] .fb-required-note {
+  color: #fca5a5;
+}
+
+/* ---- Math / Formula Rendering ---- */
+[data-theme="dark"] .ql-editor .ql-formula {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #93c5fd;
+}
+[data-theme="dark"] .ql-editor .math-display-block {
+  background: var(--bg-input);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .ql-toolbar .ql-math {
+  color: #60a5fa;
+}
+
 /* ---- Import Word Modal (Dark Mode Redesign) ---- */
 [data-theme="dark"] .fb-import-modal-overlay {
   background: rgba(6, 11, 25, 0.76);

@@ -1304,7 +1304,7 @@ export default function FormBuilderPage() {
                               </label>
                             )}
                             <span className="fb-section-badge">Bagian {sectionNum}</span>
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>{questionsInSection} soal</span>
+                            <span className="fb-section-count">{questionsInSection} soal</span>
                           </div>
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                             <select className="fb-type-select" style={{ minWidth: '130px', fontSize: '12px' }} value={q.type} onChange={(e) => updateQuestionLocal(qIdx, { type: e.target.value })}>
@@ -1320,7 +1320,7 @@ export default function FormBuilderPage() {
                             <input type="checkbox" checked={!!q.settings?.shuffle} onChange={(e) => updateSectionSettings(qIdx, { shuffle: e.target.checked })} />
                             <span>Acak soal di bagian ini</span>
                           </label>
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Hanya soal di bagian ini yang diacak, antar-bagian tetap berurutan</span>
+                          <span className="fb-section-hint">Hanya soal di bagian ini yang diacak, antar-bagian tetap berurutan</span>
                         </div>
                       </div>
                     );
@@ -1465,17 +1465,7 @@ export default function FormBuilderPage() {
                       {q.type === 'text' && (
                         <div style={{ marginTop: '8px' }}>
                           <input
-                            style={{
-                              width: '100%',
-                              border: 'none',
-                              borderBottom: '1px dashed #e2e8f0',
-                              padding: '8px 0',
-                              fontFamily: "'Inter', sans-serif",
-                              fontSize: '14px',
-                              color: '#cbd5e1',
-                              outline: 'none',
-                              background: 'transparent',
-                            }}
+                            className="fb-preview-text-input"
                             type="text"
                             placeholder="Jawaban teks panjang..."
                             disabled
@@ -1487,17 +1477,7 @@ export default function FormBuilderPage() {
                       {q.type === 'date' && (
                         <div style={{ marginTop: '8px' }}>
                           <input
-                            style={{
-                              width: '200px',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              padding: '8px 12px',
-                              fontFamily: "'Inter', sans-serif",
-                              fontSize: '14px',
-                              color: '#cbd5e1',
-                              outline: 'none',
-                              background: '#fafbfc',
-                            }}
+                            className="fb-preview-date-input"
                             type="date"
                             disabled
                           />
@@ -1506,17 +1486,7 @@ export default function FormBuilderPage() {
 
                       {/* File upload placeholder */}
                       {q.type === 'file_upload' && (
-                        <div
-                          style={{
-                            marginTop: '8px',
-                            border: '2px dashed #e2e8f0',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            textAlign: 'center',
-                            color: '#94a3b8',
-                            fontSize: '13px',
-                          }}
-                        >
+                        <div className="fb-preview-file-upload">
                           📎 Area upload file
                         </div>
                       )}
