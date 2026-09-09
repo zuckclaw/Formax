@@ -2195,6 +2195,58 @@
   margin-top: 2px;
 }
 
+.detail-reset-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light, #f1f5f9);
+}
+
+.detail-reset-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.detail-reset-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+.detail-reset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.detail-reset-hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
+  text-align: center;
+}
+[data-theme="dark"] .detail-reset-btn {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+[data-theme="dark"] .detail-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+}
+
 .detail-answers-pane {
   min-width: 0;
   max-height: 75vh;

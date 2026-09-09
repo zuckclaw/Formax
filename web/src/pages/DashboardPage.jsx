@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getMe, logout } from '../api/auth';
 import { getMyForms, deleteForm, getForm, getFormSubmissions, exportSubmissions } from '../api/forms';
 import { getTemplates, deleteTemplate } from '../api/templates';
-import { getMySubmissions, getSubmissionResult } from '../api/submissions';
+import { getMySubmissions, getSubmissionResult, deleteSubmission } from '../api/submissions';
 import { parseServerTime } from '../utils/date';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
@@ -102,6 +102,8 @@ export default function DashboardPage() {
   const [respondentSearch, setRespondentSearch] = useState('');
   const [selectedRespondent, setSelectedRespondent] = useState(null);
   const [confirmDeleteForm, setConfirmDeleteForm] = useState(null); // objek form yang mau dihapus
+  const [confirmDeleteSubmission, setConfirmDeleteSubmission] = useState(false);
+  const [deletingSubmission, setDeletingSubmission] = useState(false);
 
   // Aktivitas Saya (baru) — daftar form yang pernah/lagi diisi sebagai responden
   const [mySubmissions, setMySubmissions] = useState([]);
@@ -336,6 +338,25 @@ export default function DashboardPage() {
     if (!confirmDeleteForm) return;
     await handleDeleteForm(confirmDeleteForm.id);
     setConfirmDeleteForm(null);
+  };
+
+  const handleDeleteSubmission = async () => {
+    if (!selectedRespondent) return;
+    setDeletingSubmission(true);
+    try {
+      await deleteSubmission(token, selectedRespondent.id);
+      showToast('Respons berhasil dihapus — responden bisa mengerjakan ulang');
+      setConfirmDeleteSubmission(false);
+      // refresh list
+      const refreshed = await getFormSubmissions(token, selectedFormForResults.id);
+      setSubmissionsList(refreshed);
+      setSelectedRespondent(null);
+      setHistorySubView('results');
+    } catch (err) {
+      showToast(err.message || 'Gagal menghapus respons', true);
+    } finally {
+      setDeletingSubmission(false);
+    }
   };
 
   const handleDeleteTemplate = async (templateId) => {
@@ -1570,6 +1591,18 @@ export default function DashboardPage() {
                           <h3 className="detail-score-num">{selectedRespondent.scorePercent}/100</h3>
                         </div>
                       )}
+
+                      <div className="detail-reset-wrap">
+                        <button
+                          className="detail-reset-btn"
+                          onClick={() => setConfirmDeleteSubmission(true)}
+                          title="Hapus jawaban responden ini agar bisa mengerjakan ulang"
+                        >
+                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                          Hapus Respons
+                        </button>
+                        <p className="detail-reset-hint">Hapus jawaban agar responden bisa mengerjakan ulang. Aksi tercatat di audit log.</p>
+                      </div>
                     </aside>
 
                     {/* KANAN — Hasil jawaban rapih ke bawah, bisa digulir */}
@@ -2458,6 +2491,32 @@ export default function DashboardPage() {
       {toast && (
         <div className={`db-toast ${toast.isError ? 'error' : ''}`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Confirm Delete Submission Modal */}
+      {confirmDeleteSubmission && selectedRespondent && (
+        <div className="db-modal-overlay" onClick={() => setConfirmDeleteSubmission(false)}>
+          <div className="db-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="db-modal-icon danger">
+              <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </div>
+            <h3 className="db-modal-title">Hapus Respons?</h3>
+            <p className="db-modal-text">
+              Yakin ingin menghapus jawaban <strong>{selectedRespondent.user?.full_name || selectedRespondent.user?.email || 'Responden'}</strong>? Respons akan terhapus permanen, tercatat di audit log, dan responden bisa mengerjakan ulang.
+            </p>
+            <div className="db-modal-actions">
+              <button className="db-btn-cancel" onClick={() => setConfirmDeleteSubmission(false)} disabled={deletingSubmission}>
+                Batal
+              </button>
+              <button className="db-btn-danger" onClick={handleDeleteSubmission} disabled={deletingSubmission}>
+                {deletingSubmission ? 'Menghapus...' : 'Hapus Respons'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

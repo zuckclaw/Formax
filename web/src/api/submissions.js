@@ -88,6 +88,19 @@ export async function flagCheated(token, submissionId) {
 }
 
 /**
+ * Hapus respons (owner form only) agar responden bisa mengerjakan ulang
+ * DELETE /submissions/{id}
+ */
+export async function deleteSubmission(token, submissionId) {
+  const res = await apiFetch(`${API_BASE_URL}/submissions/${submissionId}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeaders(token) },
+  });
+  if (res.status === 204) return true;
+  return readJsonResponse(res, 'Gagal menghapus respons');
+}
+
+/**
  * Aktivitas Saya — daftar submission milik user login sebagai responden
  * GET /submissions/me  (auth required)
  */

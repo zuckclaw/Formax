@@ -628,6 +628,57 @@ def get_submission_result(
     )
 
 
+@router.delete("/submissions/{submission_id}", status_code=204)
+def delete_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Hapus respons (owner form only) agar responden bisa mengerjakan ulang.
+    Termasuk audit log di tabel audit_logs.
+    """
+    submission = db.query(models.Submission).filter(models.Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission tidak ditemukan")
+    form = db.query(models.Form).filter(models.Form.id == submission.form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form tidak ditemukan")
+    if form.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Hanya pemilik form yang bisa menghapus respons")
+
+    target_email = None
+    target_user_id = submission.user_id
+    if submission.user_id:
+        u = db.query(models.User).filter(models.User.id == submission.user_id).first()
+        if u:
+            target_email = u.email
+
+    # audit log
+    try:
+        log = models.AuditLog(
+            action="delete_submission",
+            form_id=form.id,
+            submission_id=submission.id,
+            actor_id=current_user.id,
+            target_user_id=target_user_id,
+            target_email=target_email,
+            detail=f"Hapus respons form '{form.title}' is_cheated={submission.is_cheated} submitted_at={submission.submitted_at}",
+        )
+        db.add(log)
+    except Exception:
+        pass
+
+    # hapus answers dulu (cascade juga handle, tapi eksplisit lebih aman untuk SQLite)
+    try:
+        db.query(models.Answer).filter(models.Answer.submission_id == submission.id).delete()
+    except Exception:
+        pass
+    db.delete(submission)
+    db.commit()
+    return None
+
+
 @router.post("/submissions/{submission_id}/flag-cheated", response_model=schemas.SubmissionOut)
 def flag_cheated(
     submission_id: str,

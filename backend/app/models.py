@@ -210,7 +210,25 @@ class Answer(Base):
 
 
 # ============================================================
-# 8. EMAIL VERIFICATIONS (OTP)
+# 8. AUDIT LOG (hapus respons)
+# ============================================================
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String(36), primary_key=True, default=gen_uuid)
+    action = Column(String(50), nullable=False)  # delete_submission
+    form_id = Column(String(36), nullable=True)
+    submission_id = Column(String(36), nullable=True)
+    # Sengaja tanpa ForeignKey agar tidak bentrok tipe uuid vs varchar di Postgres (users.id = uuid)
+    actor_id = Column(String(36), nullable=True)
+    target_user_id = Column(String(36), nullable=True)
+    target_email = Column(String, nullable=True)
+    detail = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================
+# 9. EMAIL VERIFICATIONS (OTP)
 # ============================================================
 class EmailVerification(Base):
     __tablename__ = "email_verifications"
