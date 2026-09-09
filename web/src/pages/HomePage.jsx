@@ -174,7 +174,7 @@ const HomePage = () => {
               <span className="hp-platform-badge hp-badge-outline-blue">Instant Access</span>
             </div>
             <a
-              href="https://github.com/zuckclaw/Formax/tree/main/release/apk"
+              href="https://github.com/zuckclaw/Formax/releases/download/v1.0.0/app-release.apk"
               target="_blank"
               rel="noopener noreferrer"
               className="hp-platform-card hp-platform-card-link"
