@@ -484,6 +484,32 @@
   color: #2563eb;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
+  transition: all 0.2s ease;
+}
+
+.hp-platform-card-link {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.hp-platform-card-link:hover {
+  border-color: #2563eb;
+  box-shadow: 0 16px 36px -4px rgba(37, 99, 235, 0.15);
+}
+
+.hp-platform-card-link:hover .hp-platform-icon {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.hp-platform-card-link:hover .hp-platform-icon svg {
+  stroke: #ffffff;
+}
+
+.hp-platform-card-link:hover .hp-badge-outline-blue {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
 }
 
 /* ── CTA ── */

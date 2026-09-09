@@ -173,7 +173,13 @@ const HomePage = () => {
               <p className="hp-platform-desc">Akses langsung dari semua browser tanpa perlu instalasi aplikasi tambahan.</p>
               <span className="hp-platform-badge hp-badge-outline-blue">Instant Access</span>
             </div>
-            <div className="hp-platform-card">
+            <a
+              href="https://github.com/zuckclaw/Formax/tree/main/release/apk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hp-platform-card hp-platform-card-link"
+              title="Buka rilis APK Android Formax di GitHub"
+            >
               <div className="hp-platform-icon">
                 <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#2563eb" strokeWidth={1.8}>
                   <rect x="5" y="2" width="14" height="20" rx="2" />
@@ -181,9 +187,14 @@ const HomePage = () => {
                 </svg>
               </div>
               <h3 className="hp-platform-name">Android & Mobile</h3>
-              <p className="hp-platform-desc">Pengalaman pengisian form yang cepat, nyaman, dan responsif pada smartphone.</p>
-              <span className="hp-platform-badge hp-badge-outline-blue">Mobile Friendly</span>
-            </div>
+              <p className="hp-platform-desc">Pengalaman pengisian form yang cepat, nyaman, dan responsif pada smartphone. Klik untuk unduh APK.</p>
+              <span className="hp-platform-badge hp-badge-outline-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Unduh APK Android
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+              </span>
+            </a>
           </div>
         </div>
       </section>
