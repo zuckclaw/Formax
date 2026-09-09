@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMe, updateMe, logout, changePassword } from '../api/auth';
+import { containsEmoji, removeEmojis } from '../utils/emojiFilter';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
 import '../styles/dashboard.css';
@@ -87,18 +88,31 @@ export default function ProfilePage() {
     if (name === 'avatar_url') {
       setImgError(false);
     }
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const cleanValue = name === 'full_name' ? removeEmojis(value) : value;
+    setForm((prev) => ({ ...prev, [name]: cleanValue }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
     setMessage('');
     setError('');
 
+    if (containsEmoji(form.full_name)) {
+      setError('Nama lengkap tidak boleh mengandung emoji');
+      return;
+    }
+
+    const cleanName = removeEmojis(form.full_name).trim();
+    if (!cleanName) {
+      setError('Nama lengkap tidak boleh kosong');
+      return;
+    }
+
+    setSaving(true);
+
     try {
       const updatedUser = await updateMe(token, {
-        full_name: form.full_name.trim(),
+        full_name: cleanName,
         email: user?.email || form.email,
         avatar_url: form.avatar_url.trim() || null,
       });
@@ -123,6 +137,12 @@ export default function ProfilePage() {
     setPassSaving(true);
     setPassMsg('');
     setPassErr('');
+
+    if (containsEmoji(passForm.old_password) || containsEmoji(passForm.new_password)) {
+      setPassErr('Password tidak boleh mengandung emoji');
+      setPassSaving(false);
+      return;
+    }
 
     if (!passForm.old_password) {
       setPassErr('Masukkan password lama Anda');

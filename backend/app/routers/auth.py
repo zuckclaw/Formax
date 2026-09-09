@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, security
 from ..deps import get_db, get_current_user
 from ..utils.mail import send_otp_email
+from ..utils.emoji_filter import contains_emoji, remove_emojis
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -101,6 +102,12 @@ def verify_reset_otp(payload: schemas.VerifyResetOtpRequest, db: Session = Depen
 
 @router.post("/signup", response_model=schemas.TokenResponse)
 def signup(payload: schemas.SignUpRequest, db: Session = Depends(get_db)):
+    if contains_emoji(payload.full_name):
+        raise HTTPException(status_code=400, detail="Nama lengkap tidak boleh mengandung emoji")
+    clean_name = remove_emojis(payload.full_name).strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="Nama lengkap tidak boleh kosong")
+
     email = str(payload.email).strip().lower()
     otp_record = (
         db.query(models.EmailVerification)
@@ -121,7 +128,7 @@ def signup(payload: schemas.SignUpRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email sudah terdaftar")
 
     user = models.User(
-        full_name=payload.full_name.strip(),
+        full_name=clean_name,
         email=email,
         password_hash=security.hash_password(payload.password),
     )
@@ -164,9 +171,12 @@ def update_me(
     current_user: models.User = Depends(get_current_user),
 ):
     if payload.full_name is not None:
-        if not payload.full_name.strip():
+        if contains_emoji(payload.full_name):
+            raise HTTPException(status_code=400, detail="Nama lengkap tidak boleh mengandung emoji")
+        clean_name = remove_emojis(payload.full_name).strip()
+        if not clean_name:
             raise HTTPException(status_code=400, detail="Nama lengkap tidak boleh kosong")
-        current_user.full_name = payload.full_name.strip()
+        current_user.full_name = clean_name
 
     if payload.email is not None:
         email = str(payload.email).strip().lower()

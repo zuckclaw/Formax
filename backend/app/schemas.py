@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 
 from .models import QuestionType, FormStatus
 from .sanitize import sanitize_html
+from .utils.emoji_filter import contains_emoji, remove_emojis
 
 
 # ============================================================
@@ -15,6 +16,16 @@ class SignUpRequest(BaseModel):
     email: EmailStr
     password: str
     otp: str
+
+    @field_validator("full_name")
+    @classmethod
+    def _validate_full_name(cls, v: str) -> str:
+        if contains_emoji(v):
+            raise ValueError("Nama lengkap tidak boleh mengandung emoji")
+        cleaned = remove_emojis(v).strip()
+        if not cleaned:
+            raise ValueError("Nama lengkap tidak boleh kosong")
+        return cleaned
 
 
 class SendOTPRequest(BaseModel):
@@ -45,6 +56,18 @@ class ProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     avatar_url: Optional[str] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def _validate_full_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if contains_emoji(v):
+                raise ValueError("Nama lengkap tidak boleh mengandung emoji")
+            cleaned = remove_emojis(v).strip()
+            if not cleaned:
+                raise ValueError("Nama lengkap tidak boleh kosong")
+            return cleaned
+        return v
 
 
 class ChangePasswordRequest(BaseModel):

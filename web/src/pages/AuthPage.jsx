@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, signup, sendOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp, resetPassword } from '../api/auth';
 import { setAuth, getValidToken } from '../utils/authStorage';
+import { containsEmoji, removeEmojis } from '../utils/emojiFilter';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
 import '../styles/auth.css';
@@ -75,9 +76,18 @@ export default function AuthPage() {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+
+    const cleanEmail = removeEmojis(loginData.email).trim();
+    const cleanPassword = removeEmojis(loginData.password);
+
+    if (containsEmoji(loginData.email) || containsEmoji(loginData.password)) {
+      setError('Email dan password tidak boleh mengandung emoji');
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await login({ email: loginData.email, password: loginData.password, remember: !!loginData.remember });
+      const res = await login({ email: cleanEmail, password: cleanPassword, remember: !!loginData.remember });
       setAuth(res.access_token, !!loginData.remember);
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect');
@@ -93,6 +103,23 @@ export default function AuthPage() {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+
+    if (containsEmoji(registerData.full_name)) {
+      setError('Nama lengkap tidak boleh mengandung emoji');
+      return;
+    }
+
+    const cleanName = removeEmojis(registerData.full_name).trim();
+    if (!cleanName) {
+      setError('Nama lengkap tidak boleh kosong');
+      return;
+    }
+
+    if (containsEmoji(registerData.email) || containsEmoji(registerData.password)) {
+      setError('Email dan password tidak boleh mengandung emoji');
+      return;
+    }
+
     if (registerData.password.length < 6) {
       setError('Password minimal 6 karakter');
       return;
@@ -101,7 +128,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       // Step 1: kirim OTP ke email
-      await sendOtp(registerData.email);
+      await sendOtp(removeEmojis(registerData.email).trim());
       setOtpStep(true);
       setTimer(300);
       setOtpInputs(['', '', '', '', '', '']);
@@ -120,13 +147,19 @@ export default function AuthPage() {
       return;
     }
 
+    const cleanName = removeEmojis(registerData.full_name).trim();
+    if (containsEmoji(registerData.full_name) || !cleanName) {
+      setError('Nama lengkap tidak boleh kosong atau mengandung emoji');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       const res = await signup({
-        full_name: registerData.full_name,
-        email: registerData.email,
-        password: registerData.password,
+        full_name: cleanName,
+        email: removeEmojis(registerData.email).trim(),
+        password: removeEmojis(registerData.password),
         otp: otpCode,
       });
       setAuth(res.access_token, !!registerData.remember);
@@ -399,7 +432,7 @@ export default function AuthPage() {
                     type="email"
                     placeholder="Enter your email address"
                     value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                    onChange={(e) => setLoginData({ ...loginData, email: removeEmojis(e.target.value) })}
                     required
                     autoComplete="email"
                   />
@@ -412,7 +445,7 @@ export default function AuthPage() {
                       type={showPass ? 'text' : 'password'}
                       placeholder="Enter your password"
                       value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      onChange={(e) => setLoginData({ ...loginData, password: removeEmojis(e.target.value) })}
                       required
                       autoComplete="current-password"
                     />
@@ -468,7 +501,7 @@ export default function AuthPage() {
                     type="text"
                     placeholder="Enter your full name"
                     value={registerData.full_name}
-                    onChange={(e) => setRegisterData({ ...registerData, full_name: e.target.value })}
+                    onChange={(e) => setRegisterData({ ...registerData, full_name: removeEmojis(e.target.value) })}
                     required
                     autoComplete="name"
                   />
@@ -480,7 +513,7 @@ export default function AuthPage() {
                     type="email"
                     placeholder="Enter your email address"
                     value={registerData.email}
-                    onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                    onChange={(e) => setRegisterData({ ...registerData, email: removeEmojis(e.target.value) })}
                     required
                     autoComplete="email"
                   />
@@ -493,7 +526,7 @@ export default function AuthPage() {
                       type={showPass ? 'text' : 'password'}
                       placeholder="Enter your password"
                       value={registerData.password}
-                      onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                      onChange={(e) => setRegisterData({ ...registerData, password: removeEmojis(e.target.value) })}
                       required
                       autoComplete="new-password"
                     />
