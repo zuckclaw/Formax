@@ -11,7 +11,9 @@ import logoForm4x from '../assets/logo_form4x.png';
 import 'react-quill-new/dist/quill.snow.css';
 import 'katex/dist/katex.min.css';
 import '../styles/form-fill.css';
+import '../styles/video-embed.css';
 import { prepareMathHtml } from '../utils/mathRender';
+import { enhanceVideoContainers } from '../utils/videoEmbed';
 
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
@@ -135,6 +137,34 @@ function normalizeColors(html) {
 // Sekarang juga enrich raw LaTeX (\frac dll) yang lolos dari sanitizer lama
 // agar tetap tampil sebagai rumus di fillpage & riwayat.
 const richHtml = (html) => ({ __html: prepareMathHtml(normalizeColors(html ?? '')) });
+
+// Hook untuk render video embed inline (YouTube/Vimeo/Drive/MP4) tanpa keluar form
+// Fix: React dangerouslySetInnerHTML bikin object baru tiap render -> innerHTML di-reset tiap state change (pilih opsi / zoom)
+// Jadi perlu re-enhance setiap render + MutationObserver untuk tangkap reset DOM
+function useVideoEmbedFix(containerRef, html) {
+  // utama: jalan saat html berubah + pasang observer untuk reset DOM
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !html) return
+    const doEnhance = () => { try { enhanceVideoContainers(el) } catch (e) { console.error('[VideoFix] gagal', e) } }
+    doEnhance()
+    const t = setTimeout(doEnhance, 0)
+    const t2 = setTimeout(doEnhance, 60)
+    const raf = requestAnimationFrame(doEnhance)
+    const mo = new MutationObserver(doEnhance)
+    mo.observe(el, { childList: true, subtree: true })
+    return () => { clearTimeout(t); clearTimeout(t2); cancelAnimationFrame(raf); mo.disconnect() }
+  }, [html])
+
+  // kedua: jalan setiap render induk (mis. pilih opsi, ubah zoom) walau html string sama
+  // React bikin {__html} object baru tiap render jadi innerHTML ke-reset jadi placeholder -> perlu re-enhance
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !html) return
+    const id = setTimeout(() => { try { enhanceVideoContainers(el) } catch {} }, 0)
+    return () => clearTimeout(id)
+  })
+}
 
 // Hook untuk fix audio ngrok di dalam container dangerouslySetInnerHTML
 // Hook untuk fix media (audio & image) ngrok di dalam container dangerouslySetInnerHTML
@@ -687,6 +717,21 @@ export default function FormFillPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Auto-enhance video embeds globally (title/section dsb) setelah form/page pindah
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const root = document.querySelector('.form-content-area') || document.body
+        enhanceVideoContainers(root)
+        // also enhance result / success containers if present
+        document.querySelectorAll('.result-card, .success-card, .form-header-details').forEach((el) => {
+          try { enhanceVideoContainers(el) } catch {}
+        })
+      } catch {}
+    }, 80)
+    return () => clearTimeout(t)
+  }, [form, currentPage, showResult])
+
   // Zoom handlers (persist ke localStorage)
   useEffect(() => {
     localStorage.setItem('formFillZoom', String(zoomLevel));
@@ -899,7 +944,7 @@ export default function FormFillPage() {
                   }}
                 >
                   <div className="option-radio">{isSelected && <div className="option-radio-dot" />}</div>
-                  <span className="option-label-text ql-editor" dangerouslySetInnerHTML={richHtml(opt.label)} />
+                  <OptionLabelWithVideo html={opt.label} />
                   {isSelected && (
                     <svg className="option-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
@@ -944,7 +989,7 @@ export default function FormFillPage() {
                       </svg>
                     )}
                   </div>
-                  <span className="option-label-text ql-editor" dangerouslySetInnerHTML={richHtml(opt.label)} />
+                  <OptionLabelWithVideo html={opt.label} />
                 </div>
               );
             })}
@@ -1806,11 +1851,20 @@ export default function FormFillPage() {
 function FormDescriptionWithAudio({ html }) {
   const ref = useRef(null);
   useNgrokMediaFix(ref, html);
+  useVideoEmbedFix(ref, html);
   return <div ref={ref} className="form-description ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
 }
 
 function QuestionLabelWithAudio({ html }) {
   const ref = useRef(null);
   useNgrokMediaFix(ref, html);
+  useVideoEmbedFix(ref, html);
   return <div ref={ref} className="question-label-content ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
+}
+
+function OptionLabelWithVideo({ html }) {
+  const ref = useRef(null);
+  useVideoEmbedFix(ref, html);
+  useNgrokMediaFix(ref, html);
+  return <span ref={ref} className="option-label-text ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
 }

@@ -9,6 +9,9 @@ import hljs from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.min.css'
 import ImageResize from '@mgreminger/quill-image-resize-module'
 import MathPicker from './MathPicker'
+import VideoLinkModal from './VideoLinkModal'
+import { parseVideoUrl, enhanceVideoContainers } from '../utils/videoEmbed'
+import '../styles/video-embed.css'
 
 if (typeof window !== 'undefined') {
   window.katex = katex
@@ -97,6 +100,33 @@ class AudioBlot extends BlockEmbed {
 AudioBlot.blotName = 'audio'
 AudioBlot.tagName = 'audio'
 Quill.register(AudioBlot)
+// ── Custom Video Embed Blot (sanitizer-safe div[data-video]) ───────────────
+class VideoEmbedBlot extends BlockEmbed {
+  static create(rawUrl) {
+    const node = super.create()
+    const url = String(rawUrl || '').trim()
+    const parsed = parseVideoUrl(url)
+    const embed = parsed ? parsed.embedUrl : url
+    const type = parsed ? parsed.type : 'unknown'
+    node.classList.add('video-embed')
+    node.setAttribute('data-video', url)
+    node.setAttribute('data-embed', embed)
+    node.setAttribute('data-type', type)
+    node.setAttribute('contenteditable', 'false')
+    // placeholder text inside for quill delta
+    node.innerHTML = `<span style="display:inline-block;padding:6px 10px;background:#eff6ff;border:1px dashed #93c5fd;border-radius:8px;color:#2563eb;font-size:12px;">&#9654; Video: ${escapeHtml(url.slice(0,60))}</span>`
+    return node
+  }
+  static value(node) {
+    return node.getAttribute('data-video') || ''
+  }
+}
+VideoEmbedBlot.blotName = 'videoEmbed'
+VideoEmbedBlot.tagName = 'div'
+Quill.register(VideoEmbedBlot)
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Custom Image Upload Handler ──────────────────────────────────────────────
@@ -161,6 +191,8 @@ const handleAudioUpload = function () {
     }
   }
 }
+
+// Video handler dipindah ke dalam komponen (modal) — lihat RichTextEditor bawah
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Full toolbar for form description
@@ -179,6 +211,7 @@ const FULL_MODULES = {
     handlers: {
       image: handleImageUpload,
       audio: handleAudioUpload,
+      // video handler di-inject via useEffect (modal kustom)
     },
   },
   syntax: { hljs },
@@ -197,13 +230,14 @@ const QUESTION_MODULES = {
       [{ color: [] }, { background: [] }],
       ['code-block', 'blockquote'],
       [{ list: 'ordered' }, { list: 'bullet' }],
-      ['link', 'image', 'audio'],
+      ['link', 'image', 'video', 'audio'],
       ['formula', 'math'],
       ['clean'],
     ],
     handlers: {
       image: handleImageUpload,
       audio: handleAudioUpload,
+      // video handler di-inject via useEffect (modal kustom)
     },
   },
   syntax: { hljs },
@@ -241,7 +275,7 @@ const FORMATS = [
   'script',
   'blockquote', 'code-block',
   'list', 'indent', 'direction', 'align',
-  'link', 'image', 'video', 'formula',
+  'link', 'image', 'video', 'videoEmbed', 'formula',
   'audio', 'displayMath',
 ]
 
@@ -261,6 +295,23 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
   const [anchorRect, setAnchorRect] = useState(null)
   const savedRangeRef = useRef(null)
   const mathBtnRef = useRef(null)
+  const [videoOpen, setVideoOpen] = useState(false)
+  const videoRangeRef = useRef(null)
+
+  const handleVideoConfirm = useCallback((rawUrl) => {
+    const quill = quillRef.current?.getEditor()
+    if (!quill) return
+    const parsed = parseVideoUrl(String(rawUrl || '').trim())
+    if (!parsed) return
+    const range = videoRangeRef.current || savedRangeRef.current || quill.getSelection(true) || { index: quill.getLength(), length: 0 }
+    const index = range.index ?? quill.getLength()
+    quill.insertEmbed(index, 'videoEmbed', parsed.original, 'user')
+    quill.setSelection(index + 1, 0, 'user')
+    quill.focus()
+    setTimeout(() => {
+      try { enhanceVideoContainers(quill.root) } catch {}
+    }, 50)
+  }, [])
 
   const handleMathInsert = useCallback((latex, displayMode) => {
     const quill = quillRef.current?.getEditor()
@@ -302,6 +353,15 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
     const toolbar = quill.getModule('toolbar')
     const toolbarEl = toolbar.container
 
+    // Video handler → buka modal kustom (bukan prompt)
+    toolbar.addHandler('video', function () {
+      const sel = this.quill.getSelection(true)
+      const range = sel ? { ...sel } : { index: this.quill.getLength(), length: 0 }
+      videoRangeRef.current = range
+      savedRangeRef.current = range
+      setVideoOpen(true)
+    })
+
     // Register handlers for math & formula to open picker
     toolbar.addHandler('math', function () {
       // 'this' is toolbar, quill is this.quill
@@ -332,6 +392,10 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
     imageBtns.forEach((btn) => {
       btn.title = 'Sisipkan Gambar'
     })
+    const videoBtns = toolbarEl.querySelectorAll('.ql-video')
+    videoBtns.forEach((btn) => {
+      btn.title = 'Sisipkan Video (YouTube/Vimeo/Drive/MP4)'
+    })
     // Style math button (fx)
     const mathBtns = toolbarEl.querySelectorAll('.ql-math')
     mathBtns.forEach((btn) => {
@@ -359,6 +423,55 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
       }
     })
   }, [])
+
+  // Auto-enhance video embeds inside editor (render div.video-embed → iframe/video)
+  // Juga handle paste bare URL → auto convert ke videoEmbed blot
+  useEffect(() => {
+    const editor = quillRef.current?.getEditor()
+    if (!editor) return
+    const root = editor.root
+    // Enhance stored video placeholders
+    try { enhanceVideoContainers(root) } catch {}
+    // Paste handler: intercept text paste yang berisi link video → convert to embed
+    const handlePaste = () => {
+      // delay to let quill insert text first
+      setTimeout(() => {
+        try {
+          // scan root text nodes for bare video URLs that slipped through as plain text/link
+          enhanceVideoContainers(root)
+          // Also convert bare text URLs that exist as text nodes inside root (e.g., "https://youtu.be/...")
+          // Find text containing video domain and convert via quill API? Simplistic: if plain text url detected without <a>, replace via DOM then sync to onChange via quill update
+          const html = root.innerHTML
+          if (/(youtube\.com|youtu\.be|vimeo\.com|drive\.google\.com)/i.test(html) && html.includes('http')) {
+            // enhance already converts anchors; for plain text we rely on DOM text scanning in enhanceVideoContainers fallback
+            // If still plain text remains, try to convert by checking root innerText
+            const text = root.innerText || ''
+            const urlRe = /https?:\/\/[^\s]+/gi
+            let m
+            while ((m = urlRe.exec(text)) !== null) {
+              const parsed = parseVideoUrl(m[0])
+              if (parsed) {
+                // trigger enhance again for any newly created anchors (quill may have auto-linked)
+                enhanceVideoContainers(root)
+                // Notify parent of HTML change (so saved value includes embed)
+                const newHtml = root.innerHTML
+                if (newHtml !== html && onChange) onChange(newHtml)
+                break
+              }
+            }
+          }
+        } catch {}
+      }, 30)
+    }
+    root.addEventListener('paste', handlePaste)
+    // Also observe mutations to auto-enhance when value prop changes externally
+    const mo = new MutationObserver(() => { try { enhanceVideoContainers(root) } catch {} })
+    mo.observe(root, { childList: true, subtree: true })
+    return () => {
+      root.removeEventListener('paste', handlePaste)
+      mo.disconnect()
+    }
+  }, [value, onChange])
 
   // Fix media (audio & image) ngrok di dalam editor preview (builder)
   useEffect(() => {
@@ -419,6 +532,11 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
         onClose={() => setMathOpen(false)}
         onInsert={handleMathInsert}
         anchorRect={anchorRect}
+      />
+      <VideoLinkModal
+        isOpen={videoOpen}
+        onClose={() => setVideoOpen(false)}
+        onInsert={handleVideoConfirm}
       />
     </>
   )
