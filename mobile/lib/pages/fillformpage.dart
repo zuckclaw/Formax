@@ -31,7 +31,9 @@ class QuestionOption {
   });
 
   factory QuestionOption.fromJson(Map<dynamic, dynamic> json) {
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     return QuestionOption(
       id: map['id'] ?? '',
       label: map['label'] ?? '',
@@ -66,9 +68,13 @@ class Question {
   });
 
   factory Question.fromJson(Map<dynamic, dynamic> json) {
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     final settingsRaw = map['settings'];
-    final settings = settingsRaw is Map ? Map<String, dynamic>.from(settingsRaw) : <String, dynamic>{};
+    final settings = settingsRaw is Map
+        ? Map<String, dynamic>.from(settingsRaw)
+        : <String, dynamic>{};
     final optionsRaw = map['options'];
     final options = optionsRaw is List
         ? optionsRaw.map((o) => QuestionOption.fromJson(o)).toList()
@@ -114,6 +120,10 @@ class FormData {
   final bool acceptResponses;
   final String? startDate;
   final String? endDate;
+  // ID pemilik form (dari FormOut.owner_id) — dipakai untuk mode pratinjau
+  // pemilik: pembuka yang adalah owner tidak di-join sebagai responden
+  // sehingga tidak tercatat di Aktivitas Saya (parity perilaku web).
+  final String? ownerId;
   final List<Question> questions;
 
   FormData({
@@ -126,11 +136,14 @@ class FormData {
     this.acceptResponses = true,
     this.startDate,
     this.endDate,
+    this.ownerId,
     this.questions = const [],
   });
 
   factory FormData.fromJson(Map<dynamic, dynamic> json) {
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     return FormData(
       id: map['id'] ?? '',
       title: map['title'] ?? '',
@@ -141,6 +154,7 @@ class FormData {
       acceptResponses: map['accept_responses'] ?? true,
       startDate: map['start_date'],
       endDate: map['end_date'],
+      ownerId: map['owner_id']?.toString(),
       questions:
           (map['questions'] as List<dynamic>?)
               ?.map((q) => Question.fromJson(q as Map))
@@ -190,6 +204,29 @@ class _FillFormPageState extends State<FillFormPage> {
   final TextEditingController _joinTokenController = TextEditingController();
   String? _joinTokenError;
 
+  // Mode pratinjau pemilik: pembuka form adalah owner-nya. Ditampilkan
+  // read-only tanpa join/submit sehingga tidak tercatat sebagai responden
+  // (tidak muncul di Aktivitas Saya, tidak makan kuota max_submissions,
+  // tidak mengunci edit soal via 409). Parity perilaku web: owner yang
+  // membuka link sendiri tidak menjadi "aktivitas pengisian".
+  bool _isOwnerPreview = false;
+
+  /// True jika user login saat ini adalah pemilik [formData].
+  /// Gagal mengambil profil → false (fail-open ke alur normal).
+  Future<bool> _isOwnerOf(FormData formData, String? token) async {
+    try {
+      if (token == null) return false;
+      final ownerId = formData.ownerId;
+      if (ownerId == null || ownerId.isEmpty) return false;
+      final me = await ApiService.getMe();
+      if (me['success'] != true || me['data'] is! Map) return false;
+      final myId = (me['data'] as Map)['id']?.toString();
+      return myId != null && myId.isNotEmpty && myId == ownerId;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Countdown timer (form dengan end_date/jadwal)
   Timer? _countdownTimer;
   DateTime? _countdownEnd;
@@ -218,8 +255,12 @@ class _FillFormPageState extends State<FillFormPage> {
   void dispose() {
     _joinTokenController.dispose();
     _countdownTimer?.cancel();
-    for (var c in _textCtrls.values) { c.dispose(); }
-    for (var c in _otherCtrls.values) { c.dispose(); }
+    for (var c in _textCtrls.values) {
+      c.dispose();
+    }
+    for (var c in _otherCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -257,6 +298,8 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   Future<void> _autoSubmitOnTimeout() async {
+    // Mode pratinjau pemilik: tidak ada submission → abaikan timer.
+    if (_isOwnerPreview) return;
     if (_hasAttemptedAutoSubmit || _isSubmitted || _isSubmitting) return;
     _hasAttemptedAutoSubmit = true;
 
@@ -369,10 +412,22 @@ class _FillFormPageState extends State<FillFormPage> {
       }
       final formData = FormData.fromJson(formJson);
       if (!mounted) return;
-      setState(() => _formData = formData);
+      setState(() {
+        _formData = formData;
+        _isOwnerPreview = false;
+      });
       _startCountdown();
 
-      // 2. Try joining the form (auto-join if no token required)
+      // 2. Pemilik form → mode pratinjau (TANPA join): tidak membuat
+      // submission sehingga tidak tercatat di Aktivitas Saya.
+      if (await _isOwnerOf(formData, token)) {
+        if (!mounted) return;
+        setState(() => _isOwnerPreview = true);
+        _startCountdown();
+        return;
+      }
+
+      // 3. Try joining the form (auto-join if no token required)
       await _joinForm(token, null);
       _startCountdown();
     } catch (e) {
@@ -444,7 +499,8 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   Future<bool> _saveAnswer(String questionId) async {
-    if (_submissionId == null) return false;
+    // Mode pratinjau pemilik: jawaban hanya lokal, tidak autosave ke server.
+    if (_isOwnerPreview || _submissionId == null) return false;
 
     final token = await ApiService.getToken();
     final answer = _answers[questionId];
@@ -474,6 +530,18 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   Future<void> _submitForm() async {
+    // Mode pratinjau pemilik: tidak ada submission → tidak bisa submit.
+    if (_isOwnerPreview) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Mode pratinjau pemilik — jawaban tidak dikirim. Uji pengisian tanpa login atau dengan akun lain.'),
+          ),
+        );
+      }
+      return;
+    }
     if (_submissionId == null) {
       if (mounted) setState(() => _isSubmitted = true);
       return;
@@ -590,8 +658,10 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   String _shortLabel(Question q) {
-    final t =
-        q.label.replaceAll(RegExp(r'<[^>]*>'), '').trim().replaceAll('\n', ' ');
+    final t = q.label
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .trim()
+        .replaceAll('\n', ' ');
     return t.length > 28 ? '${t.substring(0, 28)}...' : t;
   }
 
@@ -602,7 +672,9 @@ class _FillFormPageState extends State<FillFormPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Soal ditandai. Ketuk ikon tanda lagi untuk batal.'),
+              content: Text(
+                'Soal ditandai. Ketuk ikon tanda lagi untuk batal.',
+              ),
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             ),
@@ -664,9 +736,7 @@ class _FillFormPageState extends State<FillFormPage> {
               ? 'Tampilkan semua soal'
               : 'Tampilkan soal yang ditandai',
           icon: Icon(
-            _showBookmarkedOnly
-                ? Icons.filter_alt
-                : Icons.bookmarks_outlined,
+            _showBookmarkedOnly ? Icons.filter_alt : Icons.bookmarks_outlined,
             color: _showBookmarkedOnly
                 ? const Color(0xFFB45309)
                 : const Color(0xFF374151),
@@ -787,8 +857,8 @@ class _FillFormPageState extends State<FillFormPage> {
       return _buildSubmittedState();
     }
 
-    // Form content
-    if (_formData != null && _submissionId != null) {
+    // Form content (responden join ATAU pemilik pratinjau)
+    if (_formData != null && (_submissionId != null || _isOwnerPreview)) {
       return _buildFormContent();
     }
 
@@ -1035,30 +1105,32 @@ class _FillFormPageState extends State<FillFormPage> {
     final bookmarkedMode = _showBookmarkedOnly;
     final questions = bookmarkedMode
         ? (_formData?.questions
-                .where((q) => _bookmarkedQids.contains(q.id))
-                .toList() ??
-            [])
+                  .where((q) => _bookmarkedQids.contains(q.id))
+                  .toList() ??
+              [])
         : _currentQuestions;
 
     return Column(
       children: [
         if (bookmarkedMode) _buildBookmarkIndicator(),
         if (!bookmarkedMode) _buildProgressBar(),
+        // Banner mode pratinjau pemilik (hanya halaman pertama)
+        if (_isOwnerPreview && _currentPage == 0 && !bookmarkedMode)
+          _buildOwnerPreviewBanner(),
 
         // Questions list
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(_zoom),
-              ),
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(_zoom)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Form header (only on first page)
-                  if (_currentPage == 0 && !bookmarkedMode)
-                    _buildFormHeader(),
+                  if (_currentPage == 0 && !bookmarkedMode) _buildFormHeader(),
 
                   // Questions
                   if (bookmarkedMode && questions.isEmpty)
@@ -1227,6 +1299,53 @@ class _FillFormPageState extends State<FillFormPage> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Banner info mode pratinjau pemilik — menjelaskan mengapa tombol
+  /// Submit tidak ada dan mengapa pratinjau tidak masuk Aktivitas Saya.
+  Widget _buildOwnerPreviewBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.visibility_outlined,
+              color: Color(0xFF1E66D0), size: 22),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pratinjau pemilik',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E40AF),
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Ini form buatanmu. Kamu melihatnya sebagai pratinjau — '
+                  'jawaban tidak dikirim dan tidak tercatat di Aktivitas Saya. '
+                  'Untuk menguji pengisian, buka link ini tanpa login atau '
+                  'dengan akun lain.',
+                  style: TextStyle(
+                      color: Color(0xFF1E40AF), fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1429,8 +1548,7 @@ class _FillFormPageState extends State<FillFormPage> {
               ),
             ],
           ),
-          if (question.type != 'image' &&
-              question.allImageUrls.isNotEmpty) ...[
+          if (question.type != 'image' && question.allImageUrls.isNotEmpty) ...[
             const SizedBox(height: 12),
             for (final url in question.allImageUrls)
               Padding(
@@ -1556,7 +1674,9 @@ class _FillFormPageState extends State<FillFormPage> {
       children: [
         ...question.options.map((option) {
           final isOther = option.isOther;
-          final isSelected = isOther ? otherActive : selectedValue == option.label;
+          final isSelected = isOther
+              ? otherActive
+              : selectedValue == option.label;
           return InkWell(
             onTap: () {
               if (isOther) {
@@ -1638,7 +1758,10 @@ class _FillFormPageState extends State<FillFormPage> {
                   borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: Color(0xFFC7D2FE)),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -1663,7 +1786,9 @@ class _FillFormPageState extends State<FillFormPage> {
       children: [
         ...question.options.map((option) {
           final isOther = option.isOther;
-          final isSelected = isOther ? otherActive : selectedOptions.contains(option.label);
+          final isSelected = isOther
+              ? otherActive
+              : selectedOptions.contains(option.label);
           return InkWell(
             onTap: () {
               final newOptions = List<String>.from(selectedOptions);
@@ -1713,7 +1838,9 @@ class _FillFormPageState extends State<FillFormPage> {
               child: Row(
                 children: [
                   Icon(
-                    isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                    isSelected
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
                     color: isSelected
                         ? const Color(0xFF1E66D0)
                         : const Color(0xFF9CA3AF),
@@ -1765,7 +1892,10 @@ class _FillFormPageState extends State<FillFormPage> {
                   borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: Color(0xFFC7D2FE)),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -1797,10 +1927,7 @@ class _FillFormPageState extends State<FillFormPage> {
               value: option.label,
               child: _renderOptionText(
                 option.label,
-                const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF374151),
-                ),
+                const TextStyle(fontSize: 15, color: Color(0xFF374151)),
               ),
             );
           }).toList(),
@@ -1849,7 +1976,9 @@ class _FillFormPageState extends State<FillFormPage> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Row(
           children: [
@@ -1879,23 +2008,28 @@ class _FillFormPageState extends State<FillFormPage> {
     final settings = question.settings;
     final min = settings['scale_min'] ?? 1;
     final max = settings['scale_max'] ?? 5;
-    final current = int.tryParse(_answers[question.id]?['answer_text'] ?? '') ?? -1;
+    final current =
+        int.tryParse(_answers[question.id]?['answer_text'] ?? '') ?? -1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(settings['min_label'] ?? '$min',
+            Text(
+              settings['min_label'] ?? '$min',
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-              )),
-            Text(settings['max_label'] ?? '$max',
+              ),
+            ),
+            Text(
+              settings['max_label'] ?? '$max',
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-              )),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1917,17 +2051,28 @@ class _FillFormPageState extends State<FillFormPage> {
 
   Widget _buildRatingInput(Question question) {
     final count = (question.settings['rating_count'] as int?) ?? 5;
-    final current = int.tryParse(_answers[question.id]?['answer_text'] ?? '') ?? 0;
+    final current =
+        int.tryParse(_answers[question.id]?['answer_text'] ?? '') ?? 0;
     return Row(
       children: List.generate(count, (i) {
         final filled = i < current;
-        return IconButton(icon: Icon(filled ? Icons.star : Icons.star_border, color: const Color(0xFFF59E0B)), onPressed: () => _updateAnswer(question.id, text: '${i + 1}'));
+        return IconButton(
+          icon: Icon(
+            filled ? Icons.star : Icons.star_border,
+            color: const Color(0xFFF59E0B),
+          ),
+          onPressed: () => _updateAnswer(question.id, text: '${i + 1}'),
+        );
       }),
     );
   }
 
   Widget _buildGridInput(Question question) {
-    final rowLabels = (question.settings['row_labels'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? ['Baris 1'];
+    final rowLabels =
+        (question.settings['row_labels'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        ['Baris 1'];
     final isRadio = question.type == 'multiple_choice_grid';
     final selectedSet =
         (_answers[question.id]?['answer_options'] as List<dynamic>? ?? [])
@@ -1941,41 +2086,44 @@ class _FillFormPageState extends State<FillFormPage> {
         final rowKeyPrefix = '$row => ';
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _renderOptionText(
-              row,
-              const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              children: question.options.map((opt) {
-                final k = keyFor(row, opt.label);
-                final isSel = selectedSet.contains(k);
-                return FilterChip(
-                  label: _renderOptionText(
-                    opt.label,
-                    const TextStyle(fontSize: 13),
-                  ),
-                  selected: isSel,
-                  onSelected: (_) {
-                    final cur = selectedSet.toList();
-                    if (isRadio) {
-                      cur.removeWhere((e) => e.startsWith(rowKeyPrefix));
-                      cur.add(k);
-                    } else {
-                      if (cur.contains(k)) {
-                        cur.remove(k);
-                      } else {
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _renderOptionText(
+                row,
+                const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: question.options.map((opt) {
+                  final k = keyFor(row, opt.label);
+                  final isSel = selectedSet.contains(k);
+                  return FilterChip(
+                    label: _renderOptionText(
+                      opt.label,
+                      const TextStyle(fontSize: 13),
+                    ),
+                    selected: isSel,
+                    onSelected: (_) {
+                      final cur = selectedSet.toList();
+                      if (isRadio) {
+                        cur.removeWhere((e) => e.startsWith(rowKeyPrefix));
                         cur.add(k);
+                      } else {
+                        if (cur.contains(k)) {
+                          cur.remove(k);
+                        } else {
+                          cur.add(k);
+                        }
                       }
-                    }
-                    _updateAnswer(question.id, text: null, options: cur);
-                  },
-                );
-              }).toList(),
-            ),
-          ]),
+                      _updateAnswer(question.id, text: null, options: cur);
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         );
       }).toList(),
     );
@@ -2056,7 +2204,11 @@ class _FillFormPageState extends State<FillFormPage> {
       content = Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.cloud_upload_outlined, size: 40, color: Color(0xFF9CA3AF)),
+          const Icon(
+            Icons.cloud_upload_outlined,
+            size: 40,
+            color: Color(0xFF9CA3AF),
+          ),
           const SizedBox(height: 8),
           Text(
             'Tap untuk upload file',
@@ -2091,6 +2243,18 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   Future<void> _pickAndUploadFile(Question question) async {
+    // Mode pratinjau pemilik: jangan mengunggah file ke server.
+    if (_isOwnerPreview) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Mode pratinjau pemilik — upload file dinonaktifkan.'),
+          ),
+        );
+      }
+      return;
+    }
     if (_uploadingQids.contains(question.id)) return;
 
     final source = await showModalBottomSheet<_FileSource>(
@@ -2189,22 +2353,23 @@ class _FillFormPageState extends State<FillFormPage> {
       final token = await ApiService.getToken();
       final respondentKey = await ApiService.getRespondentKey();
 
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiService.baseUrl}/uploads'),
-      )
-        ..headers['X-Respondent-Key'] = respondentKey
-        // Ngrok free mewajibkan header ini (konsisten dgn ApiService._uploadOnce);
-        // tanpanya request bisa diarahkan ke halaman interstitial sehingga upload gagal.
-        ..headers['ngrok-skip-browser-warning'] = 'true'
-        ..files.add(
-          http.MultipartFile.fromBytes(
-            'file',
-            bytes,
-            filename: fileName,
-            contentType: null,
-          ),
-        );
+      final request =
+          http.MultipartRequest(
+              'POST',
+              Uri.parse('${ApiService.baseUrl}/uploads'),
+            )
+            ..headers['X-Respondent-Key'] = respondentKey
+            // Ngrok free mewajibkan header ini (konsisten dgn ApiService._uploadOnce);
+            // tanpanya request bisa diarahkan ke halaman interstitial sehingga upload gagal.
+            ..headers['ngrok-skip-browser-warning'] = 'true'
+            ..files.add(
+              http.MultipartFile.fromBytes(
+                'file',
+                bytes,
+                filename: fileName,
+                contentType: null,
+              ),
+            );
       if (token != null) request.headers['Authorization'] = 'Bearer $token';
 
       final streamed = await request.send();
@@ -2226,7 +2391,9 @@ class _FillFormPageState extends State<FillFormPage> {
           if (!saved && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('File terunggah, tapi belum tersinkron — coba lagi'),
+                content: Text(
+                  'File terunggah, tapi belum tersinkron — coba lagi',
+                ),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -2333,49 +2500,73 @@ class _FillFormPageState extends State<FillFormPage> {
 
           if (!isFirstPage && !isLastPage) const SizedBox(width: 12),
 
-          // Next / Submit button
+          // Next / Submit button (mode pratinjau pemilik: tanpa Submit)
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _isSubmitting
-                  ? null
-                  : () {
-                      if (isLastPage) {
-                        _showSubmitConfirmation();
-                      } else {
-                        _handleNext();
-                      }
-                    },
-              icon: _isSubmitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Icon(
-                      isLastPage ? Icons.send : Icons.arrow_forward,
-                      size: 18,
+            child: (_isOwnerPreview && isLastPage)
+                ? Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: const Color(0xFFCBD5E1)),
                     ),
-              label: Text(
-                _isSubmitting
-                    ? 'Mengirim...'
-                    : isLastPage
-                    ? 'Submit'
-                    : 'Selanjutnya',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isLastPage
-                    ? const Color(0xFF059669)
-                    : const Color(0xFF1E66D0),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.visibility_outlined,
+                            size: 18, color: Color(0xFF64748B)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Mode pratinjau',
+                          style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () {
+                            if (isLastPage) {
+                              _showSubmitConfirmation();
+                            } else {
+                              _handleNext();
+                            }
+                          },
+                    icon: _isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Icon(
+                            isLastPage ? Icons.send : Icons.arrow_forward,
+                            size: 18,
+                          ),
+                    label: Text(
+                      _isSubmitting
+                          ? 'Mengirim...'
+                          : isLastPage
+                          ? 'Submit'
+                          : 'Selanjutnya',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isLastPage
+                          ? const Color(0xFF059669)
+                          : const Color(0xFF1E66D0),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -2411,7 +2602,9 @@ class _FillFormPageState extends State<FillFormPage> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Row(
             children: [
               Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 22),
@@ -2427,21 +2620,33 @@ class _FillFormPageState extends State<FillFormPage> {
               children: [
                 Text(
                   '${missing.length} soal wajib belum dijawab. Lengkapi dulu ya:',
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF6B7280),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                ...missing.take(8).map(
+                ...missing
+                    .take(8)
+                    .map(
                       (q) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 3),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.circle, size: 6, color: Color(0xFFDC2626)),
+                            const Icon(
+                              Icons.circle,
+                              size: 6,
+                              color: Color(0xFFDC2626),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _shortLabel(q),
-                                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
                           ],
@@ -2453,7 +2658,10 @@ class _FillFormPageState extends State<FillFormPage> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       'dan ${missing.length - 8} soal lainnya...',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF9CA3AF),
+                      ),
                     ),
                   ),
               ],
@@ -2462,7 +2670,10 @@ class _FillFormPageState extends State<FillFormPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK', style: TextStyle(color: Color(0xFF6B7280))),
+              child: const Text(
+                'OK',
+                style: TextStyle(color: Color(0xFF6B7280)),
+              ),
             ),
             ElevatedButton(
               onPressed: () {

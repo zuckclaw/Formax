@@ -35,7 +35,9 @@ class QuestionCard extends StatelessWidget {
     final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
     final iconColor = isDark ? const Color(0xFF94A3B8) : Colors.black54;
     final textColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
-    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB);
+    final dividerColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE5E7EB);
 
     return GestureDetector(
       onTap: onTap,
@@ -46,10 +48,16 @@ class QuestionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: isActive ? const Border(left: BorderSide(color: Color(0xFF4F46E5), width: 4)) : null,
+          border: isActive
+              ? const Border(
+                  left: BorderSide(color: Color(0xFF4F46E5), width: 4),
+                )
+              : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : (isActive ? 0.08 : 0.03)),
+              color: Colors.black.withValues(
+                alpha: isDark ? 0.3 : (isActive ? 0.08 : 0.03),
+              ),
               blurRadius: isActive ? 12 : 8,
               offset: const Offset(0, 4),
             ),
@@ -63,7 +71,11 @@ class QuestionCard extends StatelessWidget {
                   index: index,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Icon(Icons.drag_indicator, size: 20, color: isDark ? const Color(0xFF64748B) : Colors.black26),
+                    child: Icon(
+                      Icons.drag_indicator,
+                      size: 20,
+                      color: isDark ? const Color(0xFF64748B) : Colors.black26,
+                    ),
                   ),
                 ),
               ),
@@ -74,17 +86,24 @@ class QuestionCard extends StatelessWidget {
                     onTypeChangeTap: onTypeChangeTap,
                   )
                 : QuestionViewer(question: question),
-            
+
             // Footer Toolbar when active
             if (isActive) ...[
-              Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Divider(color: dividerColor)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Divider(color: dividerColor),
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   if (onAddImage != null &&
                       question.type != QuestionType.pageBreak)
                     IconButton(
-                      icon: Icon(Icons.image_outlined, color: iconColor, size: 22),
+                      icon: Icon(
+                        Icons.image_outlined,
+                        color: iconColor,
+                        size: 22,
+                      ),
                       tooltip: 'Tambahkan Gambar ke Pertanyaan Ini',
                       onPressed: onAddImage,
                     ),
@@ -94,18 +113,30 @@ class QuestionCard extends StatelessWidget {
                     onPressed: onDuplicate,
                   ),
                   IconButton(
-                    icon: Icon(Icons.delete_outline, color: iconColor, size: 22),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: iconColor,
+                      size: 22,
+                    ),
                     tooltip: 'Hapus',
                     onPressed: onDelete,
                   ),
-                  if (question.type != QuestionType.image && question.type != QuestionType.text) ...[
+                  if (question.type != QuestionType.image &&
+                      question.type != QuestionType.text) ...[
                     Container(
-                      height: 24, 
-                      width: 1, 
-                      color: dividerColor, 
-                      margin: const EdgeInsets.symmetric(horizontal: 8)
+                      height: 24,
+                      width: 1,
+                      color: dividerColor,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
                     ),
-                    Text('Wajib', style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500)),
+                    Text(
+                      'Wajib',
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     Switch(
                       value: question.isRequired,
                       onChanged: onRequiredChanged,
@@ -115,10 +146,10 @@ class QuestionCard extends StatelessWidget {
                       icon: Icon(Icons.more_vert, color: iconColor),
                       onPressed: () {},
                     ),
-                  ]
+                  ],
                 ],
               ),
-            ]
+            ],
           ],
         ),
       ),

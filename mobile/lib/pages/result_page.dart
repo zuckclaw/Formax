@@ -25,13 +25,15 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   late Future<
-      ({
-        List<SubmissionModel> subs,
-        Map<String, Set<String>> gradeMap,
-        Map<String, String> labels,
-        Map<String, _QuestionAgg> questions,
-        String? joinToken,
-      })> _dataFuture;
+    ({
+      List<SubmissionModel> subs,
+      Map<String, Set<String>> gradeMap,
+      Map<String, String> labels,
+      Map<String, _QuestionAgg> questions,
+      String? joinToken,
+    })
+  >
+  _dataFuture;
 
   String _statusFilter = 'semua'; // semua / selesai / proses / curang
 
@@ -46,13 +48,15 @@ class _ResultPageState extends State<ResultPage> {
   }
 
   Future<
-      ({
-        List<SubmissionModel> subs,
-        Map<String, Set<String>> gradeMap,
-        Map<String, String> labels,
-        Map<String, _QuestionAgg> questions,
-        String? joinToken,
-      })> _fetchData() async {
+    ({
+      List<SubmissionModel> subs,
+      Map<String, Set<String>> gradeMap,
+      Map<String, String> labels,
+      Map<String, _QuestionAgg> questions,
+      String? joinToken,
+    })
+  >
+  _fetchData() async {
     final subRes = await ApiService.getFormSubmissions(widget.formId);
     if (subRes['success'] != true) {
       throw Exception(subRes['message'] ?? 'Gagal memuat respons');
@@ -78,10 +82,12 @@ class _ResultPageState extends State<ResultPage> {
         final opts = raw['options'] as List? ?? [];
         final optionList = opts
             .whereType<Map>()
-            .map((o) => (
-                  label: _cleanText(o['label']?.toString() ?? 'Opsi'),
-                  isCorrect: o['is_correct'] == true,
-                ))
+            .map(
+              (o) => (
+                label: _cleanText(o['label']?.toString() ?? 'Opsi'),
+                isCorrect: o['is_correct'] == true,
+              ),
+            )
             .toList();
         final keys = optionList
             .where((o) => o.isCorrect)
@@ -122,8 +128,8 @@ class _ResultPageState extends State<ResultPage> {
     final selected = (a.answerOptions != null && a.answerOptions!.isNotEmpty)
         ? a.answerOptions!.toSet()
         : (a.answerText != null && a.answerText!.isNotEmpty)
-            ? {a.answerText!}
-            : <String>{};
+        ? {a.answerText!}
+        : <String>{};
     return selected.length == keys.length && selected.containsAll(keys);
   }
 
@@ -146,7 +152,9 @@ class _ResultPageState extends State<ResultPage> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(qrRes['message']?.toString() ?? 'Gagal memuat link & QR code'),
+            content: Text(
+              qrRes['message']?.toString() ?? 'Gagal memuat link & QR code',
+            ),
           ),
         );
         return;
@@ -181,7 +189,9 @@ class _ResultPageState extends State<ResultPage> {
       if (!mounted) return;
       if (shareLink.isEmpty || qrUrl.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Link publik belum tersedia untuk form ini.')),
+          const SnackBar(
+            content: Text('Link publik belum tersedia untuk form ini.'),
+          ),
         );
         return;
       }
@@ -193,9 +203,9 @@ class _ResultPageState extends State<ResultPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membuka share dialog: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal membuka share dialog: $e')));
     }
   }
 
@@ -221,7 +231,11 @@ class _ResultPageState extends State<ResultPage> {
       }
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message']?.toString() ?? 'Gagal membuat ulang token')),
+      SnackBar(
+        content: Text(
+          res['message']?.toString() ?? 'Gagal membuat ulang token',
+        ),
+      ),
     );
   }
 
@@ -233,7 +247,10 @@ class _ResultPageState extends State<ResultPage> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0.5,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -258,10 +275,7 @@ class _ResultPageState extends State<ResultPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.share_outlined,
-              color: Color(0xFF2563EB),
-            ),
+            icon: const Icon(Icons.share_outlined, color: Color(0xFF2563EB)),
             tooltip: 'Lihat Link & QR Code',
             onPressed: _openShareDialog,
           ),
@@ -286,35 +300,37 @@ class _ResultPageState extends State<ResultPage> {
           ),
         ],
       ),
-      body: FutureBuilder<
-          ({
-            List<SubmissionModel> subs,
-            Map<String, Set<String>> gradeMap,
-            Map<String, String> labels,
-            Map<String, _QuestionAgg> questions,
-            String? joinToken,
-          })>(
-        future: _dataFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _buildErrorState(snapshot.error.toString());
-          }
-          final data = snapshot.data!;
-          final submissions = data.subs
-              .where((s) => _passFilter(s))
-              .toList();
-          return _buildContent(
-            submissions,
-            data.gradeMap,
-            data.labels,
-            data.questions,
-            data.joinToken,
-          );
-        },
-      ),
+      body:
+          FutureBuilder<
+            ({
+              List<SubmissionModel> subs,
+              Map<String, Set<String>> gradeMap,
+              Map<String, String> labels,
+              Map<String, _QuestionAgg> questions,
+              String? joinToken,
+            })
+          >(
+            future: _dataFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return _buildErrorState(snapshot.error.toString());
+              }
+              final data = snapshot.data!;
+              final submissions = data.subs
+                  .where((s) => _passFilter(s))
+                  .toList();
+              return _buildContent(
+                submissions,
+                data.gradeMap,
+                data.labels,
+                data.questions,
+                data.joinToken,
+              );
+            },
+          ),
     );
   }
 
@@ -397,7 +413,11 @@ class _ResultPageState extends State<ResultPage> {
                   color: Color(0xFFEEF2FF),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.security, size: 18, color: Color(0xFF4338CA)),
+                child: const Icon(
+                  Icons.security,
+                  size: 18,
+                  color: Color(0xFF4338CA),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -415,10 +435,7 @@ class _ResultPageState extends State<ResultPage> {
                     SizedBox(height: 2),
                     Text(
                       'Gunakan token untuk membuka akses form',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF4F46E5),
-                      ),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF4F46E5)),
                     ),
                   ],
                 ),
@@ -435,7 +452,10 @@ class _ResultPageState extends State<ResultPage> {
                 },
                 itemBuilder: (context) => const [
                   PopupMenuItem(value: 'copy', child: Text('Salin token')),
-                  PopupMenuItem(value: 'regen', child: Text('Generate ulang token')),
+                  PopupMenuItem(
+                    value: 'regen',
+                    child: Text('Generate ulang token'),
+                  ),
                 ],
               ),
             ],
@@ -471,7 +491,11 @@ class _ResultPageState extends State<ResultPage> {
                       color: Color(0xFFC7D2FE),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.copy_all_rounded, size: 18, color: Color(0xFF312E81)),
+                    child: const Icon(
+                      Icons.copy_all_rounded,
+                      size: 18,
+                      color: Color(0xFF312E81),
+                    ),
                   ),
                 ),
               ],
@@ -486,7 +510,10 @@ class _ResultPageState extends State<ResultPage> {
     List<SubmissionModel> submissions,
     Map<String, Set<String>> gradeMap,
   ) {
-    final scores = submissions.map((s) => _scoreOf(s, gradeMap)).whereType<int>().toList();
+    final scores = submissions
+        .map((s) => _scoreOf(s, gradeMap))
+        .whereType<int>()
+        .toList();
     final highest = scores.isEmpty ? null : scores.reduce(max);
     final lowest = scores.isEmpty ? null : scores.reduce(min);
     final hasGrades = highest != null;
@@ -523,9 +550,7 @@ class _ResultPageState extends State<ResultPage> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
@@ -556,7 +581,10 @@ class _ResultPageState extends State<ResultPage> {
       (label: '50–59', min: 50, max: 60, color: const Color(0xFFF59E0B)),
       (label: '0–49', min: 0, max: 50, color: const Color(0xFFDC2626)),
     ];
-    final scores = submissions.map((s) => _scoreOf(s, gradeMap)).whereType<int>().toList();
+    final scores = submissions
+        .map((s) => _scoreOf(s, gradeMap))
+        .whereType<int>()
+        .toList();
     if (scores.isEmpty) return const SizedBox.shrink();
     final total = scores.length;
 
@@ -568,11 +596,14 @@ class _ResultPageState extends State<ResultPage> {
           for (final s in sizes)
             _BucketRow(
               label: s.label,
-              width: scores
+              width:
+                  scores
                       .where((sc) => sc >= s.min && sc < (s.max ?? 101))
                       .length /
                   total,
-              count: scores.where((sc) => sc >= s.min && sc < (s.max ?? 101)).length,
+              count: scores
+                  .where((sc) => sc >= s.min && sc < (s.max ?? 101))
+                  .length,
               total: total,
               color: s.color,
             ),
@@ -588,7 +619,8 @@ class _ResultPageState extends State<ResultPage> {
     final auto = items.where((q) => q.options.any((o) => o.isCorrect)).length;
     final manual = items.where((q) {
       final t = q.type;
-      final isGradable = t == 'single_choice' ||
+      final isGradable =
+          t == 'single_choice' ||
           t == 'checkbox' ||
           t == 'dropdown' ||
           t == 'multiple_choice';
@@ -602,8 +634,11 @@ class _ResultPageState extends State<ResultPage> {
         color: const Color(0xFF1E66D0),
         count: auto,
       ),
-      (label: 'Manual (belum ada kunci)',
-          color: const Color(0xFFD97706), count: manual),
+      (
+        label: 'Manual (belum ada kunci)',
+        color: const Color(0xFFD97706),
+        count: manual,
+      ),
       (label: 'Tanpa nilai', color: const Color(0xFF9CA3AF), count: other),
     ].where((s) => s.count > 0).toList();
 
@@ -710,9 +745,7 @@ class _ResultPageState extends State<ResultPage> {
     String questionLabel,
   ) {
     final total = submissions.length;
-    final counts = <String, int>{
-      for (final o in q.options) o.label: 0,
-    };
+    final counts = <String, int>{for (final o in q.options) o.label: 0};
     int answered = 0;
 
     for (final sub in submissions) {
@@ -902,9 +935,7 @@ class _ResultPageState extends State<ResultPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    sub.respondentEmail == '-'
-                        ? 'Anonim'
-                        : sub.respondentEmail,
+                    sub.respondentEmail == '-' ? 'Anonim' : sub.respondentEmail,
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -914,7 +945,9 @@ class _ResultPageState extends State<ResultPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    sub.isAutoSubmitted ? '$timeStr • dikirim otomatis' : timeStr,
+                    sub.isAutoSubmitted
+                        ? '$timeStr • dikirim otomatis'
+                        : timeStr,
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -935,8 +968,8 @@ class _ResultPageState extends State<ResultPage> {
                   color: score >= 70
                       ? const Color(0xFF059669)
                       : (score >= 40
-                          ? const Color(0xFFD97706)
-                          : const Color(0xFFDC2626)),
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFFDC2626)),
                 ),
               ),
             const SizedBox(width: 4),
@@ -951,8 +984,8 @@ class _ResultPageState extends State<ResultPage> {
     final (String label, Color color, Color bg) = sub.isCheated
         ? ('Curang', const Color(0xFFDC2626), const Color(0xFFFEE2E2))
         : sub.submittedAt != null
-            ? ('Selesai', const Color(0xFF059669), const Color(0xFFD1FAE5))
-            : ('Proses', const Color(0xFFD97706), const Color(0xFFFEF3C7));
+        ? ('Selesai', const Color(0xFF059669), const Color(0xFFD1FAE5))
+        : ('Proses', const Color(0xFFD97706), const Color(0xFFFEF3C7));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -993,7 +1026,9 @@ class _ResultPageState extends State<ResultPage> {
             : a.questionLabel,
         'answer': _cleanText(a.display),
         'isCorrect': isCorrect,
-        'correctAnswer': (graded && keys.isNotEmpty) ? _cleanText(keys.join(', ')) : null,
+        'correctAnswer': (graded && keys.isNotEmpty)
+            ? _cleanText(keys.join(', '))
+            : null,
         'fileUrl': a.fileUrl,
       };
     }).toList();
@@ -1042,10 +1077,7 @@ class _ResultPageState extends State<ResultPage> {
             style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _reload,
-            child: const Text('Coba Lagi'),
-          ),
+          ElevatedButton(onPressed: _reload, child: const Text('Coba Lagi')),
         ],
       ),
     );
@@ -1167,7 +1199,10 @@ class _BucketRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          SizedBox(width: 48, child: Text(label, style: const TextStyle(fontSize: 11))),
+          SizedBox(
+            width: 48,
+            child: Text(label, style: const TextStyle(fontSize: 11)),
+          ),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -1175,7 +1210,9 @@ class _BucketRow extends StatelessWidget {
                 children: [
                   Container(
                     height: 16,
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                   ),
                   FractionallySizedBox(
                     widthFactor: width.clamp(0.0, 1.0),
@@ -1248,7 +1285,9 @@ class _OptionBar extends StatelessWidget {
                     children: [
                       Container(
                         height: 8,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                       ),
                       FractionallySizedBox(
                         widthFactor: pct.clamp(0.0, 1.0),

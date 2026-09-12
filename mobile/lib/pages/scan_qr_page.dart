@@ -1,5 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import '../services/api_service.dart';
 import 'fillformpage.dart';
 
@@ -13,14 +14,55 @@ class ScanQRPage extends StatefulWidget {
 class _ScanQRPageState extends State<ScanQRPage> {
   bool _isProcessing = false;
   String? _errorText;
-
-  // Kontroler untuk MobileScanner
-  final MobileScannerController _scannerController = MobileScannerController();
+  QRViewController? _controller;
+  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
 
   @override
-  void dispose() {
-    _scannerController.dispose();
-    super.dispose();
+  void reassemble() {
+    super.reassemble();
+    if (Platform.isAndroid) {
+      _controller?.pauseCamera();
+    }
+    _controller?.resumeCamera();
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    _controller = controller;
+    controller.scannedDataStream.listen((scanData) async {
+      if (_isProcessing) return;
+
+      final link = scanData.code ?? '';
+      if (link.isEmpty) return;
+
+      setState(() => _isProcessing = true);
+
+      final result = await ApiService.validateFormLink(link);
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final slug = result['data']['slug'] ?? '';
+        if (slug.isNotEmpty) {
+          _controller?.pauseCamera();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => FillFormPage(slug: slug)),
+          );
+        } else {
+          setState(() => _errorText = 'Form tidak ditemukan');
+        }
+      } else {
+        setState(() => _errorText = result['message'] ?? 'Link tidak valid');
+      }
+
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && _errorText != null) {
+            setState(() => _errorText = null);
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -35,49 +77,16 @@ class _ScanQRPageState extends State<ScanQRPage> {
         children: [
           Expanded(
             flex: 4,
-            child: MobileScanner(
-              controller: _scannerController,
-              onDetect: (capture) async {
-                if (_isProcessing) return;
-
-                final List<Barcode> barcodes = capture.barcodes;
-                if (barcodes.isEmpty) return;
-
-                final link = barcodes.first.rawValue ?? '';
-                if (link.isEmpty) return;
-
-                setState(() => _isProcessing = true);
-
-                final result = await ApiService.validateFormLink(link);
-                if (!context.mounted) return;
-                if (result['success'] == true) {
-                  final slug = result['data']['slug'] ?? '';
-                  if (slug.isNotEmpty) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FillFormPage(slug: slug),
-                      ),
-                    );
-                  } else {
-                    setState(() => _errorText = 'Form tidak ditemukan');
-                  }
-                } else {
-                  setState(
-                    () => _errorText = result['message'] ?? 'Link tidak valid',
-                  );
-                }
-
-                if (mounted) {
-                  setState(() => _isProcessing = false);
-                  // Optionally restart the scanner after a failure so they can try again.
-                  Future.delayed(const Duration(seconds: 2), () {
-                    if (mounted && _errorText != null) {
-                      setState(() => _errorText = null);
-                    }
-                  });
-                }
-              },
+            child: QRView(
+              key: _qrKey,
+              onQRViewCreated: _onQRViewCreated,
+              overlay: QrScannerOverlayShape(
+                borderColor: const Color(0xFFB4C5D4),
+                borderRadius: 12,
+                borderLength: 30,
+                borderWidth: 8,
+                cutOutSize: 280,
+              ),
             ),
           ),
           if (_errorText != null)

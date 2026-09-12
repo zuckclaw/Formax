@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/form_model.dart';
 import '../services/api_service.dart';
 import '../utils/export_helper.dart';
+import 'formmakerpage.dart';
 import 'result_page.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -31,9 +32,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final res = await ApiService.getMyForms();
     if (res['success'] == true) {
       final rawList = res['data'] as List<dynamic>;
-      final forms = rawList
-          .map((e) => FormModel.fromJson(e as Map))
-          .toList();
+      final forms = rawList.map((e) => FormModel.fromJson(e as Map)).toList();
       forms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return forms;
     }
@@ -261,6 +260,17 @@ class _HistoryPageState extends State<HistoryPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Edit form (parity web: menu titik tiga → Edit di Riwayat Form)
+                    IconButton(
+                      onPressed: () => _editForm(form),
+                      tooltip: 'Edit form',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
                     // Hapus form (konfirmasi — parity web)
                     IconButton(
                       onPressed: () => _confirmDeleteForm(form),
@@ -280,6 +290,28 @@ class _HistoryPageState extends State<HistoryPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _editForm(FormModel form) async {
+    final res = await ApiService.getForm(form.id);
+    if (!mounted) return;
+    if (res['success'] != true || res['data'] is! Map) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memuat form: ${res['message']}'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    final formJson = Map<String, dynamic>.from(res['data'] as Map);
+    await Navigator.push<FormMakerResult>(
+      context,
+      MaterialPageRoute(builder: (_) => FormMakerPage(initialDraft: formJson)),
+    );
+    if (!mounted) return;
+    _refresh();
   }
 
   Future<void> _confirmDeleteForm(FormModel form) async {
@@ -302,7 +334,10 @@ class _HistoryPageState extends State<HistoryPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal', style: TextStyle(color: Color(0xFF6B7280))),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -324,9 +359,9 @@ class _HistoryPageState extends State<HistoryPage> {
     if (!mounted) return;
     if (res['success'] == true) {
       _refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form berhasil dihapus')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Form berhasil dihapus')));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

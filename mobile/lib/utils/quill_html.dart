@@ -29,7 +29,8 @@ class QuillHtml {
   /// Convert a Quill [Delta] to an HTML string.
   static String deltaToHtml(dynamic delta) {
     final out = StringBuffer();
-    final inline = StringBuffer(); // accumulated inline html for the current line
+    final inline =
+        StringBuffer(); // accumulated inline html for the current line
     String? blockTag; // 'h1' | 'h2' | 'h3' | 'blockquote' | null (p)
     String? listTag; // 'ul' | 'ol' | null
     String? blockAlign; // block-level text-align for the current line
@@ -45,8 +46,12 @@ class QuillHtml {
       if (a['italic'] == true) s.add('font-style: italic;');
       if (a['underline'] == true) s.add('text-decoration: underline;');
       if (a['strike'] == true) s.add('text-decoration: line-through;');
-      if (a['color'] != null) s.add('color: ${normalizeHexColor(a['color']?.toString())};');
-      if (a['background'] != null) s.add('background-color: ${normalizeHexColor(a['background']?.toString())};');
+      if (a['color'] != null)
+        s.add('color: ${normalizeHexColor(a['color']?.toString())};');
+      if (a['background'] != null)
+        s.add(
+          'background-color: ${normalizeHexColor(a['background']?.toString())};',
+        );
       final sizePx = _quillSizeToPx(a['size']);
       if (sizePx != null) s.add('font-size: $sizePx;');
       if (a['font'] != null) s.add('font-family: ${a['font']};');
@@ -64,7 +69,9 @@ class QuillHtml {
 
     void flushList() {
       if (listTag != null && listItems.isNotEmpty) {
-        final align = listAlign != null ? ' style="text-align: $listAlign;"' : '';
+        final align = listAlign != null
+            ? ' style="text-align: $listAlign;"'
+            : '';
         out.write('<$listTag$align>');
         for (final it in listItems) {
           out.write('<li>$it</li>');
@@ -79,7 +86,8 @@ class QuillHtml {
     for (final op in delta.operations) {
       if (!op.isInsert) continue;
       final data = op.data;
-      final attrs = (op.attributes ?? const <String, dynamic>{}) as Map<String, dynamic>;
+      final attrs =
+          (op.attributes ?? const <String, dynamic>{}) as Map<String, dynamic>;
 
       if (data == '\n') {
         blockAlign = attrs['align'] as String?;
@@ -89,7 +97,10 @@ class QuillHtml {
             ? block
             : (attrs['list'] as String?);
 
-        if (rawList == 'ul' || rawList == 'ol' || rawList == 'bullet' || rawList == 'ordered') {
+        if (rawList == 'ul' ||
+            rawList == 'ol' ||
+            rawList == 'bullet' ||
+            rawList == 'ordered') {
           final group = (rawList == 'ol' || rawList == 'ordered') ? 'ol' : 'ul';
           if (listTag != group) {
             flushList();
@@ -117,7 +128,9 @@ class QuillHtml {
           blockTag = null;
         }
 
-        if (inline.isNotEmpty || blockTag == 'blockquote' || (blockTag != null && blockTag.startsWith('h'))) {
+        if (inline.isNotEmpty ||
+            blockTag == 'blockquote' ||
+            (blockTag != null && blockTag.startsWith('h'))) {
           final tag = blockTag ?? 'p';
           out.write('<$tag${blockStyle()}>$inline</$tag>');
           inline.clear();
@@ -128,7 +141,11 @@ class QuillHtml {
         continue;
       }
 
-      String escAttr(String s) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+      String escAttr(String s) => s
+          .replaceAll('&', '&amp;')
+          .replaceAll('"', '&quot;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;');
 
       if (data is Map && data.containsKey('image')) {
         final imgSrc = data['image']?.toString() ?? '';
@@ -232,8 +249,12 @@ class QuillHtml {
     return h;
   }
 
-  static String _escape(String text) =>
-      text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+  static String _escape(String text) => text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
 
   /// Strip HTML tags untuk field yang harus plain text (mis. title template).
   /// "<p>hhhh\n</p>" -> "hhhh"
@@ -269,7 +290,10 @@ class QuillHtml {
   }
 
   /// Alias untuk kasus title — jaga agar tidak kosong
-  static String titleToPlain(String? html, {String fallback = 'Form Tanpa Judul'}) {
+  static String titleToPlain(
+    String? html, {
+    String fallback = 'Form Tanpa Judul',
+  }) {
     final plain = htmlToPlainText(html);
     return plain.isEmpty ? fallback : plain;
   }

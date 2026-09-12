@@ -15,7 +15,8 @@ class _LoginPageState extends State<LoginPage> {
   bool isLogin = true;
   bool _isLoading = false;
   bool _rememberMe = true; // State untuk remember me
-  bool _showPassword = false; // Toggle tampilkan/sembunyikan password (parity web)
+  bool _showPassword =
+      false; // Toggle tampilkan/sembunyikan password (parity web)
 
   final TextEditingController loginEmailController = TextEditingController();
   final TextEditingController loginPasswordController = TextEditingController();
@@ -209,10 +210,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const Text(
                             'Remember me',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _labelColor,
-                            ),
+                            style: TextStyle(fontSize: 12, color: _labelColor),
                           ),
                           if (isLogin) ...[
                             const Spacer(),
@@ -220,7 +218,9 @@ class _LoginPageState extends State<LoginPage> {
                               onPressed: _showForgotPasswordDialog,
                               style: TextButton.styleFrom(
                                 foregroundColor: const Color(0xFF1E66D0),
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
@@ -344,8 +344,7 @@ class _LoginPageState extends State<LoginPage> {
 
                                       // Loop: tetap di dialog OTP (countdown berjalan)
                                       // sampai verifikasi sukses / dibatalkan — seperti web.
-                                      final registered =
-                                          await _showOtpDialog(
+                                      final registered = await _showOtpDialog(
                                         fullName,
                                         email,
                                         password,
@@ -425,10 +424,16 @@ class _LoginPageState extends State<LoginPage> {
                           GestureDetector(
                             onTap: () {
                               setState(() {
-                                if (isLogin && loginEmailController.text.isNotEmpty && registerEmailController.text.isEmpty) {
-                                  registerEmailController.text = loginEmailController.text.trim();
-                                } else if (!isLogin && registerEmailController.text.isNotEmpty && loginEmailController.text.isEmpty) {
-                                  loginEmailController.text = registerEmailController.text.trim();
+                                if (isLogin &&
+                                    loginEmailController.text.isNotEmpty &&
+                                    registerEmailController.text.isEmpty) {
+                                  registerEmailController.text =
+                                      loginEmailController.text.trim();
+                                } else if (!isLogin &&
+                                    registerEmailController.text.isNotEmpty &&
+                                    loginEmailController.text.isEmpty) {
+                                  loginEmailController.text =
+                                      registerEmailController.text.trim();
                                 }
                                 isLogin = !isLogin;
                               });
@@ -455,24 +460,19 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future<bool?> _showOtpDialog(
-    String fullName,
-    String email,
-    String password,
-  ) {
+  Future<bool?> _showOtpDialog(String fullName, String email, String password) {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _OtpDialog(
-        fullName: fullName,
-        email: email,
-        password: password,
-      ),
+      builder: (context) =>
+          _OtpDialog(fullName: fullName, email: email, password: password),
     );
   }
 
   Future<void> _showForgotPasswordDialog() async {
-    final emailController = TextEditingController(text: loginEmailController.text.trim());
+    final emailController = TextEditingController(
+      text: loginEmailController.text.trim(),
+    );
     final otpController = TextEditingController();
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
@@ -491,33 +491,47 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 const Icon(Icons.lock_reset, color: Color(0xFF1E66D0)),
                 const SizedBox(width: 10),
-                Text(step == 0 ? 'Lupa password' : step == 1 ? 'Verifikasi OTP' : 'Password baru'),
+                Text(
+                  step == 0
+                      ? 'Lupa password'
+                      : step == 1
+                      ? 'Verifikasi OTP'
+                      : 'Password baru',
+                ),
               ],
             ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(step == 0
-                      ? 'Masukkan email akun yang ingin diubah passwordnya.'
-                      : step == 1
-                          ? 'Masukkan kode OTP yang dikirim ke email Anda.'
-                          : 'Buat password baru untuk akun Anda.'),
+                  Text(
+                    step == 0
+                        ? 'Masukkan email akun yang ingin diubah passwordnya.'
+                        : step == 1
+                        ? 'Masukkan kode OTP yang dikirim ke email Anda.'
+                        : 'Buat password baru untuk akun Anda.',
+                  ),
                   const SizedBox(height: 16),
                   if (step == 0)
                     TextField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
                     ),
-                  if (step == 1)
-                    const SizedBox(height: 12),
+                  if (step == 1) const SizedBox(height: 12),
                   if (step == 1)
                     TextField(
                       controller: otpController,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
-                      decoration: const InputDecoration(labelText: 'Kode OTP', prefixIcon: Icon(Icons.pin_outlined), counterText: ''),
+                      decoration: const InputDecoration(
+                        labelText: 'Kode OTP',
+                        prefixIcon: Icon(Icons.pin_outlined),
+                        counterText: '',
+                      ),
                     ),
                   if (step == 2) ...[
                     const SizedBox(height: 12),
@@ -528,9 +542,17 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Password baru',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          tooltip: showNewPassword ? 'Sembunyikan password' : 'Lihat password',
-                          icon: Icon(showNewPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                          onPressed: () => setDialogState(() => showNewPassword = !showNewPassword),
+                          tooltip: showNewPassword
+                              ? 'Sembunyikan password'
+                              : 'Lihat password',
+                          icon: Icon(
+                            showNewPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          onPressed: () => setDialogState(
+                            () => showNewPassword = !showNewPassword,
+                          ),
                         ),
                       ),
                     ),
@@ -542,9 +564,17 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Ketik ulang password',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          tooltip: showConfirmPassword ? 'Sembunyikan password' : 'Lihat password',
-                          icon: Icon(showConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                          onPressed: () => setDialogState(() => showConfirmPassword = !showConfirmPassword),
+                          tooltip: showConfirmPassword
+                              ? 'Sembunyikan password'
+                              : 'Lihat password',
+                          icon: Icon(
+                            showConfirmPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          onPressed: () => setDialogState(
+                            () => showConfirmPassword = !showConfirmPassword,
+                          ),
                         ),
                       ),
                     ),
@@ -553,43 +583,96 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             actions: [
-              TextButton(onPressed: loading ? null : () => Navigator.pop(dialogContext), child: const Text('Batal')),
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Batal'),
+              ),
               ElevatedButton(
-                onPressed: loading ? null : () async {
-                  final email = emailController.text.trim().toLowerCase();
-                  if (step == 0 && !email.contains('@')) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Masukkan email yang valid')));
-                    return;
-                  }
-                  if (step == 1 && otpController.text.trim().length != 6) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Masukkan 6 digit kode OTP')));
-                    return;
-                  }
-                  if (step == 2 && (passwordController.text.length < 6 || passwordController.text != confirmController.text)) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Password minimal 6 karakter dan harus sama')));
-                    return;
-                  }
-                  setDialogState(() => loading = true);
-                  final result = step == 0
-                      ? await ApiService.requestPasswordReset(email)
+                onPressed: loading
+                    ? null
+                    : () async {
+                        final email = emailController.text.trim().toLowerCase();
+                        if (step == 0 && !email.contains('@')) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Masukkan email yang valid'),
+                            ),
+                          );
+                          return;
+                        }
+                        if (step == 1 &&
+                            otpController.text.trim().length != 6) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Masukkan 6 digit kode OTP'),
+                            ),
+                          );
+                          return;
+                        }
+                        if (step == 2 &&
+                            (passwordController.text.length < 6 ||
+                                passwordController.text !=
+                                    confirmController.text)) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Password minimal 6 karakter dan harus sama',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        setDialogState(() => loading = true);
+                        final result = step == 0
+                            ? await ApiService.requestPasswordReset(email)
+                            : step == 1
+                            ? await ApiService.verifyPasswordResetOtp(
+                                email,
+                                otpController.text.trim(),
+                              )
+                            : await ApiService.resetPassword(
+                                email,
+                                otpController.text.trim(),
+                                passwordController.text,
+                              );
+                        if (!dialogContext.mounted) return;
+                        setDialogState(() => loading = false);
+                        if (result['success'] == true) {
+                          if (step < 2) {
+                            setDialogState(() => step++);
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Kode reset telah dikirim ke email Anda',
+                                ),
+                              ),
+                            );
+                          } else {
+                            Navigator.pop(dialogContext);
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HomePage(),
+                              ),
+                            );
+                          }
+                        } else {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                result['message'] ?? 'Proses reset gagal',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                child: Text(
+                  step == 0
+                      ? 'Confirm email'
                       : step == 1
-                          ? await ApiService.verifyPasswordResetOtp(email, otpController.text.trim())
-                          : await ApiService.resetPassword(email, otpController.text.trim(), passwordController.text);
-                  if (!dialogContext.mounted) return;
-                  setDialogState(() => loading = false);
-                  if (result['success'] == true) {
-                    if (step < 2) {
-                      setDialogState(() => step++);
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Kode reset telah dikirim ke email Anda')));
-                    } else {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
-                    }
-                  } else {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Proses reset gagal')));
-                  }
-                },
-                child: Text(step == 0 ? 'Confirm email' : step == 1 ? 'Confirm OTP' : 'Confirm password'),
+                      ? 'Confirm OTP'
+                      : 'Confirm password',
+                ),
               ),
             ],
           ),
@@ -675,8 +758,7 @@ class _LoginPageState extends State<LoginPage> {
                 tooltip: _showPassword
                     ? 'Sembunyikan password'
                     : 'Tampilkan password',
-                onPressed: () =>
-                    setState(() => _showPassword = !_showPassword),
+                onPressed: () => setState(() => _showPassword = !_showPassword),
               )
             : null,
       ),
@@ -812,7 +894,9 @@ class _OtpDialogState extends State<_OtpDialog> {
               Icon(
                 Icons.timer_outlined,
                 size: 15,
-                color: urgent ? const Color(0xFFDC2626) : const Color(0xFF6B7280),
+                color: urgent
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF6B7280),
               ),
               const SizedBox(width: 6),
               Text(
@@ -820,7 +904,9 @@ class _OtpDialogState extends State<_OtpDialog> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: urgent ? FontWeight.w600 : FontWeight.w400,
-                  color: urgent ? const Color(0xFFDC2626) : const Color(0xFF6B7280),
+                  color: urgent
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF6B7280),
                 ),
               ),
             ],
@@ -867,8 +953,7 @@ class _OtpDialogState extends State<_OtpDialog> {
       ),
       actions: [
         TextButton(
-          onPressed:
-              _submitting ? null : () => Navigator.pop(context, false),
+          onPressed: _submitting ? null : () => Navigator.pop(context, false),
           child: const Text('Batal'),
         ),
         ElevatedButton(

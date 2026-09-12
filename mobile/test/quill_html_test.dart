@@ -6,7 +6,8 @@ import 'package:form4x/utils/quill_html.dart';
 
 void main() {
   test('HtmlToDelta parses common formatting', () {
-    const html = '<p>Hello <strong>bold</strong> and <em>italic</em></p>'
+    const html =
+        '<p>Hello <strong>bold</strong> and <em>italic</em></p>'
         '<ul><li>one</li><li>two</li></ul>'
         '<h1>Title</h1>';
     final converter = HtmlToDelta();
@@ -28,7 +29,10 @@ void main() {
     // positional index, so we compose the delta via JSON instead).
     final deltaJson = [
       {'insert': 'Hello '},
-      {'insert': 'world', 'attributes': {'bold': true}},
+      {
+        'insert': 'world',
+        'attributes': {'bold': true},
+      },
       {'insert': '\n'},
     ];
     final doc = Document.fromJson(deltaJson);
@@ -61,10 +65,13 @@ void main() {
           'size': 'large',
           'font': 'Arial',
           'line-height': 1.5,
-        }
+        },
       },
       {'insert': 'world'},
-      {'insert': '\n', 'attributes': {'align': 'center'}},
+      {
+        'insert': '\n',
+        'attributes': {'align': 'center'},
+      },
     ];
     final html = QuillHtml.documentToHtml(Document.fromJson(deltaJson));
     // Ukuran ditulis sebagai px agar konsisten lintas renderer (bukan em).
@@ -78,8 +85,16 @@ void main() {
     final attrs = attrKeys(restored);
 
     for (final key in [
-      'bold', 'italic', 'underline', 'strike', 'color', 'background',
-      'size', 'font', 'line-height', 'align',
+      'bold',
+      'italic',
+      'underline',
+      'strike',
+      'color',
+      'background',
+      'size',
+      'font',
+      'line-height',
+      'align',
     ]) {
       expect(attrs.contains(key), isTrue, reason: 'missing $key in $restored');
     }
@@ -92,41 +107,62 @@ void main() {
     expect(restored.join(), contains('18'));
   });
 
-  test('warna 8-digit ARGB (format lama flutter_quill) dinormalisasi ke 6-digit', () {
-    expect(QuillHtml.normalizeHexColor('#FFFFEB3B'), '#FFEB3B');
-    expect(QuillHtml.normalizeHexColor('#FF558B2F'), '#558B2F');
-    expect(QuillHtml.normalizeHexColor('#ff0000'), '#ff0000');
-    expect(
-      QuillHtml.normalizeHtmlColors(
-              '<p><span style="color: #FF558B2F; font-size: 0.75em;">x</span></p>')
-          .toLowerCase(),
-      contains('#558b2f'),
-    );
-    expect(QuillHtml.normalizeHtmlColors('a #FF558B2F b').toLowerCase(),
-        contains('#558b2f'));
-  });
+  test(
+    'warna 8-digit ARGB (format lama flutter_quill) dinormalisasi ke 6-digit',
+    () {
+      expect(QuillHtml.normalizeHexColor('#FFFFEB3B'), '#FFEB3B');
+      expect(QuillHtml.normalizeHexColor('#FF558B2F'), '#558B2F');
+      expect(QuillHtml.normalizeHexColor('#ff0000'), '#ff0000');
+      expect(
+        QuillHtml.normalizeHtmlColors(
+          '<p><span style="color: #FF558B2F; font-size: 0.75em;">x</span></p>',
+        ).toLowerCase(),
+        contains('#558b2f'),
+      );
+      expect(
+        QuillHtml.normalizeHtmlColors('a #FF558B2F b').toLowerCase(),
+        contains('#558b2f'),
+      );
+    },
+  );
 
-  test('ukuran lama 0.75em/1.5em/2.5em masih terbaca sebagai small/large/huge', () {
-    final html = QuillHtml.documentToHtml(Document.fromJson([
-      {'insert': 'x', 'attributes': {'size': 'small'}},
-      {'insert': '\n'},
-    ]));
-    expect(html, contains('font-size: 12px'));
-    final restored = QuillHtml.documentFromHtml('<p style="font-size: 0.75em;">x</p>')
-        .toDelta()
-        .toJson()
-        .join();
-    expect(restored, contains('small'));
-  });
+  test(
+    'ukuran lama 0.75em/1.5em/2.5em masih terbaca sebagai small/large/huge',
+    () {
+      final html = QuillHtml.documentToHtml(
+        Document.fromJson([
+          {
+            'insert': 'x',
+            'attributes': {'size': 'small'},
+          },
+          {'insert': '\n'},
+        ]),
+      );
+      expect(html, contains('font-size: 12px'));
+      final restored = QuillHtml.documentFromHtml(
+        '<p style="font-size: 0.75em;">x</p>',
+      ).toDelta().toJson().join();
+      expect(restored, contains('small'));
+    },
+  );
 
   test('headers, alignment and bullet lists round-trip', () {
     final deltaJson = [
       {'insert': 'Heading'},
-      {'insert': '\n', 'attributes': {'header': 1, 'align': 'center'}},
+      {
+        'insert': '\n',
+        'attributes': {'header': 1, 'align': 'center'},
+      },
       {'insert': 'one'},
-      {'insert': '\n', 'attributes': {'list': 'bullet'}},
+      {
+        'insert': '\n',
+        'attributes': {'list': 'bullet'},
+      },
       {'insert': 'two'},
-      {'insert': '\n', 'attributes': {'list': 'bullet'}},
+      {
+        'insert': '\n',
+        'attributes': {'list': 'bullet'},
+      },
     ];
     final html = QuillHtml.documentToHtml(Document.fromJson(deltaJson));
     expect(html, contains('<h1 style="text-align: center;">'));

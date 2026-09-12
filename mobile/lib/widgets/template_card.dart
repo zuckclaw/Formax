@@ -28,7 +28,8 @@ class TemplateCard extends StatelessWidget {
               final result = await Navigator.push<FormMakerResult>(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => FormMakerPage(initialTemplate: template),
+                  builder: (context) =>
+                      FormMakerPage(initialTemplate: template),
                 ),
               );
               // FIX: reload di tombol back — back dari FormMaker (result null) tetap trigger reload di Home
@@ -93,10 +94,16 @@ class TemplateCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          template.plainSubtitle.isNotEmpty ? template.plainSubtitle : (template.subtitle.isEmpty ? '${template.questionsJson?.length ?? 0} pertanyaan' : template.subtitle),
+                          template.plainSubtitle.isNotEmpty
+                              ? template.plainSubtitle
+                              : (template.subtitle.isEmpty
+                                    ? '${template.questionsJson?.length ?? 0} pertanyaan'
+                                    : template.subtitle),
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

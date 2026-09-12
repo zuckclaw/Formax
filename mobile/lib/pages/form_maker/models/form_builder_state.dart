@@ -13,8 +13,8 @@ class FormPageModel {
     this.title = '',
     this.description = '',
     List<QuestionData>? questions,
-  })  : id = id ?? UniqueKey().toString(),
-        questions = questions ?? [];
+  }) : id = id ?? UniqueKey().toString(),
+       questions = questions ?? [];
 
   FormPageModel clone() {
     return FormPageModel(
@@ -31,7 +31,7 @@ class FormBuilderState extends ChangeNotifier {
   String formDescription;
   String? bannerUrl; // URL banner form (opsional)
   List<FormPageModel> pages;
-  
+
   // State for Editor
   String? activeQuestionId;
   String? activePageId;
@@ -66,21 +66,37 @@ class FormBuilderState extends ChangeNotifier {
 
     final questionsJson = template.questionsJson;
     if (questionsJson == null || questionsJson.isEmpty) {
-      state.pages.add(FormPageModel(
-        title: state.formTitle,
-        description: state.formDescription,
-        questions: [
-          QuestionData(
-            type: QuestionType.multipleChoice,
-            options: [QuestionOptionData(label: 'Opsi 1')],
-          )
-        ],
-      ));
+      state.pages.add(
+        FormPageModel(
+          title: state.formTitle,
+          description: state.formDescription,
+          questions: [
+            QuestionData(
+              type: QuestionType.multipleChoice,
+              options: [QuestionOptionData(label: 'Opsi 1')],
+            ),
+          ],
+        ),
+      );
       return state;
     }
 
-    FormPageModel currentPage = FormPageModel(title: state.formTitle, description: state.formDescription);
-    for (var q in questionsJson) {
+    final normalizedQuestions =
+        questionsJson
+            .whereType<Map>()
+            .map((q) => Map<String, dynamic>.from(q))
+            .toList()
+          ..sort(
+            (a, b) => ((a['order_index'] as num?)?.toInt() ?? 0).compareTo(
+              (b['order_index'] as num?)?.toInt() ?? 0,
+            ),
+          );
+
+    FormPageModel currentPage = FormPageModel(
+      title: state.formTitle,
+      description: state.formDescription,
+    );
+    for (final q in normalizedQuestions) {
       final typeStr = q['type'] as String? ?? 'text';
       if (typeStr == 'page_break') {
         state.pages.add(currentPage);
@@ -91,43 +107,68 @@ class FormBuilderState extends ChangeNotifier {
       final QuestionType type = QuestionTypeExtension.fromApiValue(typeStr);
 
       final optionsList = (q['options'] as List<dynamic>?) ?? [];
-      final options = optionsList.map((opt) {
+      final normalizedOptions =
+          optionsList
+              .whereType<Map>()
+              .map((opt) => Map<String, dynamic>.from(opt))
+              .toList()
+            ..sort(
+              (a, b) => ((a['order_index'] as num?)?.toInt() ?? 0).compareTo(
+                (b['order_index'] as num?)?.toInt() ?? 0,
+              ),
+            );
+      final options = normalizedOptions.map((opt) {
         return QuestionOptionData(
-          label: opt['label'] ?? 'Opsi',
-          isOther: opt['is_other'] ?? false,
-          isCorrect: opt['is_correct'] ?? false,
+          label: opt['label']?.toString() ?? 'Opsi',
+          isOther: opt['is_other'] as bool? ?? false,
+          isCorrect: opt['is_correct'] as bool? ?? false,
         );
       }).toList();
 
       // Extract settings if present — FIX: handle LinkedMap<dynamic,dynamic>
       final settingsRaw = q['settings'];
       final settings = settingsRaw is Map
-          ? <String, dynamic>{for (final e in settingsRaw.entries) e.key.toString(): e.value}
+          ? <String, dynamic>{
+              for (final e in settingsRaw.entries) e.key.toString(): e.value,
+            }
           : <String, dynamic>{};
       final imageUrl = settings['image_url'] as String?;
-      final extraImageUrls = (settings['image_urls'] as List<dynamic>?)
+      final extraImageUrls =
+          (settings['image_urls'] as List<dynamic>?)
               ?.whereType<String>()
               .where((u) => u.isNotEmpty)
               .toList() ??
           <String>[];
-      final rowLabels = (settings['row_labels'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? <String>[];
-      final scaleMin = (settings['scale_min'] as int?) ?? 1;
-      final scaleMax = (settings['scale_max'] as int?) ?? 5;
+      final rowLabels =
+          (settings['row_labels'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          <String>[];
+      final scaleMin = (settings['scale_min'] as num?)?.toInt() ?? 1;
+      final scaleMax = (settings['scale_max'] as num?)?.toInt() ?? 5;
       final minLabel = settings['min_label'] as String? ?? '';
       final maxLabel = settings['max_label'] as String? ?? '';
-      final ratingCount = (settings['rating_count'] as int?) ?? 5;
+      final ratingCount = (settings['rating_count'] as num?)?.toInt() ?? 5;
       final ratingIcon = settings['rating_icon'] as String? ?? 'star';
-      final allowedFileTypes = (settings['allowed_file_types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? <String>[];
-      final maxFileSizeMB = (settings['max_file_size_mb'] as int?) ?? 10;
-      final maxFileCount = (settings['max_file_count'] as int?) ?? 1;
-      final points = (settings['points'] as int?) ?? 1;
+      final allowedFileTypes =
+          (settings['allowed_file_types'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          <String>[];
+      final maxFileSizeMB =
+          (settings['max_file_size_mb'] as num?)?.toInt() ?? 10;
+      final maxFileCount = (settings['max_file_count'] as num?)?.toInt() ?? 1;
+      final points = (settings['points'] as num?)?.toInt() ?? 1;
 
       currentPage.questions.add(
         QuestionData(
           type: type,
-          label: q['label'] ?? 'Pertanyaan',
-          description: q['placeholder'] ?? q['description'] ?? '',
-          isRequired: q['is_required'] ?? false,
+          label: q['label']?.toString() ?? 'Pertanyaan',
+          description:
+              q['placeholder']?.toString() ??
+              q['description']?.toString() ??
+              '',
+          isRequired: q['is_required'] as bool? ?? false,
           options: options,
           imageUrl: imageUrl,
           extraImageUrls: extraImageUrls,
@@ -150,10 +191,12 @@ class FormBuilderState extends ChangeNotifier {
 
     // Ensure at least one question
     if (state.pages.first.questions.isEmpty) {
-      state.pages.first.questions.add(QuestionData(
-        type: QuestionType.multipleChoice,
-        options: [QuestionOptionData(label: 'Opsi 1')],
-      ));
+      state.pages.first.questions.add(
+        QuestionData(
+          type: QuestionType.multipleChoice,
+          options: [QuestionOptionData(label: 'Opsi 1')],
+        ),
+      );
     }
 
     return state;
@@ -163,13 +206,15 @@ class FormBuilderState extends ChangeNotifier {
   // dengan template karena bentuk questions JSON-nya identik.
   factory FormBuilderState.fromForm(Map<String, dynamic> formJson) {
     final questionsRaw = formJson['questions'];
-    final state = FormBuilderState.fromTemplate(FormTemplate(
-      id: formJson['id']?.toString(),
-      title: (formJson['title'] as String?) ?? '',
-      subtitle: (formJson['description'] as String?) ?? '',
-      bannerUrl: formJson['banner_url']?.toString(),
-      questionsJson: questionsRaw is List ? questionsRaw : null,
-    ));
+    final state = FormBuilderState.fromTemplate(
+      FormTemplate(
+        id: formJson['id']?.toString(),
+        title: (formJson['title'] as String?) ?? '',
+        subtitle: (formJson['description'] as String?) ?? '',
+        bannerUrl: formJson['banner_url']?.toString(),
+        questionsJson: questionsRaw is List ? questionsRaw : null,
+      ),
+    );
     return state;
   }
 
@@ -243,7 +288,9 @@ class FormBuilderState extends ChangeNotifier {
     // Insert after active question if possible
     int insertIndex = pages[pageIndex].questions.length;
     if (activeQuestionId != null) {
-      final qIndex = pages[pageIndex].questions.indexWhere((q) => q.id == activeQuestionId);
+      final qIndex = pages[pageIndex].questions.indexWhere(
+        (q) => q.id == activeQuestionId,
+      );
       if (qIndex != -1) {
         insertIndex = qIndex + 1;
       }
@@ -259,7 +306,9 @@ class FormBuilderState extends ChangeNotifier {
     final pageIndex = pages.indexWhere((p) => p.id == pageId);
     if (pageIndex == -1) return;
 
-    final qIndex = pages[pageIndex].questions.indexWhere((q) => q.id == questionId);
+    final qIndex = pages[pageIndex].questions.indexWhere(
+      (q) => q.id == questionId,
+    );
     if (qIndex == -1) return;
 
     final cloned = pages[pageIndex].questions[qIndex].clone();
@@ -273,47 +322,53 @@ class FormBuilderState extends ChangeNotifier {
     if (pageIndex == -1) return;
 
     pages[pageIndex].questions.removeWhere((q) => q.id == questionId);
-    
+
     // Ensure at least one question exists in the page, else add a default one
     if (pages[pageIndex].questions.isEmpty) {
-      pages[pageIndex].questions.add(QuestionData(
-        type: QuestionType.multipleChoice, 
-        options: [QuestionOptionData(label: 'Opsi 1')]
-      ));
+      pages[pageIndex].questions.add(
+        QuestionData(
+          type: QuestionType.multipleChoice,
+          options: [QuestionOptionData(label: 'Opsi 1')],
+        ),
+      );
     }
 
     activeQuestionId = null;
     notifyListeners();
   }
 
-
-
-
   void addPage() {
     FormPageModel newPage = FormPageModel(title: 'Bagian Baru', questions: []);
-    
+
     if (activePageId != null) {
       final activeIndex = pages.indexWhere((p) => p.id == activePageId);
       if (activeIndex != -1) {
         final currentPage = pages[activeIndex];
-        
+
         // Split questions if there is an active question
         if (activeQuestionId != null) {
-          final qIndex = currentPage.questions.indexWhere((q) => q.id == activeQuestionId);
+          final qIndex = currentPage.questions.indexWhere(
+            (q) => q.id == activeQuestionId,
+          );
           if (qIndex != -1) {
             // Move questions after qIndex to new page
             final questionsToMove = currentPage.questions.sublist(qIndex + 1);
             newPage.questions.addAll(questionsToMove);
-            currentPage.questions.removeRange(qIndex + 1, currentPage.questions.length);
+            currentPage.questions.removeRange(
+              qIndex + 1,
+              currentPage.questions.length,
+            );
           }
         }
-        
+
         // Ensure new page has at least one question if it's empty after split
         if (newPage.questions.isEmpty) {
-          newPage.questions.add(QuestionData(
-            type: QuestionType.multipleChoice,
-            options: [QuestionOptionData(label: 'Opsi 1')],
-          ));
+          newPage.questions.add(
+            QuestionData(
+              type: QuestionType.multipleChoice,
+              options: [QuestionOptionData(label: 'Opsi 1')],
+            ),
+          );
         }
 
         pages.insert(activeIndex + 1, newPage);
@@ -321,13 +376,15 @@ class FormBuilderState extends ChangeNotifier {
         pages.add(newPage);
       }
     } else {
-      newPage.questions.add(QuestionData(
-        type: QuestionType.multipleChoice,
-        options: [QuestionOptionData(label: 'Opsi 1')],
-      ));
+      newPage.questions.add(
+        QuestionData(
+          type: QuestionType.multipleChoice,
+          options: [QuestionOptionData(label: 'Opsi 1')],
+        ),
+      );
       pages.add(newPage);
     }
-    
+
     activePageId = newPage.id;
     activeQuestionId = null;
     notifyListeners();
@@ -381,7 +438,19 @@ class FormBuilderState extends ChangeNotifier {
   List<Map<String, dynamic>> buildApiPayload() {
     final List<Map<String, dynamic>> result = [];
     int orderIndex = 0;
-    for (final page in pages) {
+    for (var pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      final page = pages[pageIndex];
+      if (pageIndex > 0) {
+        result.add({
+          'type': QuestionType.pageBreak.apiValue,
+          'label': page.title,
+          'placeholder': page.description,
+          'is_required': false,
+          'order_index': orderIndex++,
+          'settings': {},
+          'options': <Map<String, dynamic>>[],
+        });
+      }
       for (final q in page.questions) {
         final opts = q.options.asMap().entries.map((e) {
           return {

@@ -3,10 +3,10 @@ import '../models/form_template.dart';
 import '../services/api_service.dart';
 import '../utils/quill_html.dart';
 import '../widgets/share_form_dialog.dart';
-import '../widgets/ngrok_image.dart';
 import 'form_maker/models/form_builder_state.dart';
 import 'form_maker/editor_canvas.dart';
 import 'form_maker/preview_canvas.dart';
+import 'form_maker/components/form_settings_tab.dart';
 import '../models/question_model.dart'; // Ensure QuestionType is imported for toolbar
 import 'package:image_picker/image_picker.dart';
 
@@ -39,7 +39,8 @@ class _FormMakerPageState extends State<FormMakerPage>
   late TabController _tabController;
   bool _isPreviewMode = false;
   String? _draftTemplateId; // untuk PATCH template (bukan POST berulang)
-  String? _draftFormId;     // untuk PATCH form draft (bukan POST berulang / duplikat)
+  String?
+  _draftFormId; // untuk PATCH form draft (bukan POST berulang / duplikat)
 
   final Color _primaryColor = const Color(0xFF4F46E5);
   final Color _bgColor = const Color(0xFFE8EEF7);
@@ -48,13 +49,15 @@ class _FormMakerPageState extends State<FormMakerPage>
   Color get _cardColor => _isDark ? const Color(0xFF1E293B) : Colors.white;
   Color get _textColor => _isDark ? const Color(0xFFF8FAFC) : Colors.black87;
   Color get _subTextColor => _isDark ? const Color(0xFF94A3B8) : Colors.black54;
-  Color get _appBarIconColor => _isDark ? const Color(0xFFCBD5E1) : Colors.black54;
+  Color get _appBarIconColor =>
+      _isDark ? const Color(0xFFCBD5E1) : Colors.black54;
 
   // State untuk Setelan
   bool _isQuiz = true;
   String _releaseGrade = 'langsung';
   bool _missedQuestions = true;
-  bool _correctAnswers = true;
+  bool _correctAnswers = false;
+  bool _revealAnswers = false;
   bool _pointValues = true;
 
   String _sendCopy = 'Nonaktif';
@@ -62,10 +65,13 @@ class _FormMakerPageState extends State<FormMakerPage>
   String _formStatus = 'draft'; // draft / published / closed
   bool _acceptResponses = true;
   String _submissionLimit = 'once'; // once / unlimited / custom
-  final TextEditingController _customSubLimitCtrl =
-      TextEditingController(text: '2');
+  final TextEditingController _customSubLimitCtrl = TextEditingController(
+    text: '2',
+  );
   bool _requireFullscreen = false;
   bool _useJoinToken = false;
+  bool _shuffleQuestions = false;
+  bool _shuffleOptions = false;
   bool _hideResponses = false;
   bool _allowMultipleEdits = false;
 
@@ -73,9 +79,9 @@ class _FormMakerPageState extends State<FormMakerPage>
 
   bool _enableTimer = true;
   String _timerMode = 'Start when respondent opens the form';
-  final TextEditingController _durationCtrl = TextEditingController(
-    text: '1',
-  );
+  DateTime? _startDate;
+  DateTime? _endDate;
+  final TextEditingController _durationCtrl = TextEditingController(text: '1');
   String _durationUnit = 'hari';
   final TextEditingController _pointValueCtrl = TextEditingController(
     text: '0',
@@ -105,7 +111,17 @@ class _FormMakerPageState extends State<FormMakerPage>
     _formStatus = map['status']?.toString() ?? 'draft';
     _acceptResponses = map['accept_responses'] as bool? ?? true;
     _requireFullscreen = map['require_fullscreen'] as bool? ?? false;
-    _correctAnswers = map['allow_see_result'] as bool? ?? true;
+    _correctAnswers = map['allow_see_result'] as bool? ?? false;
+    _revealAnswers =
+        _correctAnswers && (map['reveal_answers'] as bool? ?? false);
+    _useJoinToken = map['join_token']?.toString().isNotEmpty ?? false;
+    _shuffleQuestions = map['shuffle_questions'] as bool? ?? false;
+    _shuffleOptions = map['shuffle_options'] as bool? ?? false;
+    _startDate = _parseDate(map['start_date']);
+    _endDate = _parseDate(map['end_date']);
+    if (_startDate != null || _endDate != null) {
+      _timerMode = 'Start at a specific date and time';
+    }
     final maxSub = map['max_submissions'];
     if (maxSub is int) {
       if (maxSub == 1) {
@@ -117,6 +133,52 @@ class _FormMakerPageState extends State<FormMakerPage>
         _customSubLimitCtrl.text = '$maxSub';
       }
     }
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null || value.toString().isEmpty) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
+  Future<void> _pickTimerDate({required bool start}) async {
+    final current = start ? _startDate : _endDate;
+    final pickedDate = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDate: current ?? DateTime.now(),
+    );
+    if (!mounted || pickedDate == null) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: current == null
+          ? TimeOfDay.now()
+          : TimeOfDay.fromDateTime(current),
+    );
+    if (!mounted || pickedTime == null) return;
+    final value = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    setState(() {
+      if (start) {
+        _startDate = value;
+      } else {
+        _endDate = value;
+      }
+    });
+  }
+
+  String _formatTimerDate(DateTime? value) {
+    if (value == null) return 'Pilih tanggal dan waktu';
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day/$month/${value.year} $hour:$minute';
   }
 
   int _getDurationValue() {
@@ -147,7 +209,8 @@ class _FormMakerPageState extends State<FormMakerPage>
     }
   }
 
-  String get _durationDisplayText => '${_durationCtrl.text.trim()} $_durationUnit';
+  String get _durationDisplayText =>
+      '${_durationCtrl.text.trim()} $_durationUnit';
 
   @override
   void dispose() {
@@ -170,31 +233,32 @@ class _FormMakerPageState extends State<FormMakerPage>
 
   void _syncTitleFromPage() {
     if (_builderState.pages.isNotEmpty) {
-      if (_builderState.pages[0].title.trim().isNotEmpty) {
-        _builderState.formTitle = _builderState.pages[0].title;
-      }
-      if (_builderState.pages[0].description.trim().isNotEmpty) {
-        _builderState.formDescription = _builderState.pages[0].description;
-      }
+      _builderState.formTitle = _builderState.pages[0].title;
+      _builderState.formDescription = _builderState.pages[0].description;
     }
   }
 
   Map<String, dynamic> _buildPublishSettings() {
-    // Fix: sesuaikan dengan web — hanya kirim start/end_date jika Form Timer benar-benar butuh window
-    // Jika Enable Timer OFF atau mode 'Start when respondent opens' (per-responden, bukan window global) → jangan kirim window
+    // Fix: sesuaikan dengan web â€” hanya kirim start/end_date jika Form Timer benar-benar butuh window
+    // Jika Enable Timer OFF atau mode 'Start when respondent opens' (per-responden, bukan window global) â†’ jangan kirim window
     // Ini yang sebelumnya bikin publish langsung 403 'Form belum dibuka' karena start_date = now future + naive WIB mismatch
     DateTime? startDate;
     DateTime? endDate;
-    final isPerRespondent = _timerMode == 'Start when respondent opens the form';
-    if (_enableTimer && !isPerRespondent) {
-      // Start at specific date and time → window global.
+    final isPerRespondent =
+        _timerMode == 'Start when respondent opens the form';
+    if (!_enableTimer || isPerRespondent) {
+      startDate = null;
+      endDate = null;
+    } else {
+      // Start at specific date and time â†’ window global.
       // Backend mengharapkan format waktu LOKAL (WIB) tanpa zona (seperti datetime-local di web).
       // Kurangi 5 menit (bukan 60s) untuk mencegah error "Form belum dibuka" jika jam HP lebih cepat dari server.
-      startDate = DateTime.now().subtract(const Duration(minutes: 5));
-      endDate = startDate.add(_getDurationValueAsDuration());
+      startDate =
+          _startDate ?? DateTime.now().subtract(const Duration(minutes: 5));
+      endDate = _endDate ?? startDate.add(_getDurationValueAsDuration());
     }
 
-    // Batas respons: 1 kali / tanpa batas / kustom (>= 2) — seperti web.
+    // Batas respons: 1 kali / tanpa batas / kustom (>= 2) â€” seperti web.
     int maxSub;
     switch (_submissionLimit) {
       case 'unlimited':
@@ -213,13 +277,73 @@ class _FormMakerPageState extends State<FormMakerPage>
       'allow_see_result': _correctAnswers,
       'max_submissions': maxSub,
       'require_fullscreen': _requireFullscreen,
-      'reveal_answers': _correctAnswers,
+      'reveal_answers': _revealAnswers,
       'accept_responses': _acceptResponses,
       'status': _formStatus,
+      'shuffle_questions': _shuffleQuestions,
+      'shuffle_options': _shuffleOptions,
+      'use_join_token': _useJoinToken,
       // Kirim waktu lokal tanpa Z, sesuai ekspektasi backend (seperti datetime-local)
-      if (startDate != null) 'start_date': startDate.toIso8601String(),
-      if (endDate != null) 'end_date': endDate.toIso8601String(),
+      'start_date': startDate?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
     };
+  }
+
+  // Simpan sebagian (status-only): dipakai saat PATCH atomik gagal karena
+  // soal terkunci (409) atau tidak valid (422). Mengirim ulang field
+  // non-soal TANPA questions ke endpoint PATCH yang sama, lalu me-refresh
+  // editor dari data kanonis server agar tidak tampilkan soal basi.
+  // Return: {'success', 'data', 'questionsLocked'|'questionsNotSaved'}.
+  Future<Map<String, dynamic>> _saveStatusOnly({
+    required String formId,
+    required String titleHtml,
+    required String descriptionHtml,
+    required Map<String, dynamic> settings,
+    required String originalError,
+  }) async {
+    final msgLower = originalError.toLowerCase();
+    final isLocked = msgLower.contains('sudah punya jawaban');
+    final statusOnlyPayload = <String, dynamic>{
+      'title': titleHtml,
+      'description': descriptionHtml,
+      'banner_url': _builderState.bannerUrl,
+      ...settings,
+    };
+    final patched = await ApiService.updateForm(formId, statusOnlyPayload);
+    if (patched['success'] != true) return patched;
+    Map<String, dynamic>? canonical;
+    if (patched['data'] is Map) {
+      canonical = Map<String, dynamic>.from(patched['data'] as Map);
+    }
+    try {
+      final saved = await ApiService.getForm(formId);
+      if (saved['success'] == true && saved['data'] is Map) {
+        canonical = Map<String, dynamic>.from(saved['data'] as Map);
+      }
+    } catch (_) {}
+    return {
+      'success': true,
+      'data': canonical ?? {'id': formId},
+      if (isLocked) 'questionsLocked': true,
+      if (!isLocked) ...{
+        'questionsNotSaved': true,
+        'questionsError': originalError,
+      },
+    };
+  }
+
+  // Sinkronkan editor ke data kanonis server (dipanggil setelah partial save
+  // agar soal yang ditolak backend tidak tetap tampil sebagai sudah tersimpan).
+  void _syncEditorFromServerData(Map<String, dynamic> data) {
+    try {
+      _applyFormSettings(data);
+      final fresh = FormBuilderState.fromForm(data);
+      final old = _builderState;
+      setState(() => _builderState = fresh);
+      old.dispose();
+    } catch (e) {
+      debugPrint('[FormMaker] sync editor gagal: $e');
+    }
   }
 
   // Simpan draft/publish form ke /forms. Kalau sudah punya _draftFormId,
@@ -263,7 +387,7 @@ class _FormMakerPageState extends State<FormMakerPage>
         if (res['success'] == true) {
           final data = res['data'];
           if (data is Map && data['id'] != null) {
-            // FormCreate tidak punya status/accept_responses → persist via PATCH
+            // FormCreate tidak punya status/accept_responses â†’ persist via PATCH
             // supaya status closed/published & 'Terima respons' benar-benar tersimpan.
             if ((!publish && _formStatus != 'draft') || !_acceptResponses) {
               await ApiService.updateForm(data['id'].toString(), {
@@ -280,15 +404,91 @@ class _FormMakerPageState extends State<FormMakerPage>
         if (data is Map && data['id'] != null) {
           _draftFormId = data['id'].toString();
           if (publish && _useJoinToken) {
-            final tokenRes = await ApiService.regenerateJoinToken(_draftFormId!);
+            final tokenRes = await ApiService.regenerateJoinToken(
+              _draftFormId!,
+            );
             if (tokenRes['success'] != true && mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Token form gagal dibuat: ${tokenRes['message'] ?? 'terjadi kesalahan'}'),
+                  content: Text(
+                    'Token form gagal dibuat: ${tokenRes['message'] ?? 'terjadi kesalahan'}',
+                  ),
                   backgroundColor: Colors.orange.shade700,
                 ),
               );
             }
+          }
+
+          // Read back the saved form so the editor reflects the canonical
+          // server state, matching the web editor after an atomic PATCH.
+          final saved = await ApiService.getForm(_draftFormId!);
+          if (saved['success'] == true && saved['data'] is Map) {
+            res = saved;
+          }
+        }
+      } else if (_draftFormId != null && res['success'] != true) {
+        // Inti perbaikan (parity web + lebih kuat): PATCH atomik di atas selalu
+        // menggabungkan status/settings dengan questions. Dua kasus gagal total:
+        //  (a) 409 — form sudah punya jawaban → backend menolak ganti soal
+        //        (tapi SUDAH commit status/settings sebelum raise);
+        //  (b) 422 — satu soal tidak valid → Pydantic menolak SELURUH request
+        //        termasuk perubahan status.
+        // Agar Published→Closed (dan judul/pengaturan) SELALU tersimpan walau
+        // soal terkunci/invalid, kirim ulang PATCH TANPA questions (endpoint
+        // yang sama — tidak ada endpoint baru). Soal yang gagal disimpan
+        // dilaporkan jujur via flag, bukan dianggap sukses.
+        final msgLower =
+            res['message']?.toString().toLowerCase() ?? '';
+        final isLocked = msgLower.contains('sudah punya jawaban');
+        final isValidation = msgLower.contains('422') ||
+            msgLower.contains('format data tidak valid') ||
+            msgLower.contains('failed to update form');
+        if (isLocked || isValidation) {
+          final retry = await _saveStatusOnly(
+            formId: _draftFormId!,
+            titleHtml: titleHtml,
+            descriptionHtml: descriptionHtml,
+            settings: settings,
+            originalError: res['message']?.toString() ??
+                'Format soal tidak valid — status & pengaturan tetap tersimpan.',
+          );
+          if (retry['success'] == true) return retry;
+          debugPrint(
+              '[FormMaker] status-only retry gagal: ${retry['message']}');
+        }
+        // Parity web (FormBuilderPage.jsx): jika publish dan soal terkunci,
+        // coba publish tanpa ubah soal agar link tetap bisa dibagikan.
+        if (publish) {
+          bool publishOk = false;
+          Map<String, dynamic>? patchedData;
+          try {
+            final patched = await ApiService.updateForm(_draftFormId!, {
+              'status': 'published',
+            });
+            if (patched['success'] == true) {
+              publishOk = true;
+              if (patched['data'] is Map) {
+                patchedData = Map<String, dynamic>.from(patched['data'] as Map);
+              }
+            }
+          } catch (_) {}
+          if (!publishOk) {
+            try {
+              final pub = await ApiService.publishForm(_draftFormId!);
+              if (pub['success'] == true) {
+                publishOk = true;
+                if (pub['data'] is Map) {
+                  patchedData = Map<String, dynamic>.from(pub['data'] as Map);
+                }
+              }
+            } catch (_) {}
+          }
+          if (publishOk) {
+            return {
+              'success': true,
+              'data': patchedData ?? {'id': _draftFormId},
+              'questionsLocked': true,
+            };
           }
         }
       }
@@ -302,25 +502,94 @@ class _FormMakerPageState extends State<FormMakerPage>
     if (_builderState.isSaving) return;
     final res = await _saveForm(publish: false);
     if (!mounted || res == null) return;
+    _handleSaveResult(res, isUpdate: false);
+  }
 
+  /// Simpan perubahan pada form yang sudah ada (mode edit) — parity web:
+  /// tombol "Simpan"/"Perbarui" memanggil save biasa (publish:false) sehingga
+  /// status pilihan user (termasuk Closed) dihormati, bukan dipaksa published.
+  /// Setelah sukses penuh pada form published, QR di-refresh diam-diam
+  /// (parity FormBuilderPage.jsx:364-368) tanpa dialog share yang mengganggu.
+  Future<void> _saveChanges() async {
+    if (_builderState.isSaving) return;
+    final res = await _saveForm(publish: false);
+    if (!mounted || res == null) return;
+    _handleSaveResult(res, isUpdate: true);
+    if (res['success'] == true &&
+        res['questionsLocked'] != true &&
+        res['questionsNotSaved'] != true &&
+        _draftFormId != null &&
+        _formStatus == 'published') {
+      try {
+        await ApiService.generateQrCode(_draftFormId!);
+      } catch (_) {}
+    }
+  }
+
+  /// Menampilkan hasil simpan secara jujur + sinkron editor ke server.
+  /// [isUpdate] = true untuk mode edit (wording "diperbarui", parity tombol
+  /// "Perbarui" pada web), false untuk form baru/draft.
+  void _handleSaveResult(Map<String, dynamic> res, {required bool isUpdate}) {
+    if (!mounted) return;
     if (res['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Draft berhasil disimpan — bisa dilanjutkan dari Dashboard / web'),
-          backgroundColor: Color(0xFF059669),
-        ),
-      );
+      // Sinkronkan editor ke state kanonis server (penting setelah partial
+      // save: soal yang ditolak backend tidak boleh tetap tampil seolah tersimpan).
+      final data = res['data'];
+      if (data is Map &&
+          (res['questionsLocked'] == true ||
+              res['questionsNotSaved'] == true)) {
+        _syncEditorFromServerData(Map<String, dynamic>.from(data));
+      }
+      if (res['questionsLocked'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pengaturan tersimpan (termasuk status). Soal tidak diubah karena form sudah ada jawaban responden — duplikasi form dulu jika perlu.',
+            ),
+            backgroundColor: Color(0xFF059669),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } else if (res['questionsNotSaved'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Status & pengaturan tersimpan. Tetapi soal gagal disimpan: ${res['questionsError'] ?? 'periksa kembali isian soal'}.',
+            ),
+            backgroundColor: Colors.orange.shade700,
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isUpdate
+                  ? 'Form berhasil diperbarui! Link siap dibagikan.'
+                  : 'Draft berhasil disimpan — bisa dilanjutkan dari Dashboard / web',
+            ),
+            backgroundColor: const Color(0xFF059669),
+          ),
+        );
+      }
     } else {
-      final msg = res['message']?.toString() ?? 'Unknown error';
+      var msg = res['message']?.toString() ?? 'Unknown error';
+      if (msg.toLowerCase().contains('sudah punya jawaban')) {
+        // Parity web: judul/deskripsi/pengaturan tetap tersimpan (backend
+        // commit sebelum 409), hanya ganti soal yang ditolak.
+        msg =
+            'Form sudah ada jawaban responden — judul & pengaturan tetap tersimpan, tapi soal tidak bisa diubah. Duplikasi form dulu jika perlu.';
+      }
       final hint = _networkHint(msg);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal menyimpan draft: $msg$hint'),
+          content: Text(
+              '${isUpdate ? 'Gagal memperbarui form' : 'Gagal menyimpan draft'}: $msg$hint'),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 5),
         ),
       );
-      debugPrint('[FormMaker] Gagal simpan draft: $msg');
+      debugPrint('[FormMaker] Gagal simpan (isUpdate=$isUpdate): $msg');
     }
   }
 
@@ -397,11 +666,52 @@ class _FormMakerPageState extends State<FormMakerPage>
       return;
     }
 
+    // Cegah status Closed tertimpa diam-diam: tombol Publish selalu
+    // menghasilkan status published (parity web). Minta konfirmasi dulu.
+    if (_formStatus == 'closed') {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Status form Closed'),
+          content: const Text(
+            'Status di Setelan saat ini Closed. Tombol Publish akan mengubah '
+            'status kembali menjadi Published agar link bisa dibagikan.\n\n'
+            'Untuk menutup form, gunakan Simpan (status Closed tetap dipertahankan).',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'save_closed'),
+              child: const Text('Simpan sebagai Closed'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'publish'),
+              child: const Text('Tetap Publish'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (choice == null || choice == 'cancel') return;
+      if (choice == 'save_closed') {
+        await _saveDraft();
+        return;
+      }
+      // 'publish' → lanjut ke alur publish normal di bawah.
+    }
+
     final res = await _saveForm(publish: true);
     if (!mounted) return;
     if (res == null) return;
     if (res['success'] != true) {
-      final msg = res['message']?.toString() ?? 'terjadi kesalahan';
+      var msg = res['message']?.toString() ?? 'terjadi kesalahan';
+      if (msg.toLowerCase().contains('sudah punya jawaban')) {
+        msg =
+            'Form sudah ada jawaban responden â€” hapus soal akan menghapus jawaban. Duplikasi form dulu jika perlu.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal publish form: $msg${_networkHint(msg)}'),
@@ -412,7 +722,41 @@ class _FormMakerPageState extends State<FormMakerPage>
       return;
     }
 
-    // FIX: jangan asal force-unwrap — kalau _draftFormId belum ke-set (mis. data
+    // Parity web: publish via fallback status-only (soal terkunci karena
+    // sudah ada jawaban) — beri tahu user sebelum dialog share muncul.
+    // Sinkronkan juga editor ke data server agar tidak tampilkan soal basi.
+    if (res['questionsLocked'] == true && mounted) {
+      final data = res['data'];
+      if (data is Map) {
+        _syncEditorFromServerData(Map<String, dynamic>.from(data));
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Form berhasil dipublikasikan! (Soal tidak diubah karena sudah ada jawaban)',
+          ),
+          backgroundColor: Color(0xFF059669),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+    if (res['questionsNotSaved'] == true && mounted) {
+      final data = res['data'];
+      if (data is Map) {
+        _syncEditorFromServerData(Map<String, dynamic>.from(data));
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Status & pengaturan tersimpan. Tetapi soal gagal disimpan: ${res['questionsError'] ?? 'periksa kembali isian soal'}.',
+          ),
+          backgroundColor: Colors.orange.shade700,
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    }
+
+    // FIX: jangan asal force-unwrap â€” kalau _draftFormId belum ke-set (mis. data
     // response tak punya id), ambil dari res supaya tidak null-crash.
     var formId = _draftFormId;
     if (formId == null) {
@@ -481,7 +825,12 @@ class _FormMakerPageState extends State<FormMakerPage>
     }
   }
 
-  void _showShareDialog(String link, String qrUrl, String formId, String title) {
+  void _showShareDialog(
+    String link,
+    String qrUrl,
+    String formId,
+    String title,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -518,8 +867,7 @@ class _FormMakerPageState extends State<FormMakerPage>
 
         // Perilaku seperti Google Form: jika ada pertanyaan yang sedang dipilih,
         // gambar ditempel ke pertanyaan itu (bukan membuat pertanyaan baru).
-        final attached =
-            _builderState.attachImageToActiveQuestion(fileUrl);
+        final attached = _builderState.attachImageToActiveQuestion(fileUrl);
         if (!attached) {
           _builderState.addQuestion(
             activePageId,
@@ -541,7 +889,7 @@ class _FormMakerPageState extends State<FormMakerPage>
 
   /// Pilih & tempelkan gambar ke pertanyaan tertentu (perilaku Google Form,
   /// tombol gambar di toolbar pertanyaan aktif). Tidak membuat pertanyaan baru.
-  /// Gambar kedua dst. menumpuk di bawah gambar pertama — teks pertanyaan
+  /// Gambar kedua dst. menumpuk di bawah gambar pertama â€” teks pertanyaan
   /// (label) tidak pernah diubah.
   Future<void> _pickImageForQuestion(QuestionData q) async {
     final picker = ImagePicker();
@@ -607,9 +955,7 @@ class _FormMakerPageState extends State<FormMakerPage>
     _builderState.setAllQuestionsRequired(false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Semua pertanyaan dijadikan opsional'),
-        ),
+        const SnackBar(content: Text('Semua pertanyaan dijadikan opsional')),
       );
     }
   }
@@ -624,13 +970,18 @@ class _FormMakerPageState extends State<FormMakerPage>
       builder: (context) {
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          children: QuestionType.values
-              .where((t) =>
-                  t != QuestionType.pageBreak && t != QuestionType.text)
-              .map((type) {
+          // Parity web (QUESTION_TYPES): hanya 6 jenis soal + Section lewat
+          // tombol "Tambah Bagian". Lihat QuestionTypeExtension.pickerTypes.
+          children: QuestionTypeExtension.pickerTypes.map((type) {
                 return ListTile(
                   leading: Icon(_getIconForType(type), color: _primaryColor),
-                  title: Text(type.label, style: TextStyle(color: _textColor, fontWeight: FontWeight.w500)),
+                  title: Text(
+                    type.label,
+                    style: TextStyle(
+                      color: _textColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   onTap: () {
                     final activePageId =
                         _builderState.activePageId ??
@@ -685,83 +1036,174 @@ class _FormMakerPageState extends State<FormMakerPage>
         // yang tidak diberi warna eksplisit tetap gelap & terbaca walau berada
         // di mode gelap aplikasi (mencegah teks terang di atas latar terang).
         return Theme(
-          data: Theme.of(context).copyWith(scaffoldBackgroundColor: _currentBgColor),
+          data: Theme.of(
+            context,
+          ).copyWith(scaffoldBackgroundColor: _currentBgColor),
           child: Scaffold(
-          backgroundColor: _currentBgColor,
-          appBar: _buildAppBar(),
-          body: _isPreviewMode
-              ? PreviewCanvas(state: _builderState)
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    EditorCanvas(
-                      state: _builderState,
-                      onAddImage: _pickImageForQuestion,
-                    ),
-                    _buildSettingsTab(),
-                  ],
-                ),
-          floatingActionButton: (!_isPreviewMode && _tabController.index == 0)
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: _cardColor,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+            backgroundColor: _currentBgColor,
+            appBar: _buildAppBar(),
+            body: _isPreviewMode
+                ? PreviewCanvas(state: _builderState)
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      EditorCanvas(
+                        state: _builderState,
+                        onAddImage: _pickImageForQuestion,
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.image_outlined,
-                              color: _textColor,
+                      FormSettingsTab(
+                        builderState: _builderState,
+                        onPickBanner: _pickBanner,
+                        formStatus: _formStatus,
+                        onFormStatusChanged: (v) =>
+                            setState(() => _formStatus = v),
+                        acceptResponses: _acceptResponses,
+                        onAcceptResponsesChanged: (v) =>
+                            setState(() => _acceptResponses = v),
+                        submissionLimit: _submissionLimit,
+                        onSubmissionLimitChanged: (v) =>
+                            setState(() => _submissionLimit = v),
+                        customSubLimitCtrl: _customSubLimitCtrl,
+                        requireFullscreen: _requireFullscreen,
+                        onRequireFullscreenChanged: (v) =>
+                            setState(() => _requireFullscreen = v),
+                        useJoinToken: _useJoinToken,
+                        onUseJoinTokenChanged: (v) =>
+                            setState(() => _useJoinToken = v),
+                        shuffleQuestions: _shuffleQuestions,
+                        onShuffleQuestionsChanged: (v) =>
+                            setState(() => _shuffleQuestions = v),
+                        shuffleOptions: _shuffleOptions,
+                        onShuffleOptionsChanged: (v) =>
+                            setState(() => _shuffleOptions = v),
+                        isQuiz: _isQuiz,
+                        onIsQuizChanged: (v) => setState(() => _isQuiz = v),
+                        releaseGrade: _releaseGrade,
+                        onReleaseGradeChanged: (v) =>
+                            setState(() => _releaseGrade = v),
+                        missedQuestions: _missedQuestions,
+                        onMissedQuestionsChanged: (v) =>
+                            setState(() => _missedQuestions = v),
+                        correctAnswers: _correctAnswers,
+                        onCorrectAnswersChanged: (v) =>
+                            setState(() => _correctAnswers = v),
+                        revealAnswers: _revealAnswers,
+                        onRevealAnswersChanged: (v) =>
+                            setState(() => _revealAnswers = v),
+                        pointValues: _pointValues,
+                        onPointValuesChanged: (v) =>
+                            setState(() => _pointValues = v),
+                        pointValueCtrl: _pointValueCtrl,
+                        sendCopy: _sendCopy,
+                        onSendCopyChanged: (v) => setState(() => _sendCopy = v),
+                        hideResponses: _hideResponses,
+                        onHideResponsesChanged: (v) =>
+                            setState(() => _hideResponses = v),
+                        allowMultipleEdits: _allowMultipleEdits,
+                        onAllowMultipleEditsChanged: (v) =>
+                            setState(() => _allowMultipleEdits = v),
+                        requireQuestionDefault: _requireQuestionDefault,
+                        onRequireQuestionDefaultChanged: (v) =>
+                            setState(() => _requireQuestionDefault = v),
+                        onApplyRequiredToAll: _applyRequiredToAll,
+                        onApplyOptionalToAll: _applyOptionalToAll,
+                        enableTimer: _enableTimer,
+                        onEnableTimerChanged: (v) =>
+                            setState(() => _enableTimer = v),
+                        timerMode: _timerMode,
+                        onTimerModeChanged: (v) =>
+                            setState(() => _timerMode = v),
+                        startDate: _startDate,
+                        endDate: _endDate,
+                        durationCtrl: _durationCtrl,
+                        durationUnit: _durationUnit,
+                        onDurationUnitChanged: (v) =>
+                            setState(() => _durationUnit = v),
+                        onPickTimerDate: _pickTimerDate,
+                        formatTimerDate: _formatTimerDate,
+                        onSaveSettings: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Pengaturan dicatat — tekan Simpan untuk menerapkan (status: $_formStatus, batas respons: $_submissionLimit, timer: ${_enableTimer ? _durationDisplayText : 'nonaktif'}). Catatan: tombol Publish selalu menerbitkan (status published); untuk Closed gunakan Simpan.',
+                              ),
+                              duration: const Duration(seconds: 4),
                             ),
-                            onPressed: _pickImage,
-                            tooltip: 'Tambah Gambar',
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.view_agenda_outlined,
-                              color: _textColor,
-                            ),
-                            onPressed: () {
-                              _builderState.addPage();
-                            },
-                            tooltip: 'Tambah Bagian',
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FloatingActionButton(
-                      heroTag: 'add_question_btn',
-                      onPressed: _showAddQuestionSheet,
-                      backgroundColor: _primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      child: const Icon(Icons.add, size: 28),
-                    ),
-                  ],
-                )
-              : null,
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        ));
+                    ],
+                  ),
+            floatingActionButton: (!_isPreviewMode && _tabController.index == 0)
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _cardColor,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: _isDark ? 0.3 : 0.1,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.image_outlined,
+                                color: _textColor,
+                              ),
+                              onPressed: _pickImage,
+                              tooltip: 'Tambah Gambar',
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.view_agenda_outlined,
+                                color: _textColor,
+                              ),
+                              onPressed: () {
+                                _builderState.addPage();
+                              },
+                              tooltip: 'Tambah Bagian',
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FloatingActionButton(
+                        heroTag: 'add_question_btn',
+                        onPressed: _showAddQuestionSheet,
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        child: const Icon(Icons.add, size: 28),
+                      ),
+                    ],
+                  )
+                : null,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          ),
+        );
       },
     );
   }
 
   AppBar _buildAppBar() {
+    // Parity web (FormBuilderPage.jsx:1104-1140): saat mengedit form yang
+    // sudah ada, tombol utama adalah Simpan/Perbarui (save changes, hormati
+    // status), bukan Publish. Publish hanya untuk form baru.
+    final bool isEdit = _draftFormId != null;
+    final String primaryLabel =
+        !isEdit ? 'Publish' : (_formStatus == 'published' ? 'Perbarui' : 'Simpan');
     return AppBar(
       backgroundColor: _currentBgColor,
       elevation: 0,
@@ -769,16 +1211,9 @@ class _FormMakerPageState extends State<FormMakerPage>
       leading: Padding(
         padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
         child: Container(
-          decoration: BoxDecoration(
-            color: _cardColor,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: _cardColor, shape: BoxShape.circle),
           child: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              color: _textColor,
-              size: 18,
-            ),
+            icon: Icon(Icons.arrow_back_ios_new, color: _textColor, size: 18),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -822,7 +1257,7 @@ class _FormMakerPageState extends State<FormMakerPage>
           },
           tooltip: _isPreviewMode ? 'Editor Mode' : 'Preview Mode',
         ),
-        if (!_isPreviewMode)
+        if (!_isPreviewMode && !isEdit)
           IconButton(
             icon: Icon(Icons.save_outlined, color: _appBarIconColor),
             onPressed: _builderState.isSaving ? null : _saveDraft,
@@ -837,7 +1272,9 @@ class _FormMakerPageState extends State<FormMakerPage>
         Padding(
           padding: const EdgeInsets.only(right: 16.0, top: 10, bottom: 10),
           child: FilledButton.icon(
-            onPressed: _builderState.isSaving ? null : _publishForm,
+            onPressed: _builderState.isSaving
+                ? null
+                : (isEdit ? _saveChanges : _publishForm),
             icon: _builderState.isSaving
                 ? SizedBox(
                     width: 14,
@@ -847,9 +1284,9 @@ class _FormMakerPageState extends State<FormMakerPage>
                       strokeWidth: 2,
                     ),
                   )
-                : const Icon(Icons.send, size: 16),
-            label: const Text(
-              'Publish',
+                : Icon(isEdit ? Icons.check : Icons.send, size: 16),
+            label: Text(
+              primaryLabel,
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             style: FilledButton.styleFrom(
@@ -862,929 +1299,6 @@ class _FormMakerPageState extends State<FormMakerPage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSettingsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _buildBannerCard(),
-          const SizedBox(height: 12),
-          _buildFormAccessCard(),
-          const SizedBox(height: 12),
-          _buildQuizSettingsCard(),
-          const SizedBox(height: 12),
-          _buildResponseSettingsCard(),
-          const SizedBox(height: 12),
-          _buildDefaultSettingsCard(),
-          const SizedBox(height: 12),
-          _buildTimerSettingsCard(),
-          const SizedBox(height: 80),
-        ],
-      ),
-    );
-  }
-
-  // ── Banner Form: unggah / ganti / hapus ──
-  Widget _buildBannerCard() {
-    final banner = _builderState.bannerUrl;
-    return Card(
-      elevation: 1,
-      color: _cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.image_outlined, color: Color(0xFF1E66D0)),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Banner Form',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Gambar header di atas judul form',
-                        style: TextStyle(fontSize: 13, color: _subTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (banner != null && banner.isNotEmpty) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  height: 140,
-                  width: double.infinity,
-                  child: NgrokImage(banner, fit: BoxFit.cover, errorBuilder: (_, _, _) {
-                    return Container(
-                      color: const Color(0xFFE5E7EB),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.broken_image, color: Colors.grey),
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickBanner,
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: Text(banner != null && banner.isNotEmpty ? 'Ganti Banner' : 'Unggah Banner'),
-                  ),
-                ),
-                if (banner != null && banner.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () => setState(() => _builderState.bannerUrl = null),
-                    tooltip: 'Hapus Banner',
-                    icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Form & Akses: status, terima respons, batas respons, layar penuh, join token ──
-  Widget _buildFormAccessCard() {
-    return Card(
-      elevation: 1,
-      color: _cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.lock_outline, color: Color(0xFFDC2626)),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Form & Akses',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Status, penerimaan respons, dan pembatasan',
-                        style: TextStyle(fontSize: 13, color: _subTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'STATUS FORM',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: _subTextColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: _isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: _isDark ? const Color(0xFF334155) : Colors.black12),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _formStatus,
-                  isExpanded: true,
-                  items: [
-                    DropdownMenuItem(
-                      value: 'draft',
-                      child: Text('Draft', style: TextStyle(fontSize: 14, color: _textColor)),
-                    ),
-                    DropdownMenuItem(
-                      value: 'published',
-                      child: Text('Dipublikasikan', style: TextStyle(fontSize: 14, color: _textColor)),
-                    ),
-                    DropdownMenuItem(
-                      value: 'closed',
-                      child: Text('Ditutup', style: TextStyle(fontSize: 14, color: _textColor)),
-                    ),
-                  ],
-                  dropdownColor: _isDark ? const Color(0xFF1E293B) : null,
-                  icon: Icon(Icons.arrow_drop_down, color: _textColor),
-                  onChanged: (v) => setState(() => _formStatus = v!),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _settingsSwitchRow(
-              'Terima respons',
-              _acceptResponses,
-              (v) => setState(() => _acceptResponses = v),
-              subtitle: 'Matikan untuk berhenti menerima jawaban tanpa menutup form',
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'BATAS RESPONS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: _subTextColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildRadioOption(
-              '1 kali per orang',
-              'once',
-              _submissionLimit,
-              (v) => setState(() => _submissionLimit = v.toString()),
-            ),
-            _buildRadioOption(
-              'Tanpa batas',
-              'unlimited',
-              _submissionLimit,
-              (v) => setState(() => _submissionLimit = v.toString()),
-            ),
-            _buildRadioOption(
-              'Kustom (jumlah tertentu)',
-              'custom',
-              _submissionLimit,
-              (v) => setState(() => _submissionLimit = v.toString()),
-            ),
-            if (_submissionLimit == 'custom') ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: 120,
-                child: TextField(
-                  controller: _customSubLimitCtrl,
-                  style: TextStyle(color: _textColor),
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Batas (>= 2)',
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: _isDark ? const Color(0xFF475569) : Colors.black12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Divider(color: _isDark ? const Color(0xFF334155) : null),
-            const SizedBox(height: 12),
-            _settingsSwitchRow(
-              'Paksa layar penuh (anti-cheat)',
-              _requireFullscreen,
-              (v) => setState(() => _requireFullscreen = v),
-              subtitle: 'Form ditandai "curang" jika responden keluar dari form',
-            ),
-            const SizedBox(height: 12),
-            _settingsSwitchRow(
-              'Perlukan token (ujian bareng)',
-              _useJoinToken,
-              (v) => setState(() => _useJoinToken = v),
-              subtitle: 'Token dibuat otomatis saat form pertama kali disimpan',
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _isDark ? const Color(0xFF451A03) : const Color(0xFFFFF7ED),
-                border: Border.all(color: _isDark ? const Color(0xFF9A3412) : const Color(0xFFFDBA74)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline, color: _isDark ? const Color(0xFFFBBF24) : const Color(0xFFEA580C), size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Setelan tersimpan saat form disimpan (Simpan Draft / Publish). '
-                      'Jadwal timer memakai durasi di kartu Form Timer.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _isDark ? const Color(0xFFFED7AA) : const Color(0xFF9A3412),
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuizSettingsCard() {
-    return Card(
-      elevation: 1,
-      color: _cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Jadikan ini sebagai kuis',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Menetapkan pertanyaan dan nilai poin, serta menyediakan masukan secara otomatis',
-                        style: TextStyle(fontSize: 13, color: _subTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _isQuiz,
-                  onChanged: (v) => setState(() => _isQuiz = v),
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: _primaryColor,
-                ),
-              ],
-            ),
-            if (_isQuiz) ...[
-              const SizedBox(height: 24),
-              Text(
-                'RILIS NILAI',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _subTextColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildRadioOption(
-                'Langsung setelah setiap pengiriman',
-                'langsung',
-                _releaseGrade,
-                (v) => setState(() => _releaseGrade = v.toString()),
-              ),
-              _buildRadioOption(
-                'Nanti, setelah peninjauan manual\nAktifkan Respons -> Kumpulkan alamat email',
-                'nanti',
-                _releaseGrade,
-                (v) => setState(() => _releaseGrade = v.toString()),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'SETELAN RESPONDEN',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _subTextColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _settingsSwitchRow(
-                'Pertanyaan tak terjawab',
-                _missedQuestions,
-                (v) => setState(() => _missedQuestions = v),
-              ),
-              const SizedBox(height: 12),
-              _settingsSwitchRow(
-                'Jawaban yang benar',
-                _correctAnswers,
-                (v) => setState(() => _correctAnswers = v),
-              ),
-              const SizedBox(height: 12),
-              _settingsSwitchRow(
-                'Nilai poin',
-                _pointValues,
-                (v) => setState(() => _pointValues = v),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'DEFAULT KUIS GLOBAL',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _subTextColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Nilai poin pertanyaan default',
-                      style: TextStyle(fontSize: 14, color: _textColor),
-                    ),
-                  ),
-                  Container(
-                    width: 60,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: _isDark ? const Color(0xFF334155) : Colors.black12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    alignment: Alignment.center,
-                    child: TextField(
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      controller: _pointValueCtrl,
-                      style: TextStyle(color: _textColor),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'poin',
-                    style: TextStyle(fontSize: 14, color: _subTextColor),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRadioOption(
-    String title,
-    String value,
-    String groupValue,
-    ValueChanged onChanged,
-  ) {
-    return InkWell(
-      onTap: () => onChanged(value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: RadioGroup<String>(
-                groupValue: groupValue,
-                onChanged: (selected) {
-                  if (selected != null) onChanged(selected);
-                },
-                child: Radio<String>(
-                  value: value,
-                  activeColor: _primaryColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 13, color: _textColor),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResponseSettingsCard() {
-    return Card(
-      elevation: 1,
-      color: _cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent, colorScheme: Theme.of(context).colorScheme.copyWith(onSurface: _textColor)),
-        child: ExpansionTile(
-          title: Text(
-            'Jawaban',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: _textColor,
-            ),
-          ),
-          subtitle: Text(
-            'Mengelola cara respons dikumpulkan dan dilindungi',
-            style: TextStyle(fontSize: 13, color: _subTextColor),
-          ),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          children: [
-            Divider(height: 1, color: _isDark ? const Color(0xFF334155) : null),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Mengirim salinan jawaban responden',
-                style: TextStyle(fontSize: 14, color: _textColor),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: _isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: _isDark ? const Color(0xFF334155) : Colors.black12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _sendCopy,
-                    isExpanded: false,
-                    items: ['Nonaktif', 'Aktif']
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e,
-                            child: Text(
-                              e,
-                              style: TextStyle(fontSize: 14, color: _textColor),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    dropdownColor: _isDark ? const Color(0xFF1E293B) : null,
-                    icon: Icon(Icons.arrow_drop_down, color: _textColor),
-                    onChanged: (v) => setState(() => _sendCopy = v!),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _settingsSwitchRow(
-              'Sembunyikan jawaban',
-              _hideResponses,
-              (v) => setState(() => _hideResponses = v),
-            ),
-            const SizedBox(height: 16),
-            _settingsSwitchRow(
-              'Isi Form lebih dari 1 kali',
-              _allowMultipleEdits,
-              (v) => setState(() => _allowMultipleEdits = v),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDefaultSettingsCard() {
-    return Card(
-      elevation: 1,
-      color: _cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent, colorScheme: Theme.of(context).colorScheme.copyWith(onSurface: _textColor)),
-        child: ExpansionTile(
-          title: Text(
-            'Default',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: _textColor,
-            ),
-          ),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          children: [
-            Divider(height: 1, color: _isDark ? const Color(0xFF334155) : null),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Pertanyaan default',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: _textColor,
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Setelan diterapkan untuk semua pertanyaan',
-                style: TextStyle(fontSize: 12, color: _subTextColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _settingsSwitchRow(
-              'Buat pertanyaan wajib diisi secara default',
-              _requireQuestionDefault,
-              (v) => setState(() => _requireQuestionDefault = v),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Terapkan ke semua pertanyaan',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _subTextColor,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _applyRequiredToAll,
-                    icon: const Icon(Icons.checklist, size: 18),
-                    label: const Text('Set Semua Wajib'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1E66D0),
-                      side: const BorderSide(color: Color(0xFF1E66D0)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _applyOptionalToAll(),
-                    icon: const Icon(Icons.event_available_outlined, size: 18),
-                    label: const Text('Set Semua Opsional'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _settingsSwitchRow(
-    String label,
-    bool value,
-    ValueChanged<bool> onChanged, {
-    String? subtitle,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 14, color: _textColor),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 11, color: _subTextColor),
-                ),
-              ],
-            ],
-          ),
-        ),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: Colors.white,
-          activeTrackColor: _primaryColor,
-          inactiveThumbColor: Colors.white,
-          inactiveTrackColor: _isDark ? const Color(0xFF475569) : Colors.grey.shade400,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimerSettingsCard() {
-    return Card(
-      elevation: 1,
-      color: _cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.av_timer, color: _primaryColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Form Timer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Manage constraints and timing for this form',
-                        style: TextStyle(fontSize: 12, color: _subTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Divider(color: _isDark ? const Color(0xFF334155) : null),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Enable Timer',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor,
-                        ),
-                      ),
-                      Text(
-                        'Set a time limit for form completion',
-                        style: TextStyle(fontSize: 12, color: _subTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _enableTimer,
-                  onChanged: (v) => setState(() => _enableTimer = v),
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: _primaryColor,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Select Timer Mode',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: _textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: _isDark ? const Color(0xFF334155) : Colors.black12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _timerMode,
-                  isExpanded: true,
-                  items:
-                      [
-                            'Start when respondent opens the form',
-                            'Start at a specific date and time',
-                          ]
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(
-                                e,
-                                style: TextStyle(fontSize: 14, color: _textColor),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                  dropdownColor: _isDark ? const Color(0xFF1E293B) : null,
-                  icon: Icon(Icons.arrow_drop_down, color: _textColor),
-                  onChanged: (v) => setState(() => _timerMode = v!),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Duration',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: _textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _durationCtrl,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(color: _textColor),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(6),
-                        ),
-                        borderSide: BorderSide(
-                          color: _isDark ? const Color(0xFF475569) : Colors.black12,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 120,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: _isDark ? const Color(0xFF475569) : Colors.black12,
-                    ),
-                    borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(6),
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _durationUnit,
-                      isExpanded: true,
-                      items: const [
-                        'detik',
-                        'menit',
-                        'jam',
-                        'hari',
-                        'bulan',
-                        'tahun',
-                      ].map((unit) {
-                        return DropdownMenuItem<String>(
-                          value: unit,
-                          child: Text(
-                            unit,
-                            style: TextStyle(fontSize: 13, color: _textColor),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _durationUnit = value);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEFF6FF),
-                border: Border.all(color: _isDark ? const Color(0xFF1D4ED8) : const Color(0xFFBFDBFE)),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline, color: _primaryColor, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'The form will auto-submit and lock once the timer runs out. Respondents will see a countdown display at the top of the page.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                // Settings sudah sinkron ke payload (status, ke). SnackBar konfirmasi.
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Pengaturan disimpan — akan diterapkan saat Publish (status: $_formStatus, batas respons: $_submissionLimit, timer: ${_enableTimer ? _durationDisplayText : 'nonaktif'})',
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Save Settings',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

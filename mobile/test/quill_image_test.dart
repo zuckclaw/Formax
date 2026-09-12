@@ -18,11 +18,17 @@ void main() {
 
     final docBack = QuillHtml.documentFromHtml(html);
     final deltaBack = docBack.toDelta().toJson();
-    final hasImage = deltaBack.any((op) => op['insert'] is Map && (op['insert'] as Map)['image'] == 'https://example.com/foto.jpg');
+    final hasImage = deltaBack.any(
+      (op) =>
+          op['insert'] is Map &&
+          (op['insert'] as Map)['image'] == 'https://example.com/foto.jpg',
+    );
     expect(hasImage, true);
   });
 
-  testWidgets('RichTextField renders editor and image button properly', (WidgetTester tester) async {
+  testWidgets('RichTextField renders editor and image button properly', (
+    WidgetTester tester,
+  ) async {
     String currentHtml = '<p>Halo</p>';
 
     await tester.pumpWidget(
@@ -51,14 +57,14 @@ void main() {
     expect(find.byIcon(Icons.image_outlined), findsOneWidget);
   });
 
-  testWidgets('RichTextView renders HTML properly', (WidgetTester tester) async {
+  testWidgets('RichTextView renders HTML properly', (
+    WidgetTester tester,
+  ) async {
     const html = '<p>Sebelum</p><p>Sesudah</p>';
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: RichTextView(html: html),
-        ),
+        home: Scaffold(body: RichTextView(html: html)),
       ),
     );
 

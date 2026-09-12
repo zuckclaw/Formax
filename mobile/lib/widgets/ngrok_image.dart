@@ -30,11 +30,9 @@ class NgrokImage extends StatelessWidget {
 
   /// Kembalikan [ImageProvider] (NetworkImage dengan header ngrok) untuk dipakai
   /// di [DecorationImage] / BoxDecoration.image atau [Image] provider.
-  static ImageProvider provider(
-    String imageUrl, {
-    double scale = 1.0,
-  }) {
-    final isNgrok = Uri.tryParse(imageUrl)?.host.endsWith('ngrok-free.dev') ?? false;
+  static ImageProvider provider(String imageUrl, {double scale = 1.0}) {
+    final isNgrok =
+        Uri.tryParse(imageUrl)?.host.endsWith('ngrok-free.dev') ?? false;
     return NetworkImage(
       imageUrl,
       scale: scale,
@@ -44,7 +42,8 @@ class NgrokImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNgrok = Uri.tryParse(imageUrl)?.host.endsWith('ngrok-free.dev') ?? false;
+    final isNgrok =
+        Uri.tryParse(imageUrl)?.host.endsWith('ngrok-free.dev') ?? false;
     final headers = isNgrok ? const {_skipWarningHeader: 'true'} : null;
 
     return Image.network(
@@ -52,8 +51,8 @@ class NgrokImage extends StatelessWidget {
       width: width,
       height: height,
       fit: fit,
-      errorBuilder: errorBuilder ??
-          (context, error, stackTrace) => _buildError(context),
+      errorBuilder:
+          errorBuilder ?? (context, error, stackTrace) => _buildError(context),
       filterQuality: filterQuality ?? FilterQuality.low,
       headers: headers,
     );
@@ -69,9 +68,11 @@ class NgrokImage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.broken_image_outlined,
-                color: isDark ? const Color(0xFF94A3B8) : Colors.black38,
-                size: 32),
+            Icon(
+              Icons.broken_image_outlined,
+              color: isDark ? const Color(0xFF94A3B8) : Colors.black38,
+              size: 32,
+            ),
             const SizedBox(height: 8),
             Text(
               'Gambar gagal dimuat',

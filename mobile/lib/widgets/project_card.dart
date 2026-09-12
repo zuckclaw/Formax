@@ -6,17 +6,13 @@ class ProjectCard extends StatelessWidget {
   final Project project;
   final VoidCallback onTap;
 
-  const ProjectCard({
-    super.key,
-    required this.project,
-    required this.onTap,
-  });
+  const ProjectCard({super.key, required this.project, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     Color statusBgColor;
     Color statusTextColor;
-    
+
     switch (project.status) {
       case "Active":
         statusBgColor = const Color(0xFFD1FAE5);
@@ -64,15 +60,15 @@ class ProjectCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: project.icon == Icons.play_arrow 
-                            ? Colors.transparent 
+                        color: project.icon == Icons.play_arrow
+                            ? Colors.transparent
                             : const Color(0xFF2563EB),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         project.icon,
-                        color: project.icon == Icons.play_arrow 
-                            ? Colors.white54 
+                        color: project.icon == Icons.play_arrow
+                            ? Colors.white54
                             : Colors.white,
                         size: project.icon == Icons.play_arrow ? 36 : 20,
                       ),
@@ -83,7 +79,10 @@ class ProjectCard extends StatelessWidget {
             ),
             // Text and Status Badge
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -100,7 +99,10 @@ class ProjectCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: statusBgColor,
                       borderRadius: BorderRadius.circular(12),

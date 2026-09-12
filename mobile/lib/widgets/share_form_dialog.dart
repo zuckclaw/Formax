@@ -12,7 +12,12 @@ class ShareFormDialog extends StatefulWidget {
   final String qrUrl;
   final String? fileName;
 
-  const ShareFormDialog({super.key, required this.link, required this.qrUrl, this.fileName});
+  const ShareFormDialog({
+    super.key,
+    required this.link,
+    required this.qrUrl,
+    this.fileName,
+  });
 
   @override
   State<ShareFormDialog> createState() => _ShareFormDialogState();
@@ -58,9 +63,9 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengunduh QR: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengunduh QR: $e')));
     } finally {
       if (mounted) setState(() => _downloadingQr = false);
     }
@@ -146,7 +151,9 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
         ),
         child: Icon(
           icon,
-          color: isSelected ? const Color(0xFF0F52BA) : colorScheme.onSurfaceVariant,
+          color: isSelected
+              ? const Color(0xFF0F52BA)
+              : colorScheme.onSurfaceVariant,
           size: 22,
         ),
       ),
@@ -209,7 +216,11 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
                 height: 180,
                 width: 180,
                 child: Center(
-                  child: Icon(Icons.qr_code, size: 80, color: colorScheme.outline),
+                  child: Icon(
+                    Icons.qr_code,
+                    size: 80,
+                    color: colorScheme.outline,
+                  ),
                 ),
               ),
             ),

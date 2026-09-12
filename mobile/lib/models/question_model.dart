@@ -19,64 +19,126 @@ enum QuestionType {
 }
 
 extension QuestionTypeExtension on QuestionType {
+  /// Pilihan jenis soal pada pemilih tambah/ganti soal — parity dengan web
+  /// (`QUESTION_TYPES` di `web/src/pages/FormBuilderPage.jsx`): Teks,
+  /// Pilihan Ganda, Checkbox, Dropdown, Tanggal, Upload File. Section
+  /// (page_break) ditambah lewat tombol "Tambah Bagian" seperti `addSection`
+  /// pada web sehingga tidak termasuk di sini. Tipe lain (paragraf, skala,
+  /// rating, grid, waktu, gambar, blok teks) tetap didukung penuh untuk
+  /// form lama yang sudah memakainya — hanya tidak ditawarkan untuk soal baru.
+  static List<QuestionType> get pickerTypes => const [
+        QuestionType.shortAnswer,
+        QuestionType.multipleChoice,
+        QuestionType.checkboxes,
+        QuestionType.dropdown,
+        QuestionType.date,
+        QuestionType.fileUpload,
+      ];
+
   String get label {
     switch (this) {
-      case QuestionType.shortAnswer: return 'Jawaban Singkat';
-      case QuestionType.paragraph: return 'Paragraf';
-      case QuestionType.multipleChoice: return 'Pilihan Ganda';
-      case QuestionType.checkboxes: return 'Kotak Centang';
-      case QuestionType.dropdown: return 'Dropdown';
-      case QuestionType.fileUpload: return 'Upload File';
-      case QuestionType.linearScale: return 'Skala Linier';
-      case QuestionType.rating: return 'Rating Bintang';
-      case QuestionType.multipleChoiceGrid: return 'Grid Pilihan Ganda';
-      case QuestionType.tickBoxGrid: return 'Grid Kotak Centang';
-      case QuestionType.date: return 'Tanggal';
-      case QuestionType.time: return 'Waktu';
-      case QuestionType.pageBreak: return 'Pemisah Halaman';
-      case QuestionType.image: return 'Gambar';
-      case QuestionType.text: return 'Teks';
+      case QuestionType.shortAnswer:
+        return 'Teks';
+      case QuestionType.paragraph:
+        return 'Paragraf';
+      case QuestionType.multipleChoice:
+        return 'Pilihan Ganda';
+      case QuestionType.checkboxes:
+        return 'Checkbox';
+      case QuestionType.dropdown:
+        return 'Dropdown';
+      case QuestionType.fileUpload:
+        return 'Upload File';
+      case QuestionType.linearScale:
+        return 'Skala Linier';
+      case QuestionType.rating:
+        return 'Rating Bintang';
+      case QuestionType.multipleChoiceGrid:
+        return 'Grid Pilihan Ganda';
+      case QuestionType.tickBoxGrid:
+        return 'Grid Kotak Centang';
+      case QuestionType.date:
+        return 'Tanggal';
+      case QuestionType.time:
+        return 'Waktu';
+      case QuestionType.pageBreak:
+        return 'Pemisah Halaman';
+      case QuestionType.image:
+        return 'Gambar';
+      case QuestionType.text:
+        return 'Blok Teks';
     }
   }
 
   String get apiValue {
     switch (this) {
-      case QuestionType.shortAnswer: return 'text';
-      case QuestionType.paragraph: return 'paragraph';
-      case QuestionType.multipleChoice: return 'single_choice';
-      case QuestionType.checkboxes: return 'checkbox';
-      case QuestionType.dropdown: return 'dropdown';
-      case QuestionType.fileUpload: return 'file_upload';
-      case QuestionType.linearScale: return 'linear_scale';
-      case QuestionType.rating: return 'rating';
-      case QuestionType.multipleChoiceGrid: return 'multiple_choice_grid';
-      case QuestionType.tickBoxGrid: return 'tick_box_grid';
-      case QuestionType.date: return 'date';
-      case QuestionType.time: return 'time';
-      case QuestionType.pageBreak: return 'page_break';
-      case QuestionType.image: return 'image';
-      case QuestionType.text: return 'text_block';
+      case QuestionType.shortAnswer:
+        return 'text';
+      case QuestionType.paragraph:
+        return 'paragraph';
+      case QuestionType.multipleChoice:
+        return 'single_choice';
+      case QuestionType.checkboxes:
+        return 'checkbox';
+      case QuestionType.dropdown:
+        return 'dropdown';
+      case QuestionType.fileUpload:
+        return 'file_upload';
+      case QuestionType.linearScale:
+        return 'linear_scale';
+      case QuestionType.rating:
+        return 'rating';
+      case QuestionType.multipleChoiceGrid:
+        return 'multiple_choice_grid';
+      case QuestionType.tickBoxGrid:
+        return 'tick_box_grid';
+      case QuestionType.date:
+        return 'date';
+      case QuestionType.time:
+        return 'time';
+      case QuestionType.pageBreak:
+        return 'page_break';
+      case QuestionType.image:
+        return 'image';
+      case QuestionType.text:
+        return 'text_block';
     }
   }
 
   static QuestionType fromApiValue(String apiValue) {
     switch (apiValue) {
-      case 'text': return QuestionType.shortAnswer;
-      case 'paragraph': return QuestionType.paragraph;
-      case 'single_choice': return QuestionType.multipleChoice;
-      case 'checkbox': return QuestionType.checkboxes;
-      case 'dropdown': return QuestionType.dropdown;
-      case 'file_upload': return QuestionType.fileUpload;
-      case 'linear_scale': return QuestionType.linearScale;
-      case 'rating': return QuestionType.rating;
-      case 'multiple_choice_grid': return QuestionType.multipleChoiceGrid;
-      case 'tick_box_grid': return QuestionType.tickBoxGrid;
-      case 'date': return QuestionType.date;
-      case 'time': return QuestionType.time;
-      case 'page_break': return QuestionType.pageBreak;
-      case 'image': return QuestionType.image;
-      case 'text_block': return QuestionType.text;
-      default: return QuestionType.shortAnswer;
+      case 'text':
+        return QuestionType.shortAnswer;
+      case 'paragraph':
+        return QuestionType.paragraph;
+      case 'single_choice':
+        return QuestionType.multipleChoice;
+      case 'checkbox':
+        return QuestionType.checkboxes;
+      case 'dropdown':
+        return QuestionType.dropdown;
+      case 'file_upload':
+        return QuestionType.fileUpload;
+      case 'linear_scale':
+        return QuestionType.linearScale;
+      case 'rating':
+        return QuestionType.rating;
+      case 'multiple_choice_grid':
+        return QuestionType.multipleChoiceGrid;
+      case 'tick_box_grid':
+        return QuestionType.tickBoxGrid;
+      case 'date':
+        return QuestionType.date;
+      case 'time':
+        return QuestionType.time;
+      case 'page_break':
+        return QuestionType.pageBreak;
+      case 'image':
+        return QuestionType.image;
+      case 'text_block':
+        return QuestionType.text;
+      default:
+        return QuestionType.shortAnswer;
     }
   }
 
@@ -94,11 +156,20 @@ class QuestionOptionData {
   String label;
   bool isOther;
   bool isCorrect;
-  QuestionOptionData({String? id, required this.label, this.isOther = false, this.isCorrect = false})
-      : id = id ?? UniqueKey().toString();
+  QuestionOptionData({
+    String? id,
+    required this.label,
+    this.isOther = false,
+    this.isCorrect = false,
+  }) : id = id ?? UniqueKey().toString();
 
   QuestionOptionData clone() {
-    return QuestionOptionData(id: UniqueKey().toString(), label: label, isOther: isOther, isCorrect: isCorrect);
+    return QuestionOptionData(
+      id: UniqueKey().toString(),
+      label: label,
+      isOther: isOther,
+      isCorrect: isCorrect,
+    );
   }
 }
 
@@ -111,8 +182,9 @@ class QuestionData {
   List<QuestionOptionData> options;
   List<String> rowLabels;
   String? imageUrl; // For storing local path or base64
-  List<String> extraImageUrls; // Gambar tambahan yang ditempel, menumpuk di bawah imageUrl
-  
+  List<String>
+  extraImageUrls; // Gambar tambahan yang ditempel, menumpuk di bawah imageUrl
+
   // Linear scale & Rating
   int scaleMin;
   int scaleMax;
@@ -151,10 +223,12 @@ class QuestionData {
     this.allowedFileTypes = const [],
     this.maxFileSizeMB = 10,
     this.maxFileCount = 1,
-  })  : id = id ?? UniqueKey().toString(),
-        options = options ?? [],
-        rowLabels = rowLabels ?? [],
-        extraImageUrls = extraImageUrls == null ? <String>[] : List<String>.from(extraImageUrls);
+  }) : id = id ?? UniqueKey().toString(),
+       options = options ?? [],
+       rowLabels = rowLabels ?? [],
+       extraImageUrls = extraImageUrls == null
+           ? <String>[]
+           : List<String>.from(extraImageUrls);
 
   /// Semua URL gambar yang ditempel ke pertanyaan ini (utama + tambahan),
   /// tanpa duplikat dan tanpa nilai kosong.

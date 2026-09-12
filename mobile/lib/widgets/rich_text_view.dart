@@ -48,11 +48,15 @@ class RichTextView extends StatelessWidget {
           'body': Style(
             margin: Margins.zero,
             padding: HtmlPaddings.zero,
-            fontSize: ts?.fontSize != null ? FontSize(ts!.fontSize!) : FontSize.medium,
+            fontSize: ts?.fontSize != null
+                ? FontSize(ts!.fontSize!)
+                : FontSize.medium,
             fontWeight: ts?.fontWeight ?? FontWeight.normal,
             fontStyle: ts?.fontStyle,
             color: ts?.color ?? defaultColor,
-            lineHeight: ts?.height != null ? LineHeight(ts!.height!) : LineHeight(1.2),
+            lineHeight: ts?.height != null
+                ? LineHeight(ts!.height!)
+                : LineHeight(1.2),
             fontFamily: ts?.fontFamily,
             letterSpacing: ts?.letterSpacing,
             textDecoration: ts?.decoration,

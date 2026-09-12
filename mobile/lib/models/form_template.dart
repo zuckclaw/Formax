@@ -33,16 +33,28 @@ class FormTemplate {
 
   factory FormTemplate.fromJson(Map<dynamic, dynamic> json) {
     // FIX: handle LinkedMap<dynamic,dynamic> dari jsonDecode/database
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     final rawQuestions = map['questions'];
     List<dynamic>? qs;
     if (rawQuestions is List) {
       // Pastikan tiap question juga jadi Map<String,dynamic> agar q['type'] aman
-      qs = rawQuestions.map((e) => e is Map ? <String, dynamic>{for (final en in e.entries) en.key.toString(): en.value} : e).toList();
+      qs = rawQuestions
+          .map(
+            (e) => e is Map
+                ? <String, dynamic>{
+                    for (final en in e.entries) en.key.toString(): en.value,
+                  }
+                : e,
+          )
+          .toList();
     }
     return FormTemplate(
       id: map['id']?.toString(),
-      title: (map['title'] as String?)?.trim().isEmpty == true ? 'Tanpa Judul' : (map['title'] ?? 'Tanpa Judul'),
+      title: (map['title'] as String?)?.trim().isEmpty == true
+          ? 'Tanpa Judul'
+          : (map['title'] ?? 'Tanpa Judul'),
       subtitle: map['description'] ?? '',
       bannerUrl: map['banner_url']?.toString(),
       questionsJson: qs,

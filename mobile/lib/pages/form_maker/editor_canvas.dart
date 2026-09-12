@@ -29,9 +29,19 @@ class _EditorCanvasState extends State<EditorCanvas> {
         itemBuilder: (context, index) {
           final item = _getFlatItem(index);
           if (item is _FlatPageHeader) {
-            return _buildPageHeader(item.page, item.index, widget.state.pages.length, key: ValueKey('page_${item.page.id}'));
+            return _buildPageHeader(
+              item.page,
+              item.index,
+              widget.state.pages.length,
+              key: ValueKey('page_${item.page.id}'),
+            );
           } else if (item is _FlatQuestion) {
-            return _buildQuestionCard(item.page, item.question, index, key: ValueKey('q_${item.question.id}'));
+            return _buildQuestionCard(
+              item.page,
+              item.question,
+              index,
+              key: ValueKey('q_${item.question.id}'),
+            );
           }
           return const SizedBox();
         },
@@ -63,8 +73,15 @@ class _EditorCanvasState extends State<EditorCanvas> {
     return null;
   }
 
-  Widget _buildPageHeader(FormPageModel page, int pageIndex, int totalPages, {required Key key}) {
-    final isActive = widget.state.activePageId == page.id && widget.state.activeQuestionId == null;
+  Widget _buildPageHeader(
+    FormPageModel page,
+    int pageIndex,
+    int totalPages, {
+    required Key key,
+  }) {
+    final isActive =
+        widget.state.activePageId == page.id &&
+        widget.state.activeQuestionId == null;
     return Padding(
       key: key,
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -91,7 +108,12 @@ class _EditorCanvasState extends State<EditorCanvas> {
     );
   }
 
-  Widget _buildQuestionCard(FormPageModel page, QuestionData q, int index, {required Key key}) {
+  Widget _buildQuestionCard(
+    FormPageModel page,
+    QuestionData q,
+    int index, {
+    required Key key,
+  }) {
     final isActive = widget.state.activeQuestionId == q.id;
     return QuestionCard(
       key: key,
@@ -132,14 +154,18 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
     // Restrict moving page headers for simplicity in this implementation
     if (draggedItem is _FlatPageHeader) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pindah bagian belum didukung di mode ini.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pindah bagian belum didukung di mode ini.'),
+        ),
+      );
       return;
     }
 
     if (draggedItem is _FlatQuestion) {
       final oldPage = draggedItem.page;
       final q = draggedItem.question;
-      
+
       // Determine new page based on newIndex
       FormPageModel? targetPage;
       for (int i = newIndex; i >= 0; i--) {
@@ -153,7 +179,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
       setState(() {
         oldPage.questions.remove(q);
-        
+
         // Calculate insert index in the new page
         int insertIdx = 0;
         int count = 0;
@@ -166,11 +192,11 @@ class _EditorCanvasState extends State<EditorCanvas> {
           }
           count++;
         }
-        
+
         if (insertIdx > targetPage!.questions.length) {
           insertIdx = targetPage.questions.length;
         }
-        
+
         targetPage.questions.insert(insertIdx, q);
         widget.state.triggerUpdate();
       });
@@ -180,26 +206,29 @@ class _EditorCanvasState extends State<EditorCanvas> {
   void _showQuestionTypePicker(String pageId, QuestionData q) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          children: QuestionType.values
-              .where((t) => t != QuestionType.pageBreak && t != QuestionType.text)
-              .map((type) {
-            return ListTile(
-              leading: Icon(_getIconForType(type), color: Colors.white),
-              title: Text(type.label),
-              onTap: () {
-                q.type = type;
-                if (type.hasOptions && q.options.isEmpty) {
-                  q.options = [QuestionOptionData(label: 'Opsi 1')];
-                }
-                widget.state.triggerUpdate();
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
+          // Parity web (QUESTION_TYPES): hanya 6 jenis soal. Section/ganti ke
+          // tipe lain tidak ditawarkan — sama seperti dropdown tipe pada web.
+          children: QuestionTypeExtension.pickerTypes.map((type) {
+                return ListTile(
+                  leading: Icon(_getIconForType(type), color: Colors.white),
+                  title: Text(type.label),
+                  onTap: () {
+                    q.type = type;
+                    if (type.hasOptions && q.options.isEmpty) {
+                      q.options = [QuestionOptionData(label: 'Opsi 1')];
+                    }
+                    widget.state.triggerUpdate();
+                    Navigator.pop(context);
+                  },
+                );
+              })
+              .toList(),
         );
       },
     );
@@ -207,17 +236,28 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
   IconData _getIconForType(QuestionType type) {
     switch (type) {
-      case QuestionType.shortAnswer: return Icons.short_text;
-      case QuestionType.paragraph: return Icons.notes;
-      case QuestionType.multipleChoice: return Icons.radio_button_checked;
-      case QuestionType.checkboxes: return Icons.check_box;
-      case QuestionType.dropdown: return Icons.arrow_drop_down_circle;
-      case QuestionType.fileUpload: return Icons.cloud_upload;
-      case QuestionType.linearScale: return Icons.linear_scale;
-      case QuestionType.rating: return Icons.star;
-      case QuestionType.date: return Icons.event;
-      case QuestionType.time: return Icons.access_time;
-      default: return Icons.widgets;
+      case QuestionType.shortAnswer:
+        return Icons.short_text;
+      case QuestionType.paragraph:
+        return Icons.notes;
+      case QuestionType.multipleChoice:
+        return Icons.radio_button_checked;
+      case QuestionType.checkboxes:
+        return Icons.check_box;
+      case QuestionType.dropdown:
+        return Icons.arrow_drop_down_circle;
+      case QuestionType.fileUpload:
+        return Icons.cloud_upload;
+      case QuestionType.linearScale:
+        return Icons.linear_scale;
+      case QuestionType.rating:
+        return Icons.star;
+      case QuestionType.date:
+        return Icons.event;
+      case QuestionType.time:
+        return Icons.access_time;
+      default:
+        return Icons.widgets;
     }
   }
 }

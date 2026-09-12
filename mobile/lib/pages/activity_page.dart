@@ -37,11 +37,12 @@ class _ActivityPageState extends State<ActivityPage> {
     final res = await ApiService.getMySubmissions();
     if (!mounted) return;
     if (res['success'] == true && res['data'] is List) {
-      final items = (res['data'] as List)
-          .whereType<Map>()
-          .map((e) => MyActivityModel.fromJson(e))
-          .toList()
-        ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+      final items =
+          (res['data'] as List)
+              .whereType<Map>()
+              .map((e) => MyActivityModel.fromJson(e))
+              .toList()
+            ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
       setState(() {
         _items = items;
         _loading = false;
@@ -176,10 +177,12 @@ class _ActivityPageState extends State<ActivityPage> {
           if (_items.isEmpty)
             _buildEmptyState()
           else
-            ..._filtered.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildActivityTile(e),
-                )),
+            ..._filtered.map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildActivityTile(e),
+              ),
+            ),
           if (_items.isNotEmpty && _filtered.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
@@ -234,13 +237,33 @@ class _ActivityPageState extends State<ActivityPage> {
   Widget _buildStats() {
     return Row(
       children: [
-        _statCard('Total', _items.length, const Color(0xFF1E66D0), Icons.assignment_outlined),
+        _statCard(
+          'Total',
+          _items.length,
+          const Color(0xFF1E66D0),
+          Icons.assignment_outlined,
+        ),
         const SizedBox(width: 10),
-        _statCard('Selesai', _totSelesai, const Color(0xFF059669), Icons.check_circle_outline),
+        _statCard(
+          'Selesai',
+          _totSelesai,
+          const Color(0xFF059669),
+          Icons.check_circle_outline,
+        ),
         const SizedBox(width: 10),
-        _statCard('Proses', _totProses, const Color(0xFFD97706), Icons.hourglass_top),
+        _statCard(
+          'Proses',
+          _totProses,
+          const Color(0xFFD97706),
+          Icons.hourglass_top,
+        ),
         const SizedBox(width: 10),
-        _statCard('Curang', _totCurang, const Color(0xFFDC2626), Icons.warning_amber_rounded),
+        _statCard(
+          'Curang',
+          _totCurang,
+          const Color(0xFFDC2626),
+          Icons.warning_amber_rounded,
+        ),
       ],
     );
   }
@@ -252,7 +275,9 @@ class _ActivityPageState extends State<ActivityPage> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Column(
           children: [
@@ -310,8 +335,8 @@ class _ActivityPageState extends State<ActivityPage> {
     final (String stLabel, Color stColor, Color stBg) = isCheated
         ? ('Curang', const Color(0xFFDC2626), const Color(0xFFFEE2E2))
         : item.isCompleted
-            ? ('Selesai', const Color(0xFF059669), const Color(0xFFD1FAE5))
-            : ('Proses', const Color(0xFFD97706), const Color(0xFFFEF3C7));
+        ? ('Selesai', const Color(0xFF059669), const Color(0xFFD1FAE5))
+        : ('Proses', const Color(0xFFD97706), const Color(0xFFFEF3C7));
 
     return Card(
       elevation: 0,
@@ -332,7 +357,9 @@ class _ActivityPageState extends State<ActivityPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.formTitle.isEmpty ? 'Form tanpa judul' : item.formTitle,
+                        item.formTitle.isEmpty
+                            ? 'Form tanpa judul'
+                            : item.formTitle,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -342,7 +369,9 @@ class _ActivityPageState extends State<ActivityPage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        item.ownerName != null ? 'oleh ${item.ownerName}' : item.formSlug,
+                        item.ownerName != null
+                            ? 'oleh ${item.ownerName}'
+                            : item.formSlug,
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -368,7 +397,10 @@ class _ActivityPageState extends State<ActivityPage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: stBg,
                         borderRadius: BorderRadius.circular(12),
@@ -383,7 +415,9 @@ class _ActivityPageState extends State<ActivityPage> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    if (item.isCompleted && item.allowSeeResult && !item.revealAnswers)
+                    if (item.isCompleted &&
+                        item.allowSeeResult &&
+                        !item.revealAnswers)
                       const SizedBox.shrink(),
                   ],
                 ),
@@ -399,15 +433,18 @@ class _ActivityPageState extends State<ActivityPage> {
                     child: LinearProgressIndicator(
                       value: item.totalQuestions == 0
                           ? 0
-                          : (item.answeredCount / item.totalQuestions).clamp(0.0, 1.0),
+                          : (item.answeredCount / item.totalQuestions).clamp(
+                              0.0,
+                              1.0,
+                            ),
                       minHeight: 8,
                       backgroundColor: const Color(0xFFE5E7EB),
                       valueColor: AlwaysStoppedAnimation(
                         isCheated
                             ? const Color(0xFFDC2626)
                             : item.isCompleted
-                                ? const Color(0xFF059669)
-                                : const Color(0xFF1E66D0),
+                            ? const Color(0xFF059669)
+                            : const Color(0xFF1E66D0),
                       ),
                     ),
                   ),
@@ -415,7 +452,10 @@ class _ActivityPageState extends State<ActivityPage> {
                 const SizedBox(width: 8),
                 Text(
                   '${item.answeredCount}/${item.totalQuestions}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -429,7 +469,9 @@ class _ActivityPageState extends State<ActivityPage> {
                       onPressed: () => _openResume(item),
                       icon: const Icon(Icons.play_arrow, size: 18),
                       label: const Text('Lanjutkan'),
-                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1E66D0)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E66D0),
+                      ),
                     ),
                   )
                 else
@@ -471,15 +513,19 @@ class _ActivityResultScreen extends StatelessWidget {
     final Color scoreColor = score == null
         ? Colors.grey
         : (score >= 70
-            ? const Color(0xFF059669)
-            : (score >= 40 ? const Color(0xFFD97706) : const Color(0xFFDC2626)));
+              ? const Color(0xFF059669)
+              : (score >= 40
+                    ? const Color(0xFFD97706)
+                    : const Color(0xFFDC2626)));
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E66D0),
         foregroundColor: Colors.white,
-        title: const Text('Hasil',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Hasil',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -516,7 +562,9 @@ class _ActivityResultScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
             ),
             child: Column(
               children: [
@@ -571,7 +619,12 @@ class _ActivityResultScreen extends StatelessWidget {
           if (result.answers.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: Text('Tidak ada jawaban.', style: TextStyle(color: Colors.grey))),
+              child: Center(
+                child: Text(
+                  'Tidak ada jawaban.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
             )
           else
             ...result.answers.asMap().entries.map((entry) {
@@ -583,7 +636,9 @@ class _ActivityResultScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -593,7 +648,10 @@ class _ActivityResultScreen extends StatelessWidget {
                       backgroundColor: const Color(0xFF1E66D0),
                       child: Text(
                         '$i',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -603,7 +661,10 @@ class _ActivityResultScreen extends StatelessWidget {
                         children: [
                           Text(
                             a.label.isEmpty ? 'Pertanyaan' : a.label,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -615,7 +676,10 @@ class _ActivityResultScreen extends StatelessWidget {
                               children: [
                                 const SizedBox(height: 4),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: a.isCorrect == true
                                         ? const Color(0xFFD1FAE5)
@@ -640,7 +704,10 @@ class _ActivityResultScreen extends StatelessWidget {
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
                                 'Kunci jawaban: ${a.correctAnswer}',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5)),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF4F46E5),
+                                ),
                               ),
                             ),
                         ],

@@ -347,10 +347,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       controller: _nameController,
                       onChanged: (_) =>
                           setState(() {}), // trigger rebuild for hasChanges
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: cs.onSurface,
-                      ),
+                      style: TextStyle(fontSize: 15, color: cs.onSurface),
                       cursorColor: const Color(0xFF4F46E5),
                       decoration: InputDecoration(
                         hintText: 'Nama kamu',
@@ -583,7 +580,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     Text(
-                      dark ? 'Aktif — tema gelap menyala' : 'Nonaktif — tema terang',
+                      dark
+                          ? 'Aktif — tema gelap menyala'
+                          : 'Nonaktif — tema terang',
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurfaceVariant,
@@ -670,10 +669,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   )
                 : const Text(
                     'Save',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
           ),
         ),

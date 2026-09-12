@@ -28,29 +28,29 @@ class QuestionViewer extends StatelessWidget {
             Expanded(
               child: hasLabel
                   ? (_looksLikeHtml(question.label)
-                      ? RichTextView(
-                          html: question.label,
-                          textStyle: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: textColor,
-                          ),
-                        )
-                      : Text(
-                          question.label,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: textColor,
-                          ),
-                        ))
-                  : Text(
-                      'Pertanyaan',
-                      style: TextStyle(color: subTextColor),
-                    ),
+                        ? RichTextView(
+                            html: question.label,
+                            textStyle: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                            ),
+                          )
+                        : Text(
+                            question.label,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                            ),
+                          ))
+                  : Text('Pertanyaan', style: TextStyle(color: subTextColor)),
             ),
             if (question.isRequired)
-              const Text(' *', style: TextStyle(color: Colors.red, fontSize: 16)),
+              const Text(
+                ' *',
+                style: TextStyle(color: Colors.red, fontSize: 16),
+              ),
           ],
         ),
         if (question.description.isNotEmpty)
@@ -89,11 +89,7 @@ class QuestionViewer extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: (kIsWeb || url.startsWith('http'))
-                    ? NgrokImage(
-                        url,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )
+                    ? NgrokImage(url, width: double.infinity, fit: BoxFit.cover)
                     : Image.file(
                         File(url),
                         width: double.infinity,
@@ -150,22 +146,33 @@ class QuestionViewer extends StatelessWidget {
                 children: [
                   Icon(
                     question.type == QuestionType.multipleChoice
-                      ? Icons.radio_button_unchecked
-                      : Icons.check_box_outline_blank,
+                        ? Icons.radio_button_unchecked
+                        : Icons.check_box_outline_blank,
                     size: 20,
                     color: subColor,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: opt.label.isEmpty
-                        ? Text('Opsi', style: TextStyle(fontSize: 14, color: subColor))
+                        ? Text(
+                            'Opsi',
+                            style: TextStyle(fontSize: 14, color: subColor),
+                          )
                         : (_looksLikeHtml(opt.label)
-                            ? RichTextView(
-                                html: opt.label,
-                                textStyle: TextStyle(fontSize: 14, color: textColor),
-                              )
-                            : Text(opt.label,
-                                style: TextStyle(fontSize: 14, color: textColor))),
+                              ? RichTextView(
+                                  html: opt.label,
+                                  textStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: textColor,
+                                  ),
+                                )
+                              : Text(
+                                  opt.label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textColor,
+                                  ),
+                                )),
                   ),
                 ],
               ),
@@ -195,13 +202,13 @@ class QuestionViewer extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            border: Border.all(color: borderColor), 
+            border: Border.all(color: borderColor),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Pilih opsi', style: TextStyle(color: subColor)), 
+              Text('Pilih opsi', style: TextStyle(color: subColor)),
               Icon(Icons.arrow_drop_down, color: subColor),
             ],
           ),
@@ -210,14 +217,14 @@ class QuestionViewer extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: borderColor, style: BorderStyle.solid), 
+            border: Border.all(color: borderColor, style: BorderStyle.solid),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cloud_upload_outlined, color: subColor), 
-              const SizedBox(width: 8), 
+              Icon(Icons.cloud_upload_outlined, color: subColor),
+              const SizedBox(width: 8),
               Text('Tambahkan File', style: TextStyle(color: subColor)),
             ],
           ),
@@ -228,10 +235,13 @@ class QuestionViewer extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(
-                question.scaleMax - question.scaleMin + 1, 
+                question.scaleMax - question.scaleMin + 1,
                 (index) => Column(
                   children: [
-                    Text('${question.scaleMin + index}', style: TextStyle(color: textColor)),
+                    Text(
+                      '${question.scaleMin + index}',
+                      style: TextStyle(color: textColor),
+                    ),
                     const SizedBox(height: 4),
                     Icon(Icons.radio_button_unchecked, color: subColor),
                   ],
@@ -242,19 +252,27 @@ class QuestionViewer extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(question.minLabel, style: TextStyle(color: subColor, fontSize: 12)),
-                Text(question.maxLabel, style: TextStyle(color: subColor, fontSize: 12)),
+                Text(
+                  question.minLabel,
+                  style: TextStyle(color: subColor, fontSize: 12),
+                ),
+                Text(
+                  question.maxLabel,
+                  style: TextStyle(color: subColor, fontSize: 12),
+                ),
               ],
-            )
+            ),
           ],
         );
       case QuestionType.rating:
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
-            question.ratingCount, 
+            question.ratingCount,
             (index) => Icon(
-              question.ratingIcon == 'heart' ? Icons.favorite_border : Icons.star_border, 
+              question.ratingIcon == 'heart'
+                  ? Icons.favorite_border
+                  : Icons.star_border,
               color: subColor,
               size: 32,
             ),
@@ -285,7 +303,10 @@ class QuestionViewer extends StatelessWidget {
       case QuestionType.image:
         final urls = question.allImageUrls;
         if (urls.isEmpty) {
-          return SizedBox(height: 100, child: Center(child: Icon(Icons.image, color: subColor, size: 40)));
+          return SizedBox(
+            height: 100,
+            child: Center(child: Icon(Icons.image, color: subColor, size: 40)),
+          );
         }
         return Padding(
           padding: const EdgeInsets.only(top: 8.0),
@@ -306,7 +327,7 @@ class QuestionViewer extends StatelessWidget {
         return const SizedBox.shrink();
       default:
         return Text(
-          'Preview untuk tipe ${question.type.label} belum didukung', 
+          'Preview untuk tipe ${question.type.label} belum didukung',
           style: TextStyle(color: subColor, fontStyle: FontStyle.italic),
         );
     }

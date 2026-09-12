@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import '../models/form_model.dart';
 import '../services/api_service.dart';
@@ -78,8 +77,10 @@ class _DraftPageState extends State<DraftPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child:
-                const Text('Batal', style: TextStyle(color: Color(0xFF6B7280))),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -101,9 +102,9 @@ class _DraftPageState extends State<DraftPage> {
     if (!mounted) return;
     if (res['success'] == true) {
       _refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Draft berhasil dihapus')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Draft berhasil dihapus')));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -391,8 +392,7 @@ class _DraftPageState extends State<DraftPage> {
                         width: 110,
                         height: 110,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7)
-                              .withValues(alpha: 0.6),
+                          color: const Color(0xFFFEF3C7).withValues(alpha: 0.6),
                           shape: BoxShape.circle,
                         ),
                       ),

@@ -37,8 +37,9 @@ class MyActivityModel {
 
   bool get isCompleted => submittedAt != null;
 
-  int get progressPercent =>
-      totalQuestions == 0 ? 0 : ((answeredCount / totalQuestions) * 100).round();
+  int get progressPercent => totalQuestions == 0
+      ? 0
+      : ((answeredCount / totalQuestions) * 100).round();
 
   static String _stripHtml(String? html) {
     if (html == null || html.trim().isEmpty) return '';
@@ -53,15 +54,19 @@ class MyActivityModel {
   }
 
   factory MyActivityModel.fromJson(Map<dynamic, dynamic> json) {
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     final formRaw = map['form'];
     final form = formRaw is Map
-        ? <String, dynamic>{for (final e in formRaw.entries) e.key.toString(): e.value}
+        ? <String, dynamic>{
+            for (final e in formRaw.entries) e.key.toString(): e.value,
+          }
         : const <String, dynamic>{};
     return MyActivityModel(
       id: map['id']?.toString() ?? '',
       formId: map['form_id']?.toString() ?? '',
-      formTitle: _stripHtml(form['title']?.toString()) ,
+      formTitle: _stripHtml(form['title']?.toString()),
       formSlug: form['slug']?.toString() ?? '',
       formBanner: form['banner_url']?.toString(),
       ownerName: form['owner_name']?.toString(),
@@ -102,7 +107,9 @@ class ActivityResultModel {
   });
 
   factory ActivityResultModel.fromJson(Map<dynamic, dynamic> json) {
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     final answersList = map['answers'] as List<dynamic>? ?? [];
     return ActivityResultModel(
       formTitle: MyActivityModel._stripHtml(map['form_title']?.toString()),
@@ -135,7 +142,9 @@ class ActivityAnswerResult {
   });
 
   factory ActivityAnswerResult.fromJson(Map<dynamic, dynamic> json) {
-    final map = json is Map<String, dynamic> ? json : Map<String, dynamic>.from(json);
+    final map = json is Map<String, dynamic>
+        ? json
+        : Map<String, dynamic>.from(json);
     return ActivityAnswerResult(
       label: MyActivityModel._stripHtml(map['label']?.toString()),
       userAnswer: _clean(map['user_answer']?.toString()),

@@ -24,9 +24,7 @@ Future<void> exportFormSubmissionsWithShare(
   if (res['success'] != true || res['bytes'] == null) {
     messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          'Export gagal: ${res['message'] ?? 'terjadi kesalahan'}',
-        ),
+        content: Text('Export gagal: ${res['message'] ?? 'terjadi kesalahan'}'),
         backgroundColor: Colors.red.shade700,
       ),
     );

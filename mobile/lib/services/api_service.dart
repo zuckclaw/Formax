@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return envUrl;
@@ -15,13 +14,13 @@ class ApiService {
     return 'https://wriggly-diffusion-flatfoot.ngrok-free.dev';
   }
 
-    static String get frontendUrl {
+  static String get frontendUrl {
     const f = String.fromEnvironment('FRONTEND_URL');
     if (f.isNotEmpty) return f;
     return 'https://formax-seven.vercel.app';
   }
 
-   static String publicFormLink(String slug) {
+  static String publicFormLink(String slug) {
     final s = slug.startsWith('http')
         ? Uri.parse(slug).pathSegments.last
         : slug;
@@ -37,7 +36,9 @@ class ApiService {
       return jsonDecode(body);
     } catch (_) {
       // Fallback: body bukan JSON (mis. 502 HTML) → bungkus sebagai detail
-      return {'detail': body.length > 500 ? '${body.substring(0, 500)}...' : body};
+      return {
+        'detail': body.length > 500 ? '${body.substring(0, 500)}...' : body,
+      };
     }
   }
 
@@ -124,15 +125,16 @@ class ApiService {
   }
 
   // Fungsi Login
-  static Future<Map<String, dynamic>> login(String email, String password, {bool rememberMe = true}) async {
+  static Future<Map<String, dynamic>> login(
+    String email,
+    String password, {
+    bool rememberMe = true,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
       final data = _safeJson(response.body);
@@ -143,7 +145,10 @@ class ApiService {
         await saveToken(data['access_token'], rememberMe: rememberMe);
         return {'success': true, 'data': data};
       } else {
-        return {'success': false, 'message': _friendlyError(response, 'Login gagal')};
+        return {
+          'success': false,
+          'message': _friendlyError(response, 'Login gagal'),
+        };
       }
     } catch (e) {
       return {'success': false, 'message': _friendlyException(e)};
@@ -156,16 +161,19 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/send-otp'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-        }),
+        body: jsonEncode({'email': email}),
       );
 
       final data = _safeJson(response.body);
-      if (response.statusCode == 200 && data is Map && data['message'] != null) {
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['message'] != null) {
         return {'success': true, 'data': data};
       } else {
-        return {'success': false, 'message': _friendlyError(response, 'Gagal mengirim OTP')};
+        return {
+          'success': false,
+          'message': _friendlyError(response, 'Gagal mengirim OTP'),
+        };
       }
     } catch (e) {
       return {'success': false, 'message': _friendlyException(e)};
@@ -180,22 +188,35 @@ class ApiService {
         body: jsonEncode({'email': email}),
       );
       final data = _safeJson(response.body);
-      if (response.statusCode == 200 && data is Map && data['message'] != null) {
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['message'] != null) {
         return {'success': true, 'data': data};
       } else {
-        return {'success': false, 'message': _friendlyError(response, 'Gagal meminta reset password')};
+        return {
+          'success': false,
+          'message': _friendlyError(response, 'Gagal meminta reset password'),
+        };
       }
     } catch (e) {
       return {'success': false, 'message': _friendlyException(e)};
     }
   }
 
-  static Future<Map<String, dynamic>> resetPassword(String email, String otp, String newPassword) async {
+  static Future<Map<String, dynamic>> resetPassword(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/reset-password'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'otp': otp, 'new_password': newPassword}),
+        body: jsonEncode({
+          'email': email,
+          'otp': otp,
+          'new_password': newPassword,
+        }),
       );
       final data = _safeJson(response.body);
       if (response.statusCode == 200 &&
@@ -205,13 +226,19 @@ class ApiService {
         await saveToken(data['access_token'] as String);
         return {'success': true, 'data': data};
       }
-      return {'success': false, 'message': _friendlyError(response, 'Gagal mengubah password')};
+      return {
+        'success': false,
+        'message': _friendlyError(response, 'Gagal mengubah password'),
+      };
     } catch (e) {
       return {'success': false, 'message': _friendlyException(e)};
     }
   }
 
-  static Future<Map<String, dynamic>> verifyPasswordResetOtp(String email, String otp) async {
+  static Future<Map<String, dynamic>> verifyPasswordResetOtp(
+    String email,
+    String otp,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/verify-reset-otp'),
@@ -219,17 +246,27 @@ class ApiService {
         body: jsonEncode({'email': email, 'otp': otp}),
       );
       final data = _safeJson(response.body);
-      if (response.statusCode == 200 && data is Map && data['message'] != null) {
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data['message'] != null) {
         return {'success': true, 'data': data};
       }
-      return {'success': false, 'message': _friendlyError(response, 'Kode OTP tidak valid')};
+      return {
+        'success': false,
+        'message': _friendlyError(response, 'Kode OTP tidak valid'),
+      };
     } catch (e) {
       return {'success': false, 'message': _friendlyException(e)};
     }
   }
 
   // Fungsi Register (Signup)
-  static Future<Map<String, dynamic>> register(String fullName, String email, String password, String otp) async {
+  static Future<Map<String, dynamic>> register(
+    String fullName,
+    String email,
+    String password,
+    String otp,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/signup'),
@@ -245,11 +282,13 @@ class ApiService {
       final data = _safeJson(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (data is Map && data.containsKey('access_token')) {
-           await saveToken(data['access_token']);
+          await saveToken(data['access_token']);
         }
         return {'success': true, 'data': data};
       } else {
-        final msg = data is Map ? (data['detail'] ?? 'Registration failed') : 'Registration failed';
+        final msg = data is Map
+            ? (data['detail'] ?? 'Registration failed')
+            : 'Registration failed';
         return {'success': false, 'message': msg.toString()};
       }
     } catch (e) {
@@ -277,7 +316,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return {'success': true, 'data': data};
       } else {
-        final msg = data is Map ? (data['detail'] ?? 'Failed to get profile') : 'Failed to get profile';
+        final msg = data is Map
+            ? (data['detail'] ?? 'Failed to get profile')
+            : 'Failed to get profile';
         return {'success': false, 'message': msg.toString()};
       }
     } catch (e) {
@@ -285,10 +326,12 @@ class ApiService {
     }
   }
 
-    static void _logHtmlDiagnostic(String label, dynamic questions) {
+  static void _logHtmlDiagnostic(String label, dynamic questions) {
     try {
       if (questions is! List || questions.isEmpty) {
-        debugPrint('[ApiService] $label: no questions (${questions.runtimeType})');
+        debugPrint(
+          '[ApiService] $label: no questions (${questions.runtimeType})',
+        );
         return;
       }
       int withHtml = 0;
@@ -303,20 +346,29 @@ class ApiService {
           }
         }
       }
-      debugPrint('[ApiService] $label: $withHtml/$total text fields still contain HTML');
+      debugPrint(
+        '[ApiService] $label: $withHtml/$total text fields still contain HTML',
+      );
     } catch (e) {
       debugPrint('[ApiService] $label diag error: $e');
     }
   }
 
   // Fungsi Create Template — DIPERBAIKI: timeout, logging, validasi 422
-  static Future<Map<String, dynamic>> createTemplate(Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> createTemplate(
+    Map<String, dynamic> payload,
+  ) async {
     _logHtmlDiagnostic('createTemplate (SEND)', payload['questions']);
     try {
       final token = await getToken();
       if (token == null) {
-        debugPrint('[ApiService] createTemplate gagal: No token (belum login?)');
-        return {'success': false, 'message': 'No token found — silakan login ulang'};
+        debugPrint(
+          '[ApiService] createTemplate gagal: No token (belum login?)',
+        );
+        return {
+          'success': false,
+          'message': 'No token found — silakan login ulang',
+        };
       }
 
       final response = await http
@@ -342,7 +394,9 @@ class ApiService {
           } else if (data['detail'] is List) {
             // FastAPI 422 returns list of errors
             try {
-              detail = (data['detail'] as List).map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}').join(', ');
+              detail = (data['detail'] as List)
+                  .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
+                  .join(', ');
             } catch (_) {
               detail = data['detail'].toString();
             }
@@ -350,35 +404,51 @@ class ApiService {
             detail = data['message'].toString();
           }
         }
-        if (response.statusCode == 401) detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-        if (response.statusCode == 422) detail = 'Format data tidak valid (422): $detail';
+        if (response.statusCode == 401)
+          detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
+        if (response.statusCode == 422)
+          detail = 'Format data tidak valid (422): $detail';
         return {'success': false, 'message': detail};
       }
     } catch (e, stack) {
       debugPrint('[ApiService] createTemplate exception: $e\n$stack');
       String msg = e.toString();
-      if (msg.contains('TimeoutException')) msg = 'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
+      if (msg.contains('TimeoutException'))
+        msg =
+            'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
       return {'success': false, 'message': msg};
     }
   }
 
   // Fungsi Update Template (PATCH) — untuk draft save berikutnya, cegah duplikat POST
-  static Future<Map<String, dynamic>> updateTemplate(String id, Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> updateTemplate(
+    String id,
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
       final response = await http
           .patch(
             Uri.parse('$baseUrl/templates/$id'),
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 15));
       final data = _safeJson(response.body);
       if (response.statusCode == 200) return {'success': true, 'data': data};
-      String detail = data is Map && data['detail'] is String ? data['detail'] : 'Failed to update template';
+      String detail = data is Map && data['detail'] is String
+          ? data['detail']
+          : 'Failed to update template';
       if (data is Map && data['detail'] is List) {
-        try { detail = (data['detail'] as List).map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}').join(', '); } catch (_) {}
+        try {
+          detail = (data['detail'] as List)
+              .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
+              .join(', ');
+        } catch (_) {}
       }
       return {'success': false, 'message': detail};
     } catch (e, stack) {
@@ -393,15 +463,24 @@ class ApiService {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
       final response = await http
-          .get(Uri.parse('$baseUrl/templates/$id'), headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'})
+          .get(
+            Uri.parse('$baseUrl/templates/$id'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final parsed = _safeJson(response.body);
-        if (parsed is Map) _logHtmlDiagnostic('getTemplate (RECV)', parsed['questions']);
+        if (parsed is Map)
+          _logHtmlDiagnostic('getTemplate (RECV)', parsed['questions']);
         return {'success': true, 'data': parsed};
       }
       final body = _safeJson(response.body);
-      final msg = body is Map ? (body['detail'] ?? 'Failed: ${response.statusCode}') : 'Failed: ${response.statusCode}';
+      final msg = body is Map
+          ? (body['detail'] ?? 'Failed: ${response.statusCode}')
+          : 'Failed: ${response.statusCode}';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -417,7 +496,10 @@ class ApiService {
       final response = await http
           .get(
             Uri.parse('$baseUrl/templates/mine'),
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
           )
           .timeout(const Duration(seconds: 10));
 
@@ -431,7 +513,8 @@ class ApiService {
             }
           }
         } else if (parsed is Map) {
-          final items = parsed['items'] ?? parsed['questions'] ?? parsed['data'];
+          final items =
+              parsed['items'] ?? parsed['questions'] ?? parsed['data'];
           if (items is List) {
             for (final t in items) {
               if (t is Map && t['questions'] is List) {
@@ -444,7 +527,9 @@ class ApiService {
         return {'success': true, 'data': parsed};
       }
       final body = _safeJson(response.body);
-      final msg = body is Map ? (body['detail'] ?? 'Failed: ${response.statusCode}') : 'Failed: ${response.statusCode}';
+      final msg = body is Map
+          ? (body['detail'] ?? 'Failed: ${response.statusCode}')
+          : 'Failed: ${response.statusCode}';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       debugPrint('[ApiService] getMyTemplates exception: $e');
@@ -453,7 +538,9 @@ class ApiService {
   }
 
   // Fungsi Create Form
-  static Future<Map<String, dynamic>> createForm(Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> createForm(
+    Map<String, dynamic> payload,
+  ) async {
     _logHtmlDiagnostic('createForm (SEND)', payload['questions']);
     try {
       final token = await getToken();
@@ -461,14 +548,16 @@ class ApiService {
         return {'success': false, 'message': 'No token found'};
       }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/forms'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/forms'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
 
       final data = _safeJson(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -480,7 +569,9 @@ class ApiService {
           detail = data['detail'];
         } else if (data['detail'] is List) {
           try {
-            detail = (data['detail'] as List).map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}').join(', ');
+            detail = (data['detail'] as List)
+                .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
+                .join(', ');
           } catch (_) {
             detail = data['detail'].toString();
           }
@@ -488,37 +579,63 @@ class ApiService {
           detail = data['message'].toString();
         }
       }
-      if (response.statusCode == 401) detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-      if (response.statusCode == 422) detail = 'Format data tidak valid (422): $detail';
+      if (response.statusCode == 401)
+        detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
+      if (response.statusCode == 422)
+        detail = 'Format data tidak valid (422): $detail';
       return {'success': false, 'message': detail};
     } catch (e, stack) {
       debugPrint('[ApiService] createForm exception: $e\n$stack');
       String msg = e.toString();
-      if (msg.contains('TimeoutException')) msg = 'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
+      if (msg.contains('TimeoutException'))
+        msg =
+            'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
       return {'success': false, 'message': msg};
     }
   }
 
   // FIX Bug 18: PATCH status form menjadi published setelah create
-  static Future<Map<String, dynamic>> updateForm(String formId, Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> updateForm(
+    String formId,
+    Map<String, dynamic> payload,
+  ) async {
     _logHtmlDiagnostic('updateForm (SEND)', payload['questions']);
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http.patch(Uri.parse('$baseUrl/forms/$formId'), headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}, body: jsonEncode(payload)).timeout(const Duration(seconds: 15));
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl/forms/$formId'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
       final data = _safeJson(response.body);
       if (response.statusCode == 200) return {'success': true, 'data': data};
-      String detail = data is Map && data['detail'] is String ? data['detail'] : 'Failed to update form';
+      String detail = data is Map && data['detail'] is String
+          ? data['detail']
+          : 'Failed to update form';
       if (data is Map && data['detail'] is List) {
-        try { detail = (data['detail'] as List).map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}').join(', '); } catch (_) {}
+        try {
+          detail = (data['detail'] as List)
+              .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
+              .join(', ');
+        } catch (_) {}
       }
-      if (response.statusCode == 401) detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-      if (response.statusCode == 422) detail = 'Format data tidak valid (422): $detail';
+      if (response.statusCode == 401)
+        detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
+      if (response.statusCode == 422)
+        detail = 'Format data tidak valid (422): $detail';
       return {'success': false, 'message': detail};
     } catch (e, stack) {
       debugPrint('[ApiService] updateForm exception: $e\n$stack');
       String msg = e.toString();
-      if (msg.contains('TimeoutException')) msg = 'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
+      if (msg.contains('TimeoutException'))
+        msg =
+            'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
       return {'success': false, 'message': msg};
     }
   }
@@ -530,14 +647,23 @@ class ApiService {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
       final response = await http
-          .get(Uri.parse('$baseUrl/forms/$formId'), headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'})
+          .get(
+            Uri.parse('$baseUrl/forms/$formId'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
           .timeout(const Duration(seconds: 10));
       final parsed = _safeJson(response.body);
       if (response.statusCode == 200) {
-        if (parsed is Map) _logHtmlDiagnostic('getForm (RECV)', parsed['questions']);
+        if (parsed is Map)
+          _logHtmlDiagnostic('getForm (RECV)', parsed['questions']);
         return {'success': true, 'data': parsed};
       }
-      final msg = parsed is Map ? (parsed['detail'] ?? 'Failed: ${response.statusCode}') : 'Failed: ${response.statusCode}';
+      final msg = parsed is Map
+          ? (parsed['detail'] ?? 'Failed: ${response.statusCode}')
+          : 'Failed: ${response.statusCode}';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -550,7 +676,9 @@ class ApiService {
     if (res['success'] != true) return res;
     final rawList = res['data'];
     if (rawList is! List) return {'success': true, 'data': []};
-    final drafts = rawList.where((e) => e is Map && e['status'] == 'draft').toList();
+    final drafts = rawList
+        .where((e) => e is Map && e['status'] == 'draft')
+        .toList();
     return {'success': true, 'data': drafts};
   }
 
@@ -620,7 +748,9 @@ class ApiService {
           .timeout(const Duration(seconds: 10));
       final data = _safeJson(response.body);
       if (response.statusCode == 200) return {'success': true, 'data': data};
-      final msg = data is Map ? (data['detail'] ?? 'Failed to publish form') : 'Failed to publish form';
+      final msg = data is Map
+          ? (data['detail'] ?? 'Failed to publish form')
+          : 'Failed to publish form';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -642,7 +772,9 @@ class ApiService {
           .timeout(const Duration(seconds: 10));
       final data = _safeJson(response.body);
       if (response.statusCode == 200) return {'success': true, 'data': data};
-      final msg = data is Map ? (data['detail'] ?? 'Failed to regenerate join token') : 'Failed to regenerate join token';
+      final msg = data is Map
+          ? (data['detail'] ?? 'Failed to regenerate join token')
+          : 'Failed to regenerate join token';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -669,7 +801,9 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'success': true, 'data': data};
       } else {
-        final msg = data is Map ? (data['detail'] ?? 'Failed to generate QR code') : 'Failed to generate QR code';
+        final msg = data is Map
+            ? (data['detail'] ?? 'Failed to generate QR code')
+            : 'Failed to generate QR code';
         return {'success': false, 'message': msg.toString()};
       }
     } catch (e) {
@@ -685,7 +819,10 @@ class ApiService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/forms'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -703,7 +840,7 @@ class ApiService {
   static Future<Map<String, dynamic>> validateFormLink(String link) async {
     try {
       String slug = link.trim();
-      
+
       // Jika link berupa URL lengkap (misal http://localhost:5173/f/slug-123), ekstrak slug-nya
       if (slug.contains('http') || slug.contains('/f/')) {
         try {
@@ -727,15 +864,20 @@ class ApiService {
         Uri.parse('$baseUrl/forms/public/$slug'),
         headers: {
           'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token'
+          if (token != null) 'Authorization': 'Bearer $token',
         },
       );
 
       final data = _safeJson(response.body);
       if (response.statusCode == 200) {
-        return {'success': true, 'data': {'slug': slug, if (data is Map) ...data}};
+        return {
+          'success': true,
+          'data': {'slug': slug, if (data is Map) ...data},
+        };
       } else {
-        final msg = data is Map ? (data['detail'] ?? 'Form tidak ditemukan') : 'Form tidak ditemukan';
+        final msg = data is Map
+            ? (data['detail'] ?? 'Form tidak ditemukan')
+            : 'Form tidak ditemukan';
         return {'success': false, 'message': msg.toString()};
       }
     } catch (e) {
@@ -751,7 +893,10 @@ class ApiService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/forms/$formId/submissions'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -774,7 +919,10 @@ class ApiService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/submissions/me'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -790,7 +938,9 @@ class ApiService {
 
   // Hasil submission milik responden (untuk "Lihat Hasil" di Aktivitas Saya).
   // Endpoint backend: GET /submissions/{submission_id}/result → SubmissionResultOut
-  static Future<Map<String, dynamic>> getSubmissionResult(String submissionId) async {
+  static Future<Map<String, dynamic>> getSubmissionResult(
+    String submissionId,
+  ) async {
     try {
       final token = await getToken();
       final respondentKey = await getRespondentKey();
@@ -806,7 +956,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return {'success': true, 'data': data};
       }
-      final msg = data is Map ? (data['detail'] ?? 'Gagal memuat hasil') : 'Gagal memuat hasil';
+      final msg = data is Map
+          ? (data['detail'] ?? 'Gagal memuat hasil')
+          : 'Gagal memuat hasil';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -819,9 +971,9 @@ class ApiService {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
 
-      final uri = Uri.parse('$baseUrl/search').replace(
-        queryParameters: query.isNotEmpty ? {'q': query} : null,
-      );
+      final uri = Uri.parse(
+        '$baseUrl/search',
+      ).replace(queryParameters: query.isNotEmpty ? {'q': query} : null);
 
       final response = await http.get(
         uri,
@@ -843,7 +995,9 @@ class ApiService {
   }
 
   // Fungsi Update Profile
-  static Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> payload) async {
+  static Future<Map<String, dynamic>> updateProfile(
+    Map<String, dynamic> payload,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
@@ -861,7 +1015,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return {'success': true, 'data': data};
       }
-      final msg = data is Map ? (data['detail'] ?? 'Failed to update profile') : 'Failed to update profile';
+      final msg = data is Map
+          ? (data['detail'] ?? 'Failed to update profile')
+          : 'Failed to update profile';
       return {'success': false, 'message': msg.toString()};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -870,7 +1026,9 @@ class ApiService {
 
   // Export respons form ke Excel (.xlsx). Backend mengembalikan file biner,
   // jadi kembalikan bytes + nama file (dari Content-Disposition backend).
-  static Future<Map<String, dynamic>> exportFormSubmissions(String formId) async {
+  static Future<Map<String, dynamic>> exportFormSubmissions(
+    String formId,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) return {'success': false, 'message': 'No token found'};
@@ -889,7 +1047,9 @@ class ApiService {
           'filename': filename,
         };
       }
-      final body = _safeJson(utf8.decode(response.bodyBytes, allowMalformed: true));
+      final body = _safeJson(
+        utf8.decode(response.bodyBytes, allowMalformed: true),
+      );
       final msg = body is Map
           ? (body['detail'] ?? 'Export gagal (${response.statusCode})')
           : 'Export gagal (${response.statusCode})';
@@ -901,8 +1061,9 @@ class ApiService {
 
   static String? _extractFilename(String? contentDisposition) {
     if (contentDisposition == null) return null;
-    final match =
-        RegExp(r'filename="?([^";]+)"?').firstMatch(contentDisposition);
+    final match = RegExp(
+      r'filename="?([^";]+)"?',
+    ).firstMatch(contentDisposition);
     return match?.group(1)?.trim();
   }
 
@@ -914,7 +1075,10 @@ class ApiService {
     final token = await getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
 
-    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/uploads'));
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/uploads'),
+    );
     request.headers['Authorization'] = 'Bearer $token';
     // Ngrok free (ngrok-free.dev) mewajibkan header ini; tanpanya agen bisa
     // diarahkan ke halaman interstitial/warning (bukan JSON) sehingga upload
@@ -931,9 +1095,17 @@ class ApiService {
           filename = file.path.toString().split('/').last;
         } catch (_) {}
       }
-      request.files.add(http.MultipartFile.fromBytes('file', bytes as List<int>, filename: filename));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes as List<int>,
+          filename: filename,
+        ),
+      );
     } else {
-      request.files.add(await http.MultipartFile.fromPath('file', file.path as String));
+      request.files.add(
+        await http.MultipartFile.fromPath('file', file.path as String),
+      );
     }
 
     final streamedResponse = await request.send().timeout(
@@ -942,11 +1114,14 @@ class ApiService {
     final responseBody = await streamedResponse.stream.bytesToString();
     final data = _safeJson(responseBody);
 
-    if (streamedResponse.statusCode == 200 || streamedResponse.statusCode == 201) {
+    if (streamedResponse.statusCode == 200 ||
+        streamedResponse.statusCode == 201) {
       final url = data is Map ? data['file_url'] : null;
       return {'success': true, 'file_url': url};
     }
-    final msg = data is Map ? (data['detail'] ?? 'Upload failed') : 'Upload failed';
+    final msg = data is Map
+        ? (data['detail'] ?? 'Upload failed')
+        : 'Upload failed';
     return {'success': false, 'message': msg.toString()};
   }
 
@@ -955,7 +1130,10 @@ class ApiService {
     // transien di tunnel ngrok; mengulang dengan payload yang sudah dikompres
     // (lihat formmakerpage._pickImage/_pickBanner) sering berhasil.
     const maxAttempts = 3;
-    Map<String, dynamic> lastResult = {'success': false, 'message': 'Upload gagal'};
+    Map<String, dynamic> lastResult = {
+      'success': false,
+      'message': 'Upload gagal',
+    };
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         return await _uploadOnce(file);
@@ -966,7 +1144,8 @@ class ApiService {
         };
       } catch (e) {
         final raw = e.toString();
-        final transient = raw.contains('statusCode: 0') ||
+        final transient =
+            raw.contains('statusCode: 0') ||
             raw.contains('Connection closed') ||
             raw.contains('SocketException') ||
             raw.contains('Request timeout') ||

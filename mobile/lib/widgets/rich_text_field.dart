@@ -87,7 +87,9 @@ class _RichTextFieldState extends State<RichTextField> {
         }
 
         _controller.addListener(emitHtml2);
-        WidgetsBinding.instance.addPostFrameCallback((_) => oldController.dispose());
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => oldController.dispose(),
+        );
         setState(() {});
       }
     }
@@ -210,14 +212,18 @@ class _RichTextFieldState extends State<RichTextField> {
         // Fallback: sertakan gambar sebagai base64 Data URL jika server offline/error
         final bytes = await pickedFile.readAsBytes();
         final base64String = base64Encode(bytes);
-        final mimeType = pickedFile.path.endsWith('.png') ? 'image/png' : 'image/jpeg';
+        final mimeType = pickedFile.path.endsWith('.png')
+            ? 'image/png'
+            : 'image/jpeg';
         final dataUrl = 'data:$mimeType;base64,$base64String';
         _insertImageSource(dataUrl);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Gambar disisipkan secara lokal (tanpa koneksi server).'),
+              content: Text(
+                'Gambar disisipkan secara lokal (tanpa koneksi server).',
+              ),
               duration: Duration(seconds: 3),
             ),
           );
@@ -298,7 +304,10 @@ class _RichTextFieldState extends State<RichTextField> {
                   ),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF4F46E5)),
+                  leading: const Icon(
+                    Icons.photo_library_outlined,
+                    color: Color(0xFF4F46E5),
+                  ),
                   title: const Text('Galeri Foto'),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -306,7 +315,10 @@ class _RichTextFieldState extends State<RichTextField> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF4F46E5)),
+                  leading: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: Color(0xFF4F46E5),
+                  ),
                   title: const Text('Kamera'),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -314,7 +326,10 @@ class _RichTextFieldState extends State<RichTextField> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.link_outlined, color: Color(0xFF4F46E5)),
+                  leading: const Icon(
+                    Icons.link_outlined,
+                    color: Color(0xFF4F46E5),
+                  ),
                   title: const Text('Link Gambar (URL)'),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -333,11 +348,21 @@ class _RichTextFieldState extends State<RichTextField> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final editorBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FB);
-    final editorBorder = isDark ? const Color(0xFF334155) : const Color(0xFFD1D5DB);
-    final toolbarBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F1F4);
-    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB);
-    final textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1F2937);
-    final hintColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF9CA3AF);
+    final editorBorder = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFD1D5DB);
+    final toolbarBg = isDark
+        ? const Color(0xFF1E293B)
+        : const Color(0xFFF0F1F4);
+    final dividerColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE5E7EB);
+    final textColor = isDark
+        ? const Color(0xFFF8FAFC)
+        : const Color(0xFF1F2937);
+    final hintColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF9CA3AF);
 
     final isEmpty = _controller.document.toPlainText().trim().isEmpty;
     final minH = (widget.minLines ?? 1) * 22.0 + 16;
@@ -353,7 +378,9 @@ class _RichTextFieldState extends State<RichTextField> {
             color: editorBg,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: _focusNode.hasFocus ? const Color(0xFF4F46E5) : editorBorder,
+              color: _focusNode.hasFocus
+                  ? const Color(0xFF4F46E5)
+                  : editorBorder,
               width: _focusNode.hasFocus ? 1.5 : 1,
             ),
           ),
@@ -374,11 +401,16 @@ class _RichTextFieldState extends State<RichTextField> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: toolbarBg,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(9),
+                        ),
                       ),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -398,16 +430,24 @@ class _RichTextFieldState extends State<RichTextField> {
                                 child: SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               )
                             else
                               IconButton(
-                                icon: const Icon(Icons.image_outlined, size: 20),
+                                icon: const Icon(
+                                  Icons.image_outlined,
+                                  size: 20,
+                                ),
                                 tooltip: 'Tambah Gambar',
                                 onPressed: _onPickImagePressed,
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
                               ),
                           ],
                         ),
@@ -425,7 +465,10 @@ class _RichTextFieldState extends State<RichTextField> {
                 },
                 child: Container(
                   constraints: BoxConstraints(minHeight: minH, maxHeight: maxH),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   child: Stack(
                     children: [
                       if (isEmpty && widget.hintText != null)
@@ -499,7 +542,8 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget imageWidget;
-    if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+    if (imageSource.startsWith('http://') ||
+        imageSource.startsWith('https://')) {
       imageWidget = Image.network(
         imageSource,
         fit: BoxFit.contain,
@@ -557,7 +601,8 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
       imageWidget = Image.network(
         imageSource,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.red),
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.broken_image, color: Colors.red),
       );
     }
 
@@ -577,7 +622,9 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: imageWidget,
@@ -594,7 +641,10 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.white, size: 16),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  constraints: const BoxConstraints(
+                    minWidth: 26,
+                    minHeight: 26,
+                  ),
                   tooltip: 'Hapus Gambar',
                   onPressed: () {
                     _deleteEmbedNode(embedContext);
@@ -617,7 +667,11 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
     }
   }
 
-  void _showImageActionsDialog(BuildContext context, EmbedContext embedContext, String imageSource) {
+  void _showImageActionsDialog(
+    BuildContext context,
+    EmbedContext embedContext,
+    String imageSource,
+  ) {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -634,7 +688,10 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Hapus Gambar', style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  'Hapus Gambar',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _deleteEmbedNode(embedContext);
@@ -661,8 +718,8 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
                 child: imageSource.startsWith('data:image')
                     ? Image.memory(base64Decode(imageSource.split(',').last))
                     : File(imageSource).existsSync()
-                        ? Image.file(File(imageSource))
-                        : Image.network(imageSource),
+                    ? Image.file(File(imageSource))
+                    : Image.network(imageSource),
               ),
             ),
             IconButton(

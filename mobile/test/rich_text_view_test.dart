@@ -9,19 +9,15 @@ void main() {
       'color: #FF558B2F;">Empty Formhalosonny</span></p>';
 
   test('stripHtml menghilangkan markup HTML', () {
-    expect(
-      RichTextView.stripHtml(pathologicalHtml),
-      'Empty Formhalosonny',
-    );
+    expect(RichTextView.stripHtml(pathologicalHtml), 'Empty Formhalosonny');
   });
 
-  testWidgets('RichTextView merender HTML tanpa membocorkan tag mentah',
-      (tester) async {
+  testWidgets('RichTextView merender HTML tanpa membocorkan tag mentah', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: RichTextView(html: pathologicalHtml),
-        ),
+        home: Scaffold(body: RichTextView(html: pathologicalHtml)),
       ),
     );
     await tester.pumpAndSettle();
@@ -38,7 +34,9 @@ void main() {
 
   testWidgets('RichTextView tidak melempar untuk input kosong', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: RichTextView(html: ''))),
+      const MaterialApp(
+        home: Scaffold(body: RichTextView(html: '')),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.byType(SizedBox), findsWidgets);

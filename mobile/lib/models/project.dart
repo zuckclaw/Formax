@@ -5,9 +5,5 @@ class Project {
   final String status;
   final IconData icon;
 
-  Project({
-    required this.title,
-    required this.status,
-    required this.icon,
-  });
+  Project({required this.title, required this.status, required this.icon});
 }

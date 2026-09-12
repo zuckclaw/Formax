@@ -82,7 +82,9 @@ class PageHeaderCard extends StatelessWidget {
                   ? BorderRadius.circular(8)
                   : const BorderRadius.vertical(bottom: Radius.circular(8)),
               border: isActive
-                  ? const Border(left: BorderSide(color: Color(0xFF4F46E5), width: 4))
+                  ? const Border(
+                      left: BorderSide(color: Color(0xFF4F46E5), width: 4),
+                    )
                   : null,
               boxShadow: [
                 BoxShadow(
@@ -100,7 +102,9 @@ class PageHeaderCard extends StatelessWidget {
                     height: 10,
                     decoration: const BoxDecoration(
                       color: Color(0xFF4F46E5),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(8),
+                      ),
                     ),
                   ),
                 Padding(
@@ -125,15 +129,21 @@ class PageHeaderCard extends StatelessWidget {
                               minLines: 1,
                               maxLines: 3,
                               decoration: InputDecoration(
-                                hintText: _isFirstPage ? 'Judul Formulir' : 'Judul Bagian',
+                                hintText: _isFirstPage
+                                    ? 'Judul Formulir'
+                                    : 'Judul Bagian',
                                 hintStyle: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFF64748B) : Colors.black26,
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : Colors.black26,
                                 ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                               ),
                             )
                           : _buildTitleView(titleColor),
@@ -171,12 +181,20 @@ class PageHeaderCard extends StatelessWidget {
     if (_looksLikeHtml(displayText)) {
       return RichTextView(
         html: displayText,
-        textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
+        textStyle: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+        ),
       );
     }
     return Text(
       displayText,
-      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
+      style: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
     );
   }
 

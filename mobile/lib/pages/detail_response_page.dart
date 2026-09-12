@@ -190,16 +190,17 @@ class DetailResponsePage extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             email,
-            style: TextStyle(
-              fontSize: 13,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.access_time, size: 15, color: colorScheme.onSurfaceVariant),
+              Icon(
+                Icons.access_time,
+                size: 15,
+                color: colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 5),
               Text(
                 time,
@@ -250,8 +251,11 @@ class DetailResponsePage extends StatelessWidget {
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      size: 18, color: Color(0xFFB91C1C)),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: Color(0xFFB91C1C),
+                  ),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -372,15 +376,17 @@ class DetailResponsePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (answer.isNotEmpty &&
-                    !(fileUrl != null && fileUrl.isNotEmpty && answer == fileUrl))
-                Text(
-                  answer,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF1F2937),
-                    height: 1.5,
+                    !(fileUrl != null &&
+                        fileUrl.isNotEmpty &&
+                        answer == fileUrl))
+                  Text(
+                    answer,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1F2937),
+                      height: 1.5,
+                    ),
                   ),
-                ),
                 if (correctAnswer != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -411,8 +417,11 @@ class DetailResponsePage extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.attach_file,
-                              size: 16, color: Color(0xFF1D4ED8)),
+                          const Icon(
+                            Icons.attach_file,
+                            size: 16,
+                            color: Color(0xFF1D4ED8),
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -426,8 +435,11 @@ class DetailResponsePage extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Icon(Icons.open_in_new,
-                              size: 14, color: Color(0xFF1D4ED8)),
+                          const Icon(
+                            Icons.open_in_new,
+                            size: 14,
+                            color: Color(0xFF1D4ED8),
+                          ),
                         ],
                       ),
                     ),
@@ -457,7 +469,9 @@ class DetailResponsePage extends StatelessWidget {
           Icon(
             isCorrect ? Icons.check_circle : Icons.cancel,
             size: 12,
-            color: isCorrect ? const Color(0xFF059669) : const Color(0xFFDC2626),
+            color: isCorrect
+                ? const Color(0xFF059669)
+                : const Color(0xFFDC2626),
           ),
           const SizedBox(width: 3),
           Text(
@@ -465,7 +479,9 @@ class DetailResponsePage extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isCorrect ? const Color(0xFF059669) : const Color(0xFFDC2626),
+              color: isCorrect
+                  ? const Color(0xFF059669)
+                  : const Color(0xFFDC2626),
             ),
           ),
         ],
@@ -480,7 +496,11 @@ class DetailResponsePage extends StatelessWidget {
       alignment: Alignment.center,
       child: Column(
         children: [
-          Icon(Icons.question_answer_outlined, size: 40, color: colorScheme.outline),
+          Icon(
+            Icons.question_answer_outlined,
+            size: 40,
+            color: colorScheme.outline,
+          ),
           const SizedBox(height: 8),
           Text(
             'Tidak ada jawaban tersimpan',

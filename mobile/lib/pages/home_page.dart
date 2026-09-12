@@ -390,16 +390,16 @@ class _HomePageState extends State<HomePage> {
           label: 'Template',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.history_rounded),
-          label: 'History',
+          icon: Icon(Icons.drafts_outlined),
+          label: 'Draft',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.fact_check_outlined),
           label: 'Aktivitas',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.drafts_outlined),
-          label: 'Draft',
+          icon: Icon(Icons.history_rounded),
+          label: 'History',
         ),
       ],
     );
@@ -427,11 +427,11 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return _buildTemplateTab();
       case 2:
-        return const HistoryPage();
+        return const DraftPage();
       case 3:
         return const ActivityPage();
       case 4:
-        return const DraftPage();
+        return const HistoryPage();
       default:
         return const SizedBox.shrink();
     }
@@ -608,7 +608,7 @@ class _HomePageState extends State<HomePage> {
                 TextButton(
                   onPressed: () {
                     setState(() {
-                      _selectedIndex = 2;
+                      _selectedIndex = 4;
                     });
                   },
                   child: const Text('Lihat semua'),

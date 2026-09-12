@@ -67,7 +67,11 @@ class _QuestionEditorState extends State<QuestionEditor> {
       children: [
         // Drag Handle
         Center(
-          child: Icon(Icons.drag_handle, color: isDark ? const Color(0xFF64748B) : Colors.black26, size: 20),
+          child: Icon(
+            Icons.drag_handle,
+            color: isDark ? const Color(0xFF64748B) : Colors.black26,
+            size: 20,
+          ),
         ),
         const SizedBox(height: 8),
 
@@ -89,45 +93,53 @@ class _QuestionEditorState extends State<QuestionEditor> {
                     hintText: widget.question.type == QuestionType.text
                         ? 'Judul Teks'
                         : (widget.question.type == QuestionType.image
-                            ? 'Caption (opsional)'
-                            : 'Pertanyaan'),
+                              ? 'Caption (opsional)'
+                              : 'Pertanyaan'),
                     minLines: 1,
                     maxLines: 3,
                   ),
                 ],
               ),
             ),
-            if (widget.question.type != QuestionType.image && widget.question.type != QuestionType.text) ...[
+            if (widget.question.type != QuestionType.image &&
+                widget.question.type != QuestionType.text) ...[
               const SizedBox(width: 12),
               Expanded(
                 flex: 1,
                 child: InkWell(
-                onTap: widget.onTypeChangeTap,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: typeBg,
-                    border: Border.all(color: typeBorder),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.question.type.label, 
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: textColor), 
-                          overflow: TextOverflow.ellipsis,
+                  onTap: widget.onTypeChangeTap,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: typeBg,
+                      border: Border.all(color: typeBorder),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.question.type.label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      Icon(Icons.arrow_drop_down, size: 20, color: iconColor),
-                    ],
+                        Icon(Icons.arrow_drop_down, size: 20, color: iconColor),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            ]
+            ],
           ],
         ),
         const SizedBox(height: 20),
@@ -157,7 +169,9 @@ class _QuestionEditorState extends State<QuestionEditor> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F6FA),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E6F0)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E6F0),
+        ),
       ),
       child: Row(
         children: [
@@ -166,7 +180,12 @@ class _QuestionEditorState extends State<QuestionEditor> {
           Expanded(
             child: Text(
               'Poin soal',
-              style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF374151)),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? const Color(0xFFF8FAFC)
+                    : const Color(0xFF374151),
+              ),
             ),
           ),
           Container(
@@ -174,7 +193,11 @@ class _QuestionEditorState extends State<QuestionEditor> {
             height: 34,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFD1D5DB)),
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFD1D5DB),
+              ),
               borderRadius: BorderRadius.circular(6),
             ),
             alignment: Alignment.center,
@@ -211,7 +234,12 @@ class _QuestionEditorState extends State<QuestionEditor> {
     if (q.type == QuestionType.image) {
       final urls = q.allImageUrls;
       if (urls.isEmpty) {
-        return const SizedBox(height: 100, child: Center(child: Icon(Icons.image, color: Colors.black26, size: 40)));
+        return const SizedBox(
+          height: 100,
+          child: Center(
+            child: Icon(Icons.image, color: Colors.black26, size: 40),
+          ),
+        );
       }
       return Padding(
         padding: const EdgeInsets.only(top: 8.0),
@@ -314,10 +342,18 @@ class _QuestionEditorState extends State<QuestionEditor> {
                   }
                 },
               ),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('sampai')),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('sampai'),
+              ),
               DropdownButton<int>(
                 value: q.scaleMax,
-                items: List.generate(9, (index) => index + 2).map((val) => DropdownMenuItem(value: val, child: Text('$val'))).toList(),
+                items: List.generate(9, (index) => index + 2)
+                    .map(
+                      (val) =>
+                          DropdownMenuItem(value: val, child: Text('$val')),
+                    )
+                    .toList(),
                 onChanged: (v) {
                   if (v != null) {
                     q.scaleMax = v;
@@ -330,13 +366,25 @@ class _QuestionEditorState extends State<QuestionEditor> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Text('${q.scaleMin}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+              Text(
+                '${q.scaleMin}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextField(
                   controller: _minLabelCtrl,
-                  onChanged: (v) { q.minLabel = v; widget.onChanged(); },
-                  decoration: const InputDecoration(hintText: 'Label opsional', isDense: true),
+                  onChanged: (v) {
+                    q.minLabel = v;
+                    widget.onChanged();
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Label opsional',
+                    isDense: true,
+                  ),
                 ),
               ),
             ],
@@ -344,13 +392,25 @@ class _QuestionEditorState extends State<QuestionEditor> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Text('${q.scaleMax}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+              Text(
+                '${q.scaleMax}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextField(
                   controller: _maxLabelCtrl,
-                  onChanged: (v) { q.maxLabel = v; widget.onChanged(); },
-                  decoration: const InputDecoration(hintText: 'Label opsional', isDense: true),
+                  onChanged: (v) {
+                    q.maxLabel = v;
+                    widget.onChanged();
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Label opsional',
+                    isDense: true,
+                  ),
                 ),
               ),
             ],
@@ -365,7 +425,9 @@ class _QuestionEditorState extends State<QuestionEditor> {
           const Text('Jumlah Tingkat: '),
           DropdownButton<int>(
             value: q.ratingCount,
-            items: List.generate(8, (i) => i + 3).map((val) => DropdownMenuItem(value: val, child: Text('$val'))).toList(),
+            items: List.generate(8, (i) => i + 3)
+                .map((val) => DropdownMenuItem(value: val, child: Text('$val')))
+                .toList(),
             onChanged: (v) {
               if (v != null) {
                 q.ratingCount = v;
@@ -409,50 +471,68 @@ class _QuestionEditorState extends State<QuestionEditor> {
                 Padding(
                   padding: const EdgeInsets.only(top: 12.0),
                   child: Icon(
-                    q.type == QuestionType.multipleChoice 
-                      ? Icons.radio_button_unchecked 
-                      : (q.type == QuestionType.checkboxes ? Icons.check_box_outline_blank : Icons.circle_outlined),
-                    size: 20, 
+                    q.type == QuestionType.multipleChoice
+                        ? Icons.radio_button_unchecked
+                        : (q.type == QuestionType.checkboxes
+                              ? Icons.check_box_outline_blank
+                              : Icons.circle_outlined),
+                    size: 20,
                     color: isDark ? const Color(0xFF64748B) : Colors.black26,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: opt.isOther
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                        child: Text('Lainnya...', style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
-                      )
-                    : TextFormField(
-                        key: ValueKey('opt_${opt.id}'),
-                        initialValue: RichTextView.stripHtml(opt.label),
-                        onChanged: (value) {
-                          opt.label = value;
-                          widget.onChanged();
-                        },
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        minLines: 1,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          hintText: 'Opsi ${i + 1}',
-                          hintStyle: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? const Color(0xFF94A3B8) : Colors.black38,
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          child: Text(
+                            'Lainnya...',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                           ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        )
+                      : TextFormField(
+                          key: ValueKey('opt_${opt.id}'),
+                          initialValue: RichTextView.stripHtml(opt.label),
+                          onChanged: (value) {
+                            opt.label = value;
+                            widget.onChanged();
+                          },
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          minLines: 1,
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            hintText: 'Opsi ${i + 1}',
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : Colors.black38,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                            ),
+                          ),
                         ),
-                      ),
                 ),
                 if (q.options.length > 1)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: IconButton(
-                      icon: Icon(Icons.close, size: 20, color: isDark ? const Color(0xFF94A3B8) : Colors.black38),
+                      icon: Icon(
+                        Icons.close,
+                        size: 20,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : Colors.black38,
+                      ),
                       onPressed: () {
                         q.options.removeAt(i);
                         widget.onChanged();
@@ -487,7 +567,9 @@ class _QuestionEditorState extends State<QuestionEditor> {
                                 size: 22,
                                 color: opt.isCorrect
                                     ? const Color(0xFF4F46E5)
-                                    : (isDark ? const Color(0xFF64748B) : Colors.black26),
+                                    : (isDark
+                                          ? const Color(0xFF64748B)
+                                          : Colors.black26),
                               ),
                               if (opt.isCorrect)
                                 const Text(
@@ -511,32 +593,59 @@ class _QuestionEditorState extends State<QuestionEditor> {
         Row(
           children: [
             Icon(
-              q.type == QuestionType.multipleChoice 
-                ? Icons.radio_button_unchecked 
-                : (q.type == QuestionType.checkboxes ? Icons.check_box_outline_blank : Icons.circle_outlined),
-              size: 20, 
+              q.type == QuestionType.multipleChoice
+                  ? Icons.radio_button_unchecked
+                  : (q.type == QuestionType.checkboxes
+                        ? Icons.check_box_outline_blank
+                        : Icons.circle_outlined),
+              size: 20,
               color: isDark ? const Color(0xFF64748B) : Colors.black26,
             ),
             const SizedBox(width: 12),
             InkWell(
               onTap: () {
-                q.options.add(QuestionOptionData(label: 'Opsi ${q.options.length + 1}'));
+                q.options.add(
+                  QuestionOptionData(label: 'Opsi ${q.options.length + 1}'),
+                );
                 widget.onChanged();
               },
-              child: Text('Tambah opsi', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : Colors.black54, fontSize: 14)),
+              child: Text(
+                'Tambah opsi',
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF94A3B8) : Colors.black54,
+                  fontSize: 14,
+                ),
+              ),
             ),
-            if (!q.options.any((o) => o.isOther) && (q.type == QuestionType.multipleChoice || q.type == QuestionType.checkboxes)) ...[
-              Text(' atau ', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : Colors.black54, fontSize: 14)),
+            if (!q.options.any((o) => o.isOther) &&
+                (q.type == QuestionType.multipleChoice ||
+                    q.type == QuestionType.checkboxes)) ...[
+              Text(
+                ' atau ',
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF94A3B8) : Colors.black54,
+                  fontSize: 14,
+                ),
+              ),
               InkWell(
                 onTap: () {
-                  q.options.add(QuestionOptionData(label: 'Lainnya', isOther: true));
+                  q.options.add(
+                    QuestionOptionData(label: 'Lainnya', isOther: true),
+                  );
                   widget.onChanged();
                 },
-                child: const Text('tambahkan "Lainnya"', style: TextStyle(color: Color(0xFF4F46E5), fontSize: 14, fontWeight: FontWeight.w500)),
+                child: const Text(
+                  'tambahkan "Lainnya"',
+                  style: TextStyle(
+                    color: Color(0xFF4F46E5),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-            ]
+            ],
           ],
-        )
+        ),
       ],
     );
   }

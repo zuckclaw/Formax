@@ -21,9 +21,15 @@ class SearchResultsView extends StatelessWidget {
     final List<dynamic> usrTemplatesRaw = searchData['user_templates'] ?? [];
     final List<dynamic> pubFormsRaw = searchData['published_forms'] ?? [];
 
-    final systemTemplates = sysTemplatesRaw.map((e) => FormTemplate.fromJson(e)).toList();
-    final userTemplates = usrTemplatesRaw.map((e) => FormTemplate.fromJson(e)).toList();
-    final publishedForms = pubFormsRaw.map((e) => FormModel.fromJson(e)).toList();
+    final systemTemplates = sysTemplatesRaw
+        .map((e) => FormTemplate.fromJson(e))
+        .toList();
+    final userTemplates = usrTemplatesRaw
+        .map((e) => FormTemplate.fromJson(e))
+        .toList();
+    final publishedForms = pubFormsRaw
+        .map((e) => FormModel.fromJson(e))
+        .toList();
 
     final hasTemplates = systemTemplates.isNotEmpty || userTemplates.isNotEmpty;
     final hasHistory = publishedForms.isNotEmpty;
@@ -48,10 +54,14 @@ class SearchResultsView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (systemTemplates.isNotEmpty) ...[
-              ...systemTemplates.map((t) => _buildTemplateResult(context, t, true)),
+              ...systemTemplates.map(
+                (t) => _buildTemplateResult(context, t, true),
+              ),
             ],
             if (userTemplates.isNotEmpty) ...[
-              ...userTemplates.map((t) => _buildTemplateResult(context, t, false)),
+              ...userTemplates.map(
+                (t) => _buildTemplateResult(context, t, false),
+              ),
             ],
             const SizedBox(height: 24),
           ],
@@ -66,13 +76,17 @@ class SearchResultsView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ...publishedForms.map((f) => _buildFormResult(context, f)),
-          ]
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildTemplateResult(BuildContext context, FormTemplate template, bool isBuiltIn) {
+  Widget _buildTemplateResult(
+    BuildContext context,
+    FormTemplate template,
+    bool isBuiltIn,
+  ) {
     return InkWell(
       onTap: () async {
         // FIX Bug 4 & 21: fetch full template dengan questions, lalu buka FormMakerPage
@@ -101,19 +115,27 @@ class SearchResultsView extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isBuiltIn ? const Color(0xFFF3F4F6) : const Color(0xFFEFF6FF),
+                color: isBuiltIn
+                    ? const Color(0xFFF3F4F6)
+                    : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
-                isBuiltIn ? Icons.dashboard_customize_outlined : Icons.description_outlined,
-                color: isBuiltIn ? const Color(0xFF4B5563) : const Color(0xFF1E40AF),
+                isBuiltIn
+                    ? Icons.dashboard_customize_outlined
+                    : Icons.description_outlined,
+                color: isBuiltIn
+                    ? const Color(0xFF4B5563)
+                    : const Color(0xFF1E40AF),
                 size: 20,
               ),
             ),
@@ -184,7 +206,9 @@ class SearchResultsView extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Row(
           children: [
