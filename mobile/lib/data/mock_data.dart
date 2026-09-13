@@ -14,141 +14,140 @@ class MockData {
     Project(title: "Website SMK 10", status: "Active", icon: Icons.edit),
   ];
 
-  // BUG FIX #3: built-in templates sekarang punya struktur questionsJson
-  // agar ketika diklik tidak fallback ke "Opsi 1". Data ini hanya untuk preview lokal;
-  // template sistem sebenarnya sebaiknya diambil dari backend via GET /templates (is_system=true).
+  // Template bawaan — mirror dari web/backend (scripts/seed.py).
+  // [0] Empty Form dipertahankan apa adanya (jangan dihapus).
+  // [1..] disamakan dengan 2 template sistem web: Attendance Form & Exam Form.
+  // Data ini hanya untuk preview lokal; sumber utama tetap
+  // backend via GET /templates (is_system=true).
   static final List<FormTemplate> builtInTemplates = [
+    // ── [0] DIBIARKAN — Empty Form ──────────────────────────────────
     FormTemplate(
       title: "Empty Form",
       subtitle: "empty description",
       questionsJson: [],
     ),
+    // ── [1] = Web "Attendance Form" ─────────────────────────────────
+    // backend: description "Form absensi kehadiran", 3 questions.
     FormTemplate(
-      title: "Ujian",
-      subtitle: "empty description",
+      title: "Attendance Form",
+      subtitle: "Form absensi kehadiran",
       isSystem: true,
       questionsJson: [
         {
-          'type': 'single_choice',
-          'label': 'Departemen Anda?',
+          'type': 'text',
+          'label': 'Nama Lengkap',
           'placeholder': '',
           'is_required': true,
           'order_index': 0,
           'settings': {},
-          'options': [
-            {
-              'label': 'Marketing',
-              'value': 'Marketing',
-              'order_index': 0,
-              'is_correct': false,
-              'is_other': false,
-            },
-            {
-              'label': 'Engineering',
-              'value': 'Engineering',
-              'order_index': 1,
-              'is_correct': false,
-              'is_other': false,
-            },
-            {
-              'label': 'HR',
-              'value': 'HR',
-              'order_index': 2,
-              'is_correct': false,
-              'is_other': false,
-            },
-          ],
+          'options': [],
+        },
+        {
+          'type': 'text',
+          'label': 'NIM / NIS',
+          'placeholder': '',
+          'is_required': true,
+          'order_index': 1,
+          'settings': {},
+          'options': [],
         },
         {
           'type': 'single_choice',
-          'label': 'Tingkat Kepuasan?',
+          'label': 'Status Kehadiran',
           'placeholder': '',
-          'is_required': false,
-          'order_index': 1,
+          'is_required': true,
+          'order_index': 2,
           'settings': {},
           'options': [
             {
-              'label': 'Sangat Puas',
-              'value': 'Sangat Puas',
+              'label': 'Hadir',
+              'value': 'hadir',
               'order_index': 0,
               'is_correct': false,
               'is_other': false,
             },
             {
-              'label': 'Puas',
-              'value': 'Puas',
+              'label': 'Izin',
+              'value': 'izin',
               'order_index': 1,
               'is_correct': false,
               'is_other': false,
             },
             {
-              'label': 'Cukup Puas',
-              'value': 'Cukup Puas',
+              'label': 'Sakit',
+              'value': 'sakit',
               'order_index': 2,
               'is_correct': false,
               'is_other': false,
             },
+            {
+              'label': 'Alpha',
+              'value': 'alpha',
+              'order_index': 3,
+              'is_correct': false,
+              'is_other': false,
+            },
           ],
-        },
-        {
-          'type': 'paragraph',
-          'label': 'Masukan untuk tim?',
-          'placeholder': 'Tulis masukan Anda...',
-          'is_required': false,
-          'order_index': 2,
-          'settings': {},
-          'options': [],
         },
       ],
     ),
+    // ── [2] = Web "Exam Form" ───────────────────────────────────────
+    // backend: description "Form ujian dengan berbagai tipe soal", 3 questions.
     FormTemplate(
-      title: "Angket Classmeet",
-      subtitle: "empty description",
+      title: "Exam Form",
+      subtitle: "Form ujian dengan berbagai tipe soal",
       isSystem: true,
       questionsJson: [
         {
-          'type': 'single_choice',
-          'label': 'Acara mana yang paling kamu suka?',
+          'type': 'text',
+          'label': 'Nama Peserta',
           'placeholder': '',
           'is_required': true,
           'order_index': 0,
           'settings': {},
+          'options': [],
+        },
+        {
+          'type': 'single_choice',
+          'label': 'Soal 1 (contoh pilihan ganda)',
+          'placeholder': '',
+          'is_required': true,
+          'order_index': 1,
+          'settings': {},
           'options': [
             {
-              'label': 'Futsal',
-              'value': 'Futsal',
+              'label': 'A',
+              'value': 'A',
               'order_index': 0,
               'is_correct': false,
               'is_other': false,
             },
             {
-              'label': 'Lomba Menyanyi',
-              'value': 'Lomba Menyanyi',
+              'label': 'B',
+              'value': 'B',
               'order_index': 1,
               'is_correct': false,
               'is_other': false,
             },
             {
-              'label': 'Bazaar',
-              'value': 'Bazaar',
+              'label': 'C',
+              'value': 'C',
               'order_index': 2,
+              'is_correct': false,
+              'is_other': false,
+            },
+            {
+              'label': 'D',
+              'value': 'D',
+              'order_index': 3,
               'is_correct': false,
               'is_other': false,
             },
           ],
         },
         {
-          'type': 'rating',
-          'label': 'Rating keseluruhan acara?',
-          'placeholder': '',
-          'is_required': false,
-          'order_index': 1,
-          'settings': {'rating_count': 5, 'rating_icon': 'star'},
-          'options': [],
-        },
-        {
-          'type': 'paragraph',
-          'label': 'Saran untuk acara selanjutnya?',
+          'type': 'file_upload',
+          'label': 'Upload Lembar Jawaban (jika ada)',
           'placeholder': '',
           'is_required': false,
           'order_index': 2,
