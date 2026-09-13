@@ -58,18 +58,21 @@ Future<Map<String, dynamic>> _tplCreate(
           detail = data['message'].toString();
         }
       }
-      if (response.statusCode == 401)
+      if (response.statusCode == 401) {
         detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-      if (response.statusCode == 422)
+      }
+      if (response.statusCode == 422) {
         detail = 'Format data tidak valid (422): $detail';
+      }
       return {'success': false, 'message': detail};
     }
   } catch (e, stack) {
     debugPrint('[ApiService] createTemplate exception: $e\n$stack');
     String msg = e.toString();
-    if (msg.contains('TimeoutException'))
+    if (msg.contains('TimeoutException')) {
       msg =
           'Timeout koneksi ke ${ApiService.baseUrl} — cek backend jalan & adb reverse / API_URL';
+    }
     return {'success': false, 'message': msg};
   }
 }
@@ -127,8 +130,9 @@ Future<Map<String, dynamic>> _tplGet(String id) async {
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       final parsed = ApiService._safeJson(response.body);
-      if (parsed is Map)
+      if (parsed is Map) {
         ApiService._logHtmlDiagnostic('getTemplate (RECV)', parsed['questions']);
+      }
       return {'success': true, 'data': parsed};
     }
     final body = ApiService._safeJson(response.body);

@@ -46,12 +46,14 @@ class QuillHtml {
       if (a['italic'] == true) s.add('font-style: italic;');
       if (a['underline'] == true) s.add('text-decoration: underline;');
       if (a['strike'] == true) s.add('text-decoration: line-through;');
-      if (a['color'] != null)
+      if (a['color'] != null) {
         s.add('color: ${normalizeHexColor(a['color']?.toString())};');
-      if (a['background'] != null)
+      }
+      if (a['background'] != null) {
         s.add(
           'background-color: ${normalizeHexColor(a['background']?.toString())};',
         );
+      }
       final sizePx = _quillSizeToPx(a['size']);
       if (sizePx != null) s.add('font-size: $sizePx;');
       if (a['font'] != null) s.add('font-family: ${a['font']};');
