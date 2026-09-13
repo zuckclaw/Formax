@@ -4,6 +4,20 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 
+// Part: endpoint AUTH — Tahap 8a. ApiService tetap fasad publik via
+// forwarder satu baris; puluhan call-site tidak berubah.
+part 'api/auth_part.dart';
+
+// Part: endpoint TEMPLATE — Tahap 8b. Pola sama: fasad + forwarder.
+part 'api/templates_part.dart';
+
+// Part: endpoint FORM — Tahap 8c. Pola sama: fasad + forwarder.
+part 'api/forms_part.dart';
+
+// Part: endpoint MISC (submissions/search/profil/export/upload) — Tahap 8d.
+// Pola sama: fasad + forwarder.
+part 'api/misc_part.dart';
+
 class ApiService {
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_URL');
@@ -125,140 +139,33 @@ class ApiService {
   }
 
   // Fungsi Login
+  // Fasad AUTH (Tahap 8a): implementasi di api/auth_part.dart.
   static Future<Map<String, dynamic>> login(
     String email,
     String password, {
     bool rememberMe = true,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['access_token'] is String &&
-          (data['access_token'] as String).isNotEmpty) {
-        await saveToken(data['access_token'], rememberMe: rememberMe);
-        return {'success': true, 'data': data};
-      } else {
-        return {
-          'success': false,
-          'message': _friendlyError(response, 'Login gagal'),
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': _friendlyException(e)};
-    }
-  }
+  }) =>
+      _authLogin(email, password, rememberMe: rememberMe);
 
   // Fungsi Request OTP
-  static Future<Map<String, dynamic>> sendOtp(String email) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/send-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
-      );
+  static Future<Map<String, dynamic>> sendOtp(String email) =>
+      _authSendOtp(email);
 
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['message'] != null) {
-        return {'success': true, 'data': data};
-      } else {
-        return {
-          'success': false,
-          'message': _friendlyError(response, 'Gagal mengirim OTP'),
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': _friendlyException(e)};
-    }
-  }
-
-  static Future<Map<String, dynamic>> requestPasswordReset(String email) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
-      );
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['message'] != null) {
-        return {'success': true, 'data': data};
-      } else {
-        return {
-          'success': false,
-          'message': _friendlyError(response, 'Gagal meminta reset password'),
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': _friendlyException(e)};
-    }
-  }
+  static Future<Map<String, dynamic>> requestPasswordReset(String email) =>
+      _authRequestPasswordReset(email);
 
   static Future<Map<String, dynamic>> resetPassword(
     String email,
     String otp,
     String newPassword,
-  ) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/reset-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'otp': otp,
-          'new_password': newPassword,
-        }),
-      );
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['message'] != null &&
-          data['access_token'] is String) {
-        await saveToken(data['access_token'] as String);
-        return {'success': true, 'data': data};
-      }
-      return {
-        'success': false,
-        'message': _friendlyError(response, 'Gagal mengubah password'),
-      };
-    } catch (e) {
-      return {'success': false, 'message': _friendlyException(e)};
-    }
-  }
+  ) =>
+      _authResetPassword(email, otp, newPassword);
 
   static Future<Map<String, dynamic>> verifyPasswordResetOtp(
     String email,
     String otp,
-  ) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/verify-reset-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'otp': otp}),
-      );
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 &&
-          data is Map &&
-          data['message'] != null) {
-        return {'success': true, 'data': data};
-      }
-      return {
-        'success': false,
-        'message': _friendlyError(response, 'Kode OTP tidak valid'),
-      };
-    } catch (e) {
-      return {'success': false, 'message': _friendlyException(e)};
-    }
-  }
+  ) =>
+      _authVerifyPasswordResetOtp(email, otp);
 
   // Fungsi Register (Signup)
   static Future<Map<String, dynamic>> register(
@@ -266,65 +173,11 @@ class ApiService {
     String email,
     String password,
     String otp,
-  ) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/signup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'full_name': fullName,
-          'email': email,
-          'password': password,
-          'otp': otp,
-        }),
-      );
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (data is Map && data.containsKey('access_token')) {
-          await saveToken(data['access_token']);
-        }
-        return {'success': true, 'data': data};
-      } else {
-        final msg = data is Map
-            ? (data['detail'] ?? 'Registration failed')
-            : 'Registration failed';
-        return {'success': false, 'message': msg.toString()};
-      }
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  ) =>
+      _authRegister(fullName, email, password, otp);
 
   // Fungsi Get User Profile
-  static Future<Map<String, dynamic>> getMe() async {
-    try {
-      final token = await getToken();
-      if (token == null) {
-        return {'success': false, 'message': 'No token found'};
-      }
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': data};
-      } else {
-        final msg = data is Map
-            ? (data['detail'] ?? 'Failed to get profile')
-            : 'Failed to get profile';
-        return {'success': false, 'message': msg.toString()};
-      }
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> getMe() => _authGetMe();
 
   static void _logHtmlDiagnostic(String label, dynamic questions) {
     try {
@@ -355,816 +208,110 @@ class ApiService {
   }
 
   // Fungsi Create Template — DIPERBAIKI: timeout, logging, validasi 422
+  // Fasad TEMPLATE (Tahap 8b): implementasi di api/templates_part.dart.
   static Future<Map<String, dynamic>> createTemplate(
     Map<String, dynamic> payload,
-  ) async {
-    _logHtmlDiagnostic('createTemplate (SEND)', payload['questions']);
-    try {
-      final token = await getToken();
-      if (token == null) {
-        debugPrint(
-          '[ApiService] createTemplate gagal: No token (belum login?)',
-        );
-        return {
-          'success': false,
-          'message': 'No token found — silakan login ulang',
-        };
-      }
-
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/templates'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true, 'data': data};
-      } else {
-        // Tampilkan detail validasi Pydantic (422) yang sering jadi penyebab draft tidak tersimpan
-        String detail = 'Failed to create template';
-        if (data is Map) {
-          if (data['detail'] is String) {
-            detail = data['detail'];
-          } else if (data['detail'] is List) {
-            // FastAPI 422 returns list of errors
-            try {
-              detail = (data['detail'] as List)
-                  .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
-                  .join(', ');
-            } catch (_) {
-              detail = data['detail'].toString();
-            }
-          } else if (data['message'] != null) {
-            detail = data['message'].toString();
-          }
-        }
-        if (response.statusCode == 401)
-          detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-        if (response.statusCode == 422)
-          detail = 'Format data tidak valid (422): $detail';
-        return {'success': false, 'message': detail};
-      }
-    } catch (e, stack) {
-      debugPrint('[ApiService] createTemplate exception: $e\n$stack');
-      String msg = e.toString();
-      if (msg.contains('TimeoutException'))
-        msg =
-            'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
-      return {'success': false, 'message': msg};
-    }
-  }
+  ) =>
+      _tplCreate(payload);
 
   // Fungsi Update Template (PATCH) — untuk draft save berikutnya, cegah duplikat POST
   static Future<Map<String, dynamic>> updateTemplate(
     String id,
     Map<String, dynamic> payload,
-  ) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .patch(
-            Uri.parse('$baseUrl/templates/$id'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 15));
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) return {'success': true, 'data': data};
-      String detail = data is Map && data['detail'] is String
-          ? data['detail']
-          : 'Failed to update template';
-      if (data is Map && data['detail'] is List) {
-        try {
-          detail = (data['detail'] as List)
-              .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
-              .join(', ');
-        } catch (_) {}
-      }
-      return {'success': false, 'message': detail};
-    } catch (e, stack) {
-      debugPrint('[ApiService] updateTemplate exception: $e\n$stack');
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  ) =>
+      _tplUpdate(id, payload);
 
   // FIX: ambil detail template lengkap dengan questions (untuk search -> edit)
-  static Future<Map<String, dynamic>> getTemplate(String id) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/templates/$id'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final parsed = _safeJson(response.body);
-        if (parsed is Map)
-          _logHtmlDiagnostic('getTemplate (RECV)', parsed['questions']);
-        return {'success': true, 'data': parsed};
-      }
-      final body = _safeJson(response.body);
-      final msg = body is Map
-          ? (body['detail'] ?? 'Failed: ${response.statusCode}')
-          : 'Failed: ${response.statusCode}';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> getTemplate(String id) => _tplGet(id);
 
   // Fungsi Get My Templates — DIPERBAIKI: timeout + logging
-  static Future<Map<String, dynamic>> getMyTemplates() async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/templates/mine'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final parsed = _safeJson(response.body);
-        final questions = <dynamic>[];
-        if (parsed is List) {
-          for (final t in parsed) {
-            if (t is Map && t['questions'] is List) {
-              questions.addAll(t['questions'] as List);
-            }
-          }
-        } else if (parsed is Map) {
-          final items =
-              parsed['items'] ?? parsed['questions'] ?? parsed['data'];
-          if (items is List) {
-            for (final t in items) {
-              if (t is Map && t['questions'] is List) {
-                questions.addAll(t['questions'] as List);
-              }
-            }
-          }
-        }
-        _logHtmlDiagnostic('getMyTemplates (RECV)', questions);
-        return {'success': true, 'data': parsed};
-      }
-      final body = _safeJson(response.body);
-      final msg = body is Map
-          ? (body['detail'] ?? 'Failed: ${response.statusCode}')
-          : 'Failed: ${response.statusCode}';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      debugPrint('[ApiService] getMyTemplates exception: $e');
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> getMyTemplates() => _tplGetMine();
 
   // Fungsi Create Form
+  // Fasad FORM (Tahap 8c): implementasi di api/forms_part.dart.
   static Future<Map<String, dynamic>> createForm(
     Map<String, dynamic> payload,
-  ) async {
-    _logHtmlDiagnostic('createForm (SEND)', payload['questions']);
-    try {
-      final token = await getToken();
-      if (token == null) {
-        return {'success': false, 'message': 'No token found'};
-      }
-
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/forms'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true, 'data': data};
-      }
-      String detail = 'Failed to create form';
-      if (data is Map) {
-        if (data['detail'] is String) {
-          detail = data['detail'];
-        } else if (data['detail'] is List) {
-          try {
-            detail = (data['detail'] as List)
-                .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
-                .join(', ');
-          } catch (_) {
-            detail = data['detail'].toString();
-          }
-        } else if (data['message'] != null) {
-          detail = data['message'].toString();
-        }
-      }
-      if (response.statusCode == 401)
-        detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-      if (response.statusCode == 422)
-        detail = 'Format data tidak valid (422): $detail';
-      return {'success': false, 'message': detail};
-    } catch (e, stack) {
-      debugPrint('[ApiService] createForm exception: $e\n$stack');
-      String msg = e.toString();
-      if (msg.contains('TimeoutException'))
-        msg =
-            'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
-      return {'success': false, 'message': msg};
-    }
-  }
+  ) =>
+      _formCreate(payload);
 
   // FIX Bug 18: PATCH status form menjadi published setelah create
   static Future<Map<String, dynamic>> updateForm(
     String formId,
     Map<String, dynamic> payload,
-  ) async {
-    _logHtmlDiagnostic('updateForm (SEND)', payload['questions']);
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .patch(
-            Uri.parse('$baseUrl/forms/$formId'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 15));
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) return {'success': true, 'data': data};
-      String detail = data is Map && data['detail'] is String
-          ? data['detail']
-          : 'Failed to update form';
-      if (data is Map && data['detail'] is List) {
-        try {
-          detail = (data['detail'] as List)
-              .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
-              .join(', ');
-        } catch (_) {}
-      }
-      if (response.statusCode == 401)
-        detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
-      if (response.statusCode == 422)
-        detail = 'Format data tidak valid (422): $detail';
-      return {'success': false, 'message': detail};
-    } catch (e, stack) {
-      debugPrint('[ApiService] updateForm exception: $e\n$stack');
-      String msg = e.toString();
-      if (msg.contains('TimeoutException'))
-        msg =
-            'Timeout koneksi ke $baseUrl — cek backend jalan & adb reverse / API_URL';
-      return {'success': false, 'message': msg};
-    }
-  }
+  ) =>
+      _formUpdate(formId, payload);
 
   // Ambil detail form lengkap (termasuk questions) milik owner — dipakai untuk
   // melanjutkan draft form di FormMaker.
-  static Future<Map<String, dynamic>> getForm(String formId) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/forms/$formId'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      final parsed = _safeJson(response.body);
-      if (response.statusCode == 200) {
-        if (parsed is Map)
-          _logHtmlDiagnostic('getForm (RECV)', parsed['questions']);
-        return {'success': true, 'data': parsed};
-      }
-      final msg = parsed is Map
-          ? (parsed['detail'] ?? 'Failed: ${response.statusCode}')
-          : 'Failed: ${response.statusCode}';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> getForm(String formId) =>
+      _formGet(formId);
 
   // Hanya form dengan status 'draft' — sumber data section "Draft Saya" di Dashboard.
-  static Future<Map<String, dynamic>> getDraftForms() async {
-    final res = await getMyForms();
-    if (res['success'] != true) return res;
-    final rawList = res['data'];
-    if (rawList is! List) return {'success': true, 'data': []};
-    final drafts = rawList
-        .where((e) => e is Map && e['status'] == 'draft')
-        .toList();
-    return {'success': true, 'data': drafts};
-  }
+  static Future<Map<String, dynamic>> getDraftForms() => _formGetDrafts();
 
   // Hapus form beserta semua responsnya (permanen, tidak bisa dibatalkan).
-  static Future<Map<String, dynamic>> deleteForm(String formId) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .delete(
-            Uri.parse('$baseUrl/forms/$formId'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) return {'success': true, 'data': data};
-      final msg = data is Map
-          ? (data['detail'] ?? 'Failed: ${response.statusCode}')
-          : 'Failed: ${response.statusCode}';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> deleteForm(String formId) =>
+      _formDelete(formId);
 
   // Hapus template milik pengguna (permanen).
-  static Future<Map<String, dynamic>> deleteTemplate(String templateId) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .delete(
-            Uri.parse('$baseUrl/templates/$templateId'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) return {'success': true, 'data': data};
-      final msg = data is Map
-          ? (data['detail'] ?? 'Failed: ${response.statusCode}')
-          : 'Failed: ${response.statusCode}';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  // Hapus template (domain TEMPLATE walau posisinya di antara form).
+  static Future<Map<String, dynamic>> deleteTemplate(String templateId) =>
+      _tplDelete(templateId);
 
   // Publish form: mengubah status form menjadi 'published'
-  static Future<Map<String, dynamic>> publishForm(String formId) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/forms/$formId/publish'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) return {'success': true, 'data': data};
-      final msg = data is Map
-          ? (data['detail'] ?? 'Failed to publish form')
-          : 'Failed to publish form';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> publishForm(String formId) =>
+      _formPublish(formId);
 
-  static Future<Map<String, dynamic>> regenerateJoinToken(String formId) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/forms/$formId/regenerate-join-token'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) return {'success': true, 'data': data};
-      final msg = data is Map
-          ? (data['detail'] ?? 'Failed to regenerate join token')
-          : 'Failed to regenerate join token';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> regenerateJoinToken(String formId) =>
+      _formRegenToken(formId);
 
   // Fungsi Generate QR Code
-  static Future<Map<String, dynamic>> generateQrCode(String formId) async {
-    try {
-      final token = await getToken();
-      if (token == null) {
-        return {'success': false, 'message': 'No token found'};
-      }
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/forms/$formId/generate-qr'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true, 'data': data};
-      } else {
-        final msg = data is Map
-            ? (data['detail'] ?? 'Failed to generate QR code')
-            : 'Failed to generate QR code';
-        return {'success': false, 'message': msg.toString()};
-      }
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> generateQrCode(String formId) =>
+      _formQr(formId);
 
   // Fungsi Get My Forms (untuk Dashboard & History)
-  static Future<Map<String, dynamic>> getMyForms() async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/forms'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': _safeJson(response.body)};
-      }
-      final body = _safeJson(response.body);
-      final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> getMyForms() => _formGetMine();
 
   // Fungsi Validate Form Link (untuk Join with Link)
-  static Future<Map<String, dynamic>> validateFormLink(String link) async {
-    try {
-      String slug = link.trim();
+  static Future<Map<String, dynamic>> validateFormLink(String link) =>
+      _formValidateLink(link);
 
-      // Jika link berupa URL lengkap (misal http://localhost:5173/f/slug-123), ekstrak slug-nya
-      if (slug.contains('http') || slug.contains('/f/')) {
-        try {
-          final uri = Uri.parse(slug);
-          final pathSegments = uri.pathSegments;
-          if (pathSegments.contains('f')) {
-            final index = pathSegments.indexOf('f');
-            if (index + 1 < pathSegments.length) {
-              slug = pathSegments[index + 1];
-            }
-          } else if (pathSegments.isNotEmpty) {
-            slug = pathSegments.last;
-          }
-        } catch (_) {}
-      }
-
-      final token = await getToken();
-
-      // Gunakan endpoint get_form_by_slug yang sudah ada di backend
-      final response = await http.get(
-        Uri.parse('$baseUrl/forms/public/$slug'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': {'slug': slug, if (data is Map) ...data},
-        };
-      } else {
-        final msg = data is Map
-            ? (data['detail'] ?? 'Form tidak ditemukan')
-            : 'Form tidak ditemukan';
-        return {'success': false, 'message': msg.toString()};
-      }
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
-  // Fungsi Get Form Submissions (untuk Result Page)
-  static Future<Map<String, dynamic>> getFormSubmissions(String formId) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/forms/$formId/submissions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': _safeJson(response.body)};
-      }
-      final body = _safeJson(response.body);
-      final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  // Fasad MISC (Tahap 8d): implementasi di api/misc_part.dart.
+  // (Untuk Result Page.)
+  static Future<Map<String, dynamic>> getFormSubmissions(String formId) =>
+      _miscFormSubs(formId);
 
   // AKTIVITAS SAYA — daftar form yang pernah/sedang diisi user sebagai responden.
   // Endpoint backend: GET /submissions/me → List[MySubmissionOut]
-  static Future<Map<String, dynamic>> getMySubmissions() async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/submissions/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': _safeJson(response.body)};
-      }
-      final body = _safeJson(response.body);
-      final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> getMySubmissions() => _miscMySubs();
 
   // Hasil submission milik responden (untuk "Lihat Hasil" di Aktivitas Saya).
   // Endpoint backend: GET /submissions/{submission_id}/result → SubmissionResultOut
   static Future<Map<String, dynamic>> getSubmissionResult(
     String submissionId,
-  ) async {
-    try {
-      final token = await getToken();
-      final respondentKey = await getRespondentKey();
-      final response = await http.get(
-        Uri.parse('$baseUrl/submissions/$submissionId/result'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': data};
-      }
-      final msg = data is Map
-          ? (data['detail'] ?? 'Gagal memuat hasil')
-          : 'Gagal memuat hasil';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  ) =>
+      _miscSubResult(submissionId);
 
   // Fungsi Search (untuk Dashboard Search)
-  static Future<Map<String, dynamic>> search(String query) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-
-      final uri = Uri.parse(
-        '$baseUrl/search',
-      ).replace(queryParameters: query.isNotEmpty ? {'q': query} : null);
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': _safeJson(response.body)};
-      }
-      final body = _safeJson(response.body);
-      final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  static Future<Map<String, dynamic>> search(String query) =>
+      _miscSearch(query);
 
   // Fungsi Update Profile
   static Future<Map<String, dynamic>> updateProfile(
     Map<String, dynamic> payload,
-  ) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-
-      final response = await http.put(
-        Uri.parse('$baseUrl/auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(payload),
-      );
-
-      final data = _safeJson(response.body);
-      if (response.statusCode == 200) {
-        return {'success': true, 'data': data};
-      }
-      final msg = data is Map
-          ? (data['detail'] ?? 'Failed to update profile')
-          : 'Failed to update profile';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  ) =>
+      _miscUpdateProfile(payload);
 
   // Export respons form ke Excel (.xlsx). Backend mengembalikan file biner,
   // jadi kembalikan bytes + nama file (dari Content-Disposition backend).
   static Future<Map<String, dynamic>> exportFormSubmissions(
     String formId,
-  ) async {
-    try {
-      final token = await getToken();
-      if (token == null) return {'success': false, 'message': 'No token found'};
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/forms/$formId/export'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode == 200) {
-        final cd = response.headers['content-disposition'];
-        final filename = _extractFilename(cd) ?? '$formId-hasil.xlsx';
-        return {
-          'success': true,
-          'bytes': response.bodyBytes,
-          'filename': filename,
-        };
-      }
-      final body = _safeJson(
-        utf8.decode(response.bodyBytes, allowMalformed: true),
-      );
-      final msg = body is Map
-          ? (body['detail'] ?? 'Export gagal (${response.statusCode})')
-          : 'Export gagal (${response.statusCode})';
-      return {'success': false, 'message': msg.toString()};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
+  ) =>
+      _miscExport(formId);
 
-  static String? _extractFilename(String? contentDisposition) {
-    if (contentDisposition == null) return null;
-    final match = RegExp(
-      r'filename="?([^";]+)"?',
-    ).firstMatch(contentDisposition);
-    return match?.group(1)?.trim();
-  }
+  // _extractFilename & _uploadOnce ikut pindah ke api/misc_part.dart
+  // (pemakainya hanya di sana).
 
-  // Fungsi Upload File (untuk avatar, file upload question, dll.)
-  // Satu percobaan upload. Dipisah agar bisa di-retry untuk error koneksi-level
-  // ("HTTPS request failed, statusCode: 0") yang sering terjadi karena tunnel
-  // ngrok free putus saat tubuh request besar, dan umumnya bersifat sementara.
-  static Future<Map<String, dynamic>> _uploadOnce(dynamic file) async {
-    final token = await getToken();
-    if (token == null) return {'success': false, 'message': 'No token found'};
-
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/uploads'),
-    );
-    request.headers['Authorization'] = 'Bearer $token';
-    // Ngrok free (ngrok-free.dev) mewajibkan header ini; tanpanya agen bisa
-    // diarahkan ke halaman interstitial/warning (bukan JSON) sehingga upload
-    // tampak gagal. Konsisten dengan web (api/config.js & NgrokImage).
-    request.headers['ngrok-skip-browser-warning'] = 'true';
-    if (kIsWeb) {
-      // Web: XFile.path adalah blob URL, harus pakai bytes
-      final bytes = await file.readAsBytes();
-      String filename = 'upload';
-      try {
-        filename = file.name as String;
-      } catch (_) {
-        try {
-          filename = file.path.toString().split('/').last;
-        } catch (_) {}
-      }
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes as List<int>,
-          filename: filename,
-        ),
-      );
-    } else {
-      request.files.add(
-        await http.MultipartFile.fromPath('file', file.path as String),
-      );
-    }
-
-    final streamedResponse = await request.send().timeout(
-      const Duration(seconds: 60),
-    );
-    final responseBody = await streamedResponse.stream.bytesToString();
-    final data = _safeJson(responseBody);
-
-    if (streamedResponse.statusCode == 200 ||
-        streamedResponse.statusCode == 201) {
-      final url = data is Map ? data['file_url'] : null;
-      return {'success': true, 'file_url': url};
-    }
-    final msg = data is Map
-        ? (data['detail'] ?? 'Upload failed')
-        : 'Upload failed';
-    return {'success': false, 'message': msg.toString()};
-  }
-
-  static Future<Map<String, dynamic>> uploadFile(dynamic file) async {
-    // Maksimal 3 percobaan. Error koneksi-level (status c 0) / timeout adalah
-    // transien di tunnel ngrok; mengulang dengan payload yang sudah dikompres
-    // (lihat formmakerpage._pickImage/_pickBanner) sering berhasil.
-    const maxAttempts = 3;
-    Map<String, dynamic> lastResult = {
-      'success': false,
-      'message': 'Upload gagal',
-    };
-    for (int attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        return await _uploadOnce(file);
-      } on TimeoutException {
-        lastResult = {
-          'success': false,
-          'message': 'Upload timeout — file terlalu besar atau koneksi lambat.',
-        };
-      } catch (e) {
-        final raw = e.toString();
-        final transient =
-            raw.contains('statusCode: 0') ||
-            raw.contains('Connection closed') ||
-            raw.contains('SocketException') ||
-            raw.contains('Request timeout') ||
-            raw.contains('HandshakeException');
-        if (transient && attempt < maxAttempts - 1) {
-          // Jeda singkat sebelum percobaan berikutnya.
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-          lastResult = {
-            'success': false,
-            'message': 'Gagal mengunggah (koneksi terputus), mencoba lagi…',
-          };
-          continue;
-        }
-        final msg = transient
-            ? 'Gagal mengunggah gambar (koneksi terputus). Coba gambar resolusi lebih kecil.'
-            : raw;
-        lastResult = {'success': false, 'message': msg};
-      }
-    }
-    return lastResult;
-  }
+  static Future<Map<String, dynamic>> uploadFile(dynamic file) =>
+      _miscUpload(file);
 }
