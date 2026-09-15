@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import HomePage from './pages/HomePage';
 import TentangPage from './pages/TentangPage';
 import CaraPakaiPage from './pages/CaraPakaiPage';
@@ -37,16 +37,22 @@ function PublicRoute({ children }) {
 function AuthExpiredListener() {
   const navigate = useNavigate();
   const location = useLocation();
+  const lastNavRef = useRef(0);
   useEffect(() => {
     const onExpired = () => {
+      const now = Date.now();
+      if (now - lastNavRef.current < 2000) return;
+      const path = globalThis.location?.pathname || location.pathname;
       const publicPaths = ['/', '/tentang', '/cara-pakai', '/auth'];
-      const isPublicFill = location.pathname.startsWith('/f/') || location.pathname.startsWith('/forms/public/');
-      if (publicPaths.includes(location.pathname) || isPublicFill) return;
+      const isPublicFill = path.startsWith('/f/') || path.startsWith('/forms/public/');
+      if (publicPaths.includes(path) || isPublicFill) return;
+      if (path.startsWith('/auth')) return;
+      lastNavRef.current = now;
       navigate('/auth?expired=1', { replace: true });
     };
     globalThis.addEventListener('auth:expired', onExpired);
     return () => globalThis.removeEventListener('auth:expired', onExpired);
-  }, [navigate, location.pathname]);
+  }, [navigate]);
   return null;
 }
 

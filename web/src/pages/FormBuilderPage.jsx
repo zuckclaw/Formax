@@ -15,6 +15,7 @@ import {
 } from '../api/questions';
 import { downloadTemplateDocx, previewDocxImport, confirmDocxImport } from '../api/docx';
 import { apiFetch, API_BASE_URL } from '../api/config';
+import { getValidToken } from '../utils/authStorage';
 import '../styles/form-builder.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
@@ -397,7 +398,7 @@ export default function FormBuilderPage() {
   const [maxSubmissionsMode, setMaxSubmissionsMode] = useState('unlimited');
   const [customMaxSubmissions, setCustomMaxSubmissions] = useState(2);
 
-  const token = localStorage.getItem('token');
+  const token = getValidToken();
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type });
@@ -406,19 +407,16 @@ export default function FormBuilderPage() {
 
   // Load initial data
   useEffect(() => {
-    if (!token) {
-      navigate('/auth');
-      return;
-    }
-
+    const t = getValidToken();
+    if (!t) return;
     const load = async () => {
       try {
-        const userData = await getMe(token);
+        const userData = await getMe(t);
         setUser(userData);
 
         if (formId) {
           // Edit mode: load existing form
-          const form = await getForm(token, formId);
+          const form = await getForm(t, formId);
           setFormData({
             id: form.id,
             title: form.title,
@@ -460,7 +458,7 @@ export default function FormBuilderPage() {
         } else if (templateId) {
           // Create from template: load template questions as initial data
           try {
-            const tpl = await getTemplate(token, templateId);
+            const tpl = await getTemplate(t, templateId);
             setFormData((prev) => ({
               ...prev,
               title: tpl.title || '',
@@ -488,19 +486,18 @@ export default function FormBuilderPage() {
                 }))
             );
           } catch {
-            showToast('Gagal memuat template', 'error');
+        showToast('Gagal memuat template', 'error');
           }
         }
       } catch {
         logout();
-        navigate('/auth');
       } finally {
         setLoading(false);
       }
     };
 
     load();
-  }, [formId, templateId, token, navigate, showToast]);
+  }, [formId, templateId, navigate, showToast]);
 
   // Drawer swipe open dari edge kiri
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMe, updateMe, logout, changePassword } from '../api/auth';
+import { getValidToken } from '../utils/authStorage';
 import { containsEmoji, removeEmojis } from '../utils/emojiFilter';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
@@ -8,7 +9,7 @@ import '../styles/dashboard.css';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
+  const token = getValidToken();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,12 +55,9 @@ export default function ProfilePage() {
   }, [drawerOpen]);
 
   useEffect(() => {
-    if (!token) {
-      navigate('/auth');
-      return;
-    }
-
-    getMe(token)
+    const t = getValidToken();
+    if (!t) return;
+    getMe(t)
       .then((userData) => {
         setUser(userData);
         setForm({
@@ -72,7 +70,7 @@ export default function ProfilePage() {
         setError(err.message || 'Gagal memuat profil');
       })
       .finally(() => setLoading(false));
-  }, [navigate, token]);
+  }, [navigate]);
 
   const getInitials = (name = '') =>
     name

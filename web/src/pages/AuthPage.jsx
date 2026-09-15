@@ -43,15 +43,9 @@ export default function AuthPage() {
     confirm_password: '',
   });
 
-  // Auto-redirect jika sudah login dengan remember me valid
-  useEffect(() => {
-    const token = getValidToken()
-    if (token && localStorage.getItem('auth_remember') === 'true') {
-      const params = new URLSearchParams(window.location.search)
-      const redirectPath = params.get('redirect')
-      navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard', { replace: true })
-    }
-  }, [navigate])
+  // Auto-redirect sudah ditangani PublicRoute — tidak perlu duplikat navigate di sini
+  // (mencegah double Navigate yang memicu "Too many calls to History APIs")
+  // Jika butuh, PublicRoute di App.jsx akan redirect /auth -> /dashboard otomatis.
 
   // Timer effect
   useEffect(() => {
@@ -91,7 +85,7 @@ export default function AuthPage() {
       setAuth(res.access_token, !!loginData.remember, res.refresh_token || null);
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect');
-      navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard');
+      navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -165,7 +159,7 @@ export default function AuthPage() {
       setAuth(res.access_token, !!registerData.remember, res.refresh_token || null);
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect');
-      navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard');
+      navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

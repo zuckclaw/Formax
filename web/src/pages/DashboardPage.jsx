@@ -5,6 +5,7 @@ import { getMyForms, deleteForm, getForm, getFormSubmissions, exportSubmissions 
 import { getTemplates, deleteTemplate } from '../api/templates';
 import { getMySubmissions, getSubmissionResult, deleteSubmission } from '../api/submissions';
 import { parseServerTime } from '../utils/date';
+import { getValidToken } from '../utils/authStorage';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
 import NgrokImage from '../components/NgrokImage';
@@ -116,7 +117,7 @@ export default function DashboardPage() {
   const [activityDetailSub, setActivityDetailSub] = useState(null); // submission yang sedang dilihat detail/bukti
   const [activityViewMode, setActivityViewMode] = useState('grid'); // 'grid' | 'table'
 
-  const token = localStorage.getItem('token');
+  const token = getValidToken();
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Swipe open dari edge kiri
   useEffect(() => {
@@ -133,8 +134,10 @@ export default function DashboardPage() {
   }, [drawerOpen]);
 
   const fetchTemplates = async () => {
+    const t = getValidToken();
+    if (!t) return;
     try {
-      const tpls = await getTemplates(token);
+      const tpls = await getTemplates(t);
       setTemplates(tpls);
     } catch {
       // diamkan, biar tidak blokir dashboard
@@ -142,16 +145,12 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!token) {
-      navigate('/auth');
-      return;
-    }
-    // FIX: eager fetch template di dashboard mount biar tidak flash Indonesia→Inggris
-    // Deterministik: backend sudah asc, tapi tetap client sort untuk jaga bila DB lama
+    const t = getValidToken();
+    if (!t) return;
     Promise.all([
-      getMe(token),
-      getMyForms(token).catch(() => []),
-      getTemplates(token).catch(() => []),
+      getMe(t),
+      getMyForms(t).catch(() => []),
+      getTemplates(t).catch(() => []),
     ])
       .then(([userData, forms, tpls]) => {
         setUser(userData);
@@ -162,10 +161,9 @@ export default function DashboardPage() {
       })
       .catch(() => {
         logout();
-        navigate('/auth');
       })
       .finally(() => setLoading(false));
-  }, [navigate, token]);
+  }, [navigate]);
 
   // FIX: auto-load template langsung tanpa F5 — handle pending + autoOpen + back reload
   useEffect(() => {

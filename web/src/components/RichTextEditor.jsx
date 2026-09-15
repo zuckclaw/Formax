@@ -3,6 +3,7 @@ import ReactQuill, { Quill } from 'react-quill-new'
 import 'react-quill-new/dist/quill.snow.css'
 import { uploadFile } from '../api/uploads'
 import { apiFetch } from '../api/config'
+import { getValidToken } from '../utils/authStorage'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import hljs from 'highlight.js'
@@ -141,7 +142,7 @@ const handleImageUpload = function () {
     const file = input.files[0]
     if (!file) return
 
-    const token = localStorage.getItem('token')
+    const token = getValidToken()
     const range = quill.getSelection(true)
     const index = range ? range.index : (quill.getLength() || 0)
 
@@ -173,7 +174,7 @@ const handleAudioUpload = function () {
     const file = input.files[0]
     if (!file) return
 
-    const token = localStorage.getItem('token')
+    const token = getValidToken()
     const range = quill.getSelection(true)
     const index = range ? range.index : (quill.getLength() || 0)
 
