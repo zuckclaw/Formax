@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import logoForm4x from '../assets/logo_form4x.png';
 
 export default function AiIntroPortal({ onComplete }) {
   const [stage, setStage] = useState('active'); // 'active' | 'fading' | 'done'
 
   useEffect(() => {
-    // Phase 1: Reveal & Shimmer (~950ms)
+    // Phase 1: Clean brief display (550ms)
     const fadeTimer = setTimeout(() => {
       setStage('fading');
-    }, 950);
+    }, 550);
 
-    // Phase 2: Fade out & Page Reveal (~1350ms total)
+    // Phase 2: Fade out & reveal UI (780ms total)
     const doneTimer = setTimeout(() => {
       setStage('done');
       if (onComplete) onComplete();
-    }, 1350);
+    }, 780);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -30,52 +31,21 @@ export default function AiIntroPortal({ onComplete }) {
 
   return (
     <div
-      className={`ai-portal-overlay ${stage === 'fading' ? 'portal-fade-out' : ''}`}
+      className={`ai-clean-portal ${stage === 'fading' ? 'ai-portal-fade-out' : ''}`}
       onClick={handleSkip}
-      role="button"
-      tabIndex={0}
-      title="Klik untuk lewati intro"
+      role="presentation"
     >
-      {/* Aurora Mesh Glow Center */}
-      <div className="ai-portal-aurora">
-        <div className="ai-portal-glow glow-blue" />
-        <div className="ai-portal-glow glow-cyan" />
-        <div className="ai-portal-glow glow-purple" />
-      </div>
-
-      {/* Grid Pattern Effect */}
-      <div className="ai-portal-grid-bg" />
-
-      {/* Main Kinetic Typography Box */}
-      <div className="ai-portal-content">
-        <div className="ai-portal-tagline-wrap">
-          <span className="ai-portal-sparkle">✦</span>
-          <span className="ai-portal-tagline">SMART FORM ENGINE</span>
-          <span className="ai-portal-sparkle">✦</span>
+      <div className="ai-clean-portal-content">
+        <div className="ai-clean-portal-logo-wrap">
+          <img src={logoForm4x} alt="Form4x" className="ai-clean-portal-logo" />
         </div>
-
-        <div className="ai-portal-title-container">
-          <h1 className="ai-portal-title">
-            <span className="ai-portal-char">F</span>
-            <span className="ai-portal-char">O</span>
-            <span className="ai-portal-char">R</span>
-            <span className="ai-portal-char">M</span>
-            <span className="ai-portal-char">A</span>
-            <span className="ai-portal-char">X</span>
-            <span className="ai-portal-ai-badge">AI</span>
-          </h1>
-          <div className="ai-portal-shimmer-sweep" />
+        <div className="ai-clean-portal-text-row">
+          <span className="ai-clean-portal-brand">FORMAX</span>
+          <span className="ai-clean-portal-ai-pill">AI</span>
         </div>
-
-        <div className="ai-portal-subtitle-wrap">
-          <div className="ai-portal-line" />
-          <p className="ai-portal-subtext">NEURAL FORM ARCHITECT</p>
-          <div className="ai-portal-line" />
+        <div className="ai-clean-portal-bar">
+          <div className="ai-clean-portal-bar-fill" />
         </div>
-      </div>
-
-      <div className="ai-portal-skip-hint">
-        <span>Tekan layar untuk lewati</span>
       </div>
     </div>
   );
