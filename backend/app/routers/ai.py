@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from ..deps import get_current_user
 from .. import models
-from ..utils.prompt_validator import validate_prompt
+from ..utils.prompt_validator import validate_prompt, extract_question_count
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -105,23 +105,28 @@ QUESTION TYPE RULES:
 - file_upload: File attachment (e.g. Upload Bukti, Resume, Foto KTP).
 """
 
-def _build_user_prompt(req: AiGenerateRequest) -> str:
+def _build_user_prompt(req: AiGenerateRequest, effective_num_questions: int) -> str:
     title_hint = f"Judul form spesifik: {req.title}" if req.title else "Judul form: Buatkan judul profesional & menarik sesuai konteks prompt."
     desc_hint = f"Deskripsi form spesifik: {req.description}" if req.description else "Deskripsi: Generate 1-2 kalimat petunjuk pengisian yang ramah & jelas."
     correct_hint = "KUNCI JAWABAN: Wajib tandai tepat 1 opsi benar (is_correct: true) untuk tiap soal pilihan ganda (single_choice)." if req.include_correct else "KUNCI JAWABAN: Matikan kunci jawaban, semua is_correct: false."
     section_hint = "BAGIAN (SECTION): Gunakan page_break untuk memisahkan Bagian 1 (Identitas/Info) dan Bagian 2 (Soal/Evaluasi). Beri label bagian & deskripsi yang pas." if req.use_sections else "BAGIAN (SECTION): Jangan gunakan page_break, susun pertanyaan secara mendatar (flat)."
     type_hint = f"PREFER TYPE: Utamakan penggunaan tipe {req.prefer_type} untuk soal utama." if req.prefer_type and req.prefer_type != "auto" else "TIPE SOAL: Variasikan tipe soal secara logis sesuai konteks (single_choice untuk kuis, text/dropdown untuk identitas, paragraph untuk esai)."
     
+    # Check if prompt contains math/science related terms
+    is_math = bool(re.search(r'(matematika|math|aljabar|kalkulus|geometri|trigonometri|fisika|rumus|persamaan|equation|hitung|kuadrat|pecahan|integral|turunan)', req.prompt, re.IGNORECASE))
+    math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX!" if is_math else ""
+
     return f"""{title_hint}
 {desc_hint}
 Prompt Pengguna: "{req.prompt}"
-Target Jumlah Soal (tidak menghitung page_break): {req.num_questions} soal
+Target Jumlah Soal (tidak menghitung page_break): {effective_num_questions} soal (Wajib tepat {effective_num_questions} pertanyaan)
 {correct_hint}
 {section_hint}
 {type_hint}
+{math_hint}
 
 PENTING:
-- Buat tepat {req.num_questions} pertanyaan utama (di luar type page_break).
+- Buat tepat {effective_num_questions} pertanyaan utama (di luar type page_break).
 - Seluruh teks dalam bahasa yang sama dengan prompt pengguna.
 - Hasilkan JSON murni sesuai schema.
 """
@@ -644,9 +649,13 @@ async def generate_form(payload: AiGenerateRequest, current_user: models.User = 
 
     _check_rate_limit(str(current_user.id))
 
+    # Cek apakah pengguna meminta jumlah soal eksplisit dalam prompt teks
+    extracted_count = extract_question_count(payload.prompt)
+    effective_num_questions = extracted_count if extracted_count is not None else payload.num_questions
+
     title = (payload.title or "").strip()
     description = (payload.description or "").strip()
-    user_prompt = _build_user_prompt(payload)
+    user_prompt = _build_user_prompt(payload, effective_num_questions)
 
     raw_text = await _call_ai(user_prompt)
 
@@ -682,7 +691,7 @@ async def generate_form(payload: AiGenerateRequest, current_user: models.User = 
             detail=f"AI tidak mengembalikan questions. Raw: {raw_text[:500]}"
         )
 
-    questions = _validate_and_normalize(raw_questions, payload.num_questions, payload.use_sections)
+    questions = _validate_and_normalize(raw_questions, effective_num_questions, payload.use_sections)
 
     if len([q for q in questions if q["type"] != "page_break"]) == 0:
         raise HTTPException(

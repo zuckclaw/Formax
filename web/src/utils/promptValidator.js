@@ -164,3 +164,52 @@ export function validatePrompt(prompt) {
 
   return { isValid: true, error: null };
 }
+
+const WORD_TO_NUMBER_MAP = {
+  'tiga': 3, 'three': 3,
+  'empat': 4, 'four': 4,
+  'lima': 5, 'five': 5,
+  'enam': 6, 'six': 6,
+  'tujuh': 7, 'seven': 7,
+  'delapan': 8, 'eight': 8,
+  'sembilan': 9, 'nine': 9,
+  'sepuluh': 10, 'ten': 10,
+  'sebelas': 11, 'eleven': 11,
+  'dua belas': 12, 'twelve': 12,
+  'tiga belas': 13, 'thirteen': 13,
+  'empat belas': 14, 'fourteen': 14,
+  'lima belas': 15, 'fifteen': 15,
+  'dua puluh': 20, 'twenty': 20,
+  'dua puluh lima': 25, 'twenty five': 25,
+  'tiga puluh': 30, 'thirty': 30,
+};
+
+/**
+ * Mengekstrak jumlah soal dari teks prompt jika pengguna menyebutkannya secara spesifik.
+ * @param {string} promptText
+ * @returns {number|null}
+ */
+export function extractQuestionCountFromPrompt(promptText) {
+  if (!promptText || typeof promptText !== 'string') return null;
+  const lower = promptText.toLowerCase();
+
+  // 1. Regex angka digit (contoh: "10 soal", "8 butir pertanyaan", "15 questions")
+  const digitRegex = /(?:(\d+)\s*(?:butir|nomor|buah)?\s*(?:soal|pertanyaan|questions?|items?|fields?)|(?:sebanyak|total|jumlah)\s*(\d+)\s*(?:butir|nomor|buah)?\s*(?:soal|pertanyaan|questions?|items?)?)/i;
+  const match = lower.match(digitRegex);
+  if (match) {
+    const rawNum = parseInt(match[1] || match[2], 10);
+    if (!isNaN(rawNum) && rawNum > 0) {
+      return Math.max(3, Math.min(30, rawNum));
+    }
+  }
+
+  // 2. Cek kata bilangan bahasa Indonesia / Inggris
+  for (const [word, num] of Object.entries(WORD_TO_NUMBER_MAP)) {
+    const wordPattern = new RegExp(`\\b${word}\\s*(?:butir|nomor|buah)?\\s*(?:soal|pertanyaan|questions?|items?)`, 'i');
+    if (wordPattern.test(lower)) {
+      return Math.max(3, Math.min(30, num));
+    }
+  }
+
+  return null;
+}

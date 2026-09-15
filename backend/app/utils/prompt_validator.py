@@ -106,3 +106,63 @@ def validate_prompt(prompt: str) -> Tuple[bool, Optional[str]]:
             return False, "Prompt terdeteksi berisi variasi karakter yang sama berulang kali."
 
     return True, None
+
+
+WORD_TO_NUMBER = {
+    'tiga': 3, 'three': 3,
+    'empat': 4, 'four': 4,
+    'lima': 5, 'five': 5,
+    'enam': 6, 'six': 6,
+    'tujuh': 7, 'seven': 7,
+    'delapan': 8, 'eight': 8,
+    'sembilan': 9, 'nine': 9,
+    'sepuluh': 10, 'ten': 10,
+    'sebelas': 11, 'eleven': 11,
+    'dua belas': 12, 'twelve': 12,
+    'tiga belas': 13, 'thirteen': 13,
+    'empat belas': 14, 'fourteen': 14,
+    'lima belas': 15, 'fifteen': 15,
+    'dua puluh': 20, 'twenty': 20,
+    'dua puluh lima': 25, 'twenty five': 25,
+    'tiga puluh': 30, 'thirty': 30,
+}
+
+
+def extract_question_count(prompt: str) -> Optional[int]:
+    """
+    Mengekstrak jumlah soal/pertanyaan yang diminta eksplisit dalam prompt teks.
+    Contoh: '10 soal', '8 butir pertanyaan', '15 questions', 'sepuluh soal'.
+    Returns int antara 3 s/d 30, atau None jika tidak ditemukan.
+    """
+    if not prompt or not isinstance(prompt, str):
+        return None
+
+    text = prompt.lower()
+
+    # 1. Cek angka digit (misal: "10 soal", "8 butir soal", "15 questions", "12 pertanyaan", "sebanyak 10")
+    digit_patterns = [
+        r'(\d+)\s*(?:butir|nomor|buah)?\s*(?:soal|pertanyaan|question(?:s)?|item(?:s)?|field(?:s)?)',
+        r'(?:sebanyak|total|jumlah)\s*(\d+)\s*(?:butir|nomor|buah)?\s*(?:soal|pertanyaan|question(?:s)?|item(?:s)?)?',
+    ]
+    for pat in digit_patterns:
+        m = re.search(pat, text)
+        if m:
+            try:
+                val = int(m.group(1))
+                if 3 <= val <= 30:
+                    return val
+                if val > 30:
+                    return 30
+                if val < 3 and val > 0:
+                    return 3
+            except ValueError:
+                pass
+
+    # 2. Cek kata bilangan (misal: "sepuluh soal", "lima belas pertanyaan")
+    for word_num, val in sorted(WORD_TO_NUMBER.items(), key=lambda x: -len(x[0])):
+        pattern = rf'\b{re.escape(word_num)}\s*(?:butir|nomor|buah)?\s*(?:soal|pertanyaan|question(?:s)?|item(?:s)?)'
+        if re.search(pattern, text):
+            return max(3, min(30, val))
+
+    return None
+

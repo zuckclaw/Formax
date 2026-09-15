@@ -5,8 +5,9 @@ import { generateAiForm } from '../api/ai';
 import { getValidToken } from '../utils/authStorage';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
-import { validatePrompt } from '../utils/promptValidator';
+import { validatePrompt, extractQuestionCountFromPrompt } from '../utils/promptValidator';
 import ThemeToggle from '../components/ThemeToggle';
+import 'katex/dist/katex.min.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
 
@@ -141,10 +142,18 @@ export default function AiFormBuilderPage() {
       showToast(validation.error, 'error');
       return;
     }
-    if (numQuestions < 3 || numQuestions > 30) {
+
+    const detectedCount = extractQuestionCountFromPrompt(prompt);
+    const resolvedNumQuestions = detectedCount !== null ? detectedCount : numQuestions;
+
+    if (resolvedNumQuestions < 3 || resolvedNumQuestions > 30) {
       setError('Jumlah soal harus antara 3 hingga 30.');
       return;
     }
+    if (detectedCount !== null && detectedCount !== numQuestions) {
+      setNumQuestions(detectedCount);
+    }
+
     setError('');
     setIsGenerating(true);
     setPreview(null);
@@ -153,7 +162,7 @@ export default function AiFormBuilderPage() {
         title: title.trim() || undefined,
         description: description.trim() || undefined,
         prompt: prompt.trim(),
-        num_questions: Number(numQuestions),
+        num_questions: Number(resolvedNumQuestions),
         include_correct: includeCorrect,
         use_sections: useSections,
       });
@@ -328,9 +337,14 @@ export default function AiFormBuilderPage() {
                 placeholder="Contoh: Buatkan ujian Matematika SMA kelas 10 tentang fungsi kuadrat, 5 soal pilihan ganda dengan 4 opsi, kunci jawaban akurat, dan rumus LaTeX \(f(x) = ax^2 + bx + c\)..."
                 value={prompt}
                 onChange={(e) => {
-                  setPrompt(e.target.value);
+                  const val = e.target.value;
+                  setPrompt(val);
                   setActivePreset(null);
                   if (error) setError('');
+                  const detected = extractQuestionCountFromPrompt(val);
+                  if (detected !== null && detected !== numQuestions) {
+                    setNumQuestions(detected);
+                  }
                 }}
                 maxLength={4000}
               />
