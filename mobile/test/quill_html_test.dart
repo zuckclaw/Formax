@@ -42,10 +42,13 @@ void main() {
     expect(html.toLowerCase(), contains('bold'));
   });
 
-  Set<dynamic> attrKeys(dynamic rt) {
-    return rt
+  Set<String> attrKeys(Iterable<Object?> rawOperations) {
+    return rawOperations
+        .whereType<Map>()
+        .map(Map<String, dynamic>.from)
         .where((op) => op['insert'] is String && op['attributes'] is Map)
-        .expand((op) => (op['attributes'] as Map).keys)
+        .expand((op) => Map<String, dynamic>.from(op['attributes'] as Map).keys)
+        .whereType<String>()
         .toSet();
   }
 

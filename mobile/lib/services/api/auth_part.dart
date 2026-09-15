@@ -19,7 +19,7 @@ Future<Map<String, dynamic>> _authLogin(
       Uri.parse('${ApiService.baseUrl}/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
-    );
+    ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 &&
@@ -46,7 +46,7 @@ Future<Map<String, dynamic>> _authSendOtp(String email) async {
       Uri.parse('${ApiService.baseUrl}/auth/send-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
-    );
+    ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 &&
@@ -70,7 +70,7 @@ Future<Map<String, dynamic>> _authRequestPasswordReset(String email) async {
       Uri.parse('${ApiService.baseUrl}/auth/forgot-password'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
-    );
+    ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 &&
         data is Map &&
@@ -101,7 +101,7 @@ Future<Map<String, dynamic>> _authResetPassword(
         'otp': otp,
         'new_password': newPassword,
       }),
-    );
+    ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 &&
         data is Map &&
@@ -128,7 +128,7 @@ Future<Map<String, dynamic>> _authVerifyPasswordResetOtp(
       Uri.parse('${ApiService.baseUrl}/auth/verify-reset-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'otp': otp}),
-    );
+    ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 &&
         data is Map &&
@@ -161,12 +161,14 @@ Future<Map<String, dynamic>> _authRegister(
         'password': password,
         'otp': otp,
       }),
-    );
+    ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) {
-      if (data is Map && data.containsKey('access_token')) {
-        await ApiService.saveToken(data['access_token']);
+      if (data is Map &&
+          data['access_token'] is String &&
+          (data['access_token'] as String).isNotEmpty) {
+        await ApiService.saveToken(data['access_token'] as String);
       }
       return {'success': true, 'data': data};
     } else {
@@ -176,7 +178,7 @@ Future<Map<String, dynamic>> _authRegister(
       return {'success': false, 'message': msg.toString()};
     }
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -194,7 +196,7 @@ Future<Map<String, dynamic>> _authGetMe() async {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-    );
+    ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200) {
@@ -206,6 +208,6 @@ Future<Map<String, dynamic>> _authGetMe() async {
       return {'success': false, 'message': msg.toString()};
     }
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }

@@ -13,6 +13,9 @@ import 'katex/dist/katex.min.css';
 import '../styles/form-fill.css';
 import '../styles/video-embed.css';
 import { prepareMathHtml } from '../utils/mathRender';
+import { safeHtml } from '../utils/safeHtml';
+import { getValidToken } from '../utils/authStorage';
+import { parseServerTime } from '../utils/date';
 import { enhanceVideoContainers } from '../utils/videoEmbed';
 
 const ZOOM_MIN = 50;
@@ -136,7 +139,8 @@ function normalizeColors(html) {
 // terformat (mirip RichTextView di aplikasi mobile), bukan sebagai tag mentah.
 // Sekarang juga enrich raw LaTeX (\frac dll) yang lolos dari sanitizer lama
 // agar tetap tampil sebagai rumus di fillpage & riwayat.
-const richHtml = (html) => ({ __html: prepareMathHtml(normalizeColors(html ?? '')) });
+// Sanitasi DOMPurify di akhir agar XSS tersimpan tidak bisa eksekusi di browser.
+const richHtml = (html) => ({ __html: safeHtml(prepareMathHtml(normalizeColors(html ?? ''))) });
 
 // Hook untuk render video embed inline (YouTube/Vimeo/Drive/MP4) tanpa keluar form
 // Fix: React dangerouslySetInnerHTML bikin object baru tiap render -> innerHTML di-reset tiap state change (pilih opsi / zoom)
@@ -233,7 +237,7 @@ function stripHtml(html) {
 export default function FormFillPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
+  const token = getValidToken();
 
   // Form & Submission states
   const [form, setForm] = useState(null);
@@ -351,7 +355,7 @@ export default function FormFillPage() {
 
   // Load user profile automatically on mount if token exists
   useEffect(() => {
-    const curToken = localStorage.getItem('token');
+    const curToken = getValidToken();
     if (curToken && !userProfile) {
       getMe(curToken)
         .then((data) => setUserProfile(data))
@@ -384,16 +388,12 @@ export default function FormFillPage() {
   const [resultLoading, setResultLoading] = useState(false);
 
   // Helper untuk ambil token fresh (biar tidak stale closure)
-  const getToken = () => localStorage.getItem('token');
+  const getToken = () => getValidToken();
 
-  // 1. Initial Load — wajib login (PrivateRoute sudah handle di App.jsx,
-  //    ini defense-in-depth agar tidak ada celah akses anonim)
+  // 1. Initial Load — publik ala Google Forms: boleh anonim via X-Respondent-Key.
+  //    Jangan paksa login di sini; andalkan joinForm + getAuthHeaders(token) yang
+  //    sudah support token null. Guard login hanya untuk aksi owner di Dashboard.
   useEffect(() => {
-    if (!token) {
-      navigate(`/auth?redirect=${encodeURIComponent(`/f/${slug}`)}`);
-      return;
-    }
-
     const loadForm = async () => {
       try {
         setLoading(true);
@@ -402,11 +402,11 @@ export default function FormFillPage() {
         setForm(formData);
 
         // Jika waktu pengisian sudah berakhir atau status form ditutup -> tampilkan layar "Form Ditutup / Waktu Habis", JANGAN buka form / tampilkan auto-submit
+        // parseServerTime: backend kirim naive UTC tanpa zona -> paksa dibaca sebagai UTC
+        // agar tidak geser -7 jam di WIB.
         const parseDateMs = (dateStr) => {
-          if (!dateStr) return null;
-          let d = new Date(dateStr);
-          if (isNaN(d.getTime())) d = new Date(dateStr.replace(' ', 'T'));
-          return isNaN(d.getTime()) ? null : d.getTime();
+          const d = parseServerTime(dateStr);
+          return d ? d.getTime() : null;
         };
         const endMs = parseDateMs(formData.end_date);
         const isTimeExpired = endMs && Date.now() > endMs;

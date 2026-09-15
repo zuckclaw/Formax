@@ -4,7 +4,7 @@ try:
     from docx import Document
 except ImportError:
     Document = None
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -41,8 +41,8 @@ def download_template_docx(current_user: models.User = Depends(get_current_user)
 @router.post("/forms/{form_id}/questions/import-docx/preview", response_model=schemas.DocxPreviewOut)
 def preview_import_docx(
     form_id: str,
-    file: UploadFile,
-    request: Request,
+    file: UploadFile = File(...),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -54,8 +54,10 @@ def preview_import_docx(
     data = file.file.read()
     if len(data) > MAX_DOCX_SIZE:
         raise HTTPException(status_code=400, detail="Ukuran file maksimal 5 MB")
+    if len(data) < 4 or data[:4] != b"PK\x03\x04":
+        raise HTTPException(status_code=400, detail="File bukan .docx valid (header ZIP tidak ditemukan)")
 
-    base_url = str(request.base_url)
+    base_url = str(request.base_url) if request is not None else ""
     try:
         parsed = parse_docx_questions(io.BytesIO(data), base_url=base_url)
     except Exception:
@@ -84,6 +86,8 @@ def confirm_import_docx(
 
     if not payload.questions:
         raise HTTPException(status_code=400, detail="Tidak ada soal yang dipilih untuk diimpor")
+    if len(payload.questions) > 200:
+        raise HTTPException(status_code=400, detail="Maksimal 200 soal per import (kecilkan file)")
 
     last_order = (
         db.query(func.max(models.Question.order_index))

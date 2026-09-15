@@ -41,15 +41,17 @@ class FormModel {
         ? json
         : Map<String, dynamic>.from(json);
     return FormModel(
-      id: map['id'] ?? '',
-      title: map['title'] ?? 'Tanpa Judul',
-      description: map['description'] ?? '',
-      slug: map['slug'] ?? '',
-      status: map['status'] ?? 'draft',
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? 'Tanpa Judul',
+      description: map['description']?.toString() ?? '',
+      slug: map['slug']?.toString() ?? '',
+      status: map['status']?.toString() ?? 'draft',
       createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at']) ?? DateTime.now()
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      totalSubmissions: map['total_submissions'] ?? 0,
+      totalSubmissions: (map['total_submissions'] is int)
+          ? map['total_submissions'] as int
+          : int.tryParse('${map['total_submissions']}') ?? 0,
     );
   }
 }
@@ -90,14 +92,14 @@ class SubmissionModel {
     }
 
     return SubmissionModel(
-      id: map['id'] ?? '',
-      respondentName: user?['full_name'] ?? 'Anonim',
-      respondentEmail: user?['email'] ?? '-',
+      id: map['id']?.toString() ?? '',
+      respondentName: user?['full_name']?.toString() ?? 'Anonim',
+      respondentEmail: user?['email']?.toString() ?? '-',
       submittedAt: map['submitted_at'] != null
-          ? DateTime.tryParse(map['submitted_at'])
+          ? DateTime.tryParse(map['submitted_at'].toString())
           : null,
-      isAutoSubmitted: map['is_auto_submitted'] ?? false,
-      isCheated: map['is_cheated'] ?? false,
+      isAutoSubmitted: map['is_auto_submitted'] == true,
+      isCheated: map['is_cheated'] == true,
       answersById: answersById,
     );
   }

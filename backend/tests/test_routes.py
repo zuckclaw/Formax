@@ -2,7 +2,9 @@ import asyncio
 import unittest
 from io import BytesIO
 from datetime import datetime
+from unittest.mock import Mock
 
+from fastapi import HTTPException
 from openpyxl import load_workbook
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +12,9 @@ from sqlalchemy.orm import sessionmaker
 from app import models
 from app.database import Base
 from app.main import app
+from app.deps import _is_revoked
 from app.routers.export import export_submissions_to_excel
+from app.routers.auth import _revoke_payload
 
 
 class RouteRegistrationTests(unittest.TestCase):
@@ -135,6 +139,34 @@ class RouteRegistrationTests(unittest.TestCase):
             detail_rows = list(workbook["Detail Jawaban"].iter_rows(values_only=True))
             self.assertIn("Skor /100", detail_rows[0])
             self.assertTrue(any("Jakarta" in str(cell) for row in detail_rows for cell in row))
+
+
+class AuthSecurityTests(unittest.TestCase):
+    def setUp(self):
+        self.engine = create_engine("sqlite://")
+        self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False, autocommit=False)
+        Base.metadata.create_all(bind=self.engine)
+        self.db = self.SessionLocal()
+
+    def tearDown(self):
+        self.db.close()
+        self.engine.dispose()
+
+    def test_revoke_is_idempotent_and_reports_duplicate(self):
+        payload = {"jti": "refresh-jti", "sub": "user-id", "exp": 4102444800}
+
+        self.assertTrue(_revoke_payload(self.db, payload, reason="rotated"))
+        self.assertFalse(_revoke_payload(self.db, payload, reason="rotated"))
+        self.assertEqual(self.db.query(models.RevokedToken).count(), 1)
+
+    def test_denylist_database_failure_fails_closed(self):
+        broken_db = Mock()
+        broken_db.query.side_effect = RuntimeError("database unavailable")
+
+        with self.assertRaises(HTTPException) as raised:
+            _is_revoked(broken_db, "jti")
+
+        self.assertEqual(raised.exception.status_code, 503)
 
 
 if __name__ == "__main__":

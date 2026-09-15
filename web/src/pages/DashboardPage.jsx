@@ -10,6 +10,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import NgrokImage from '../components/NgrokImage';
 import 'katex/dist/katex.min.css';
 import { prepareMathHtml } from '../utils/mathRender';
+import { safeHtml } from '../utils/safeHtml';
 import '../styles/dashboard.css';
 import '../styles/ai-builder.css';
 
@@ -1390,9 +1391,9 @@ export default function DashboardPage() {
                                 <div className="analytics-section-header-left">
                                   <div className="analytics-section-badge-row">
                                     <span className="analytics-section-badge">Bagian {sIdx + 1}</span>
-                                    <h3 className="analytics-section-title ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb?.label || `Bagian ${sIdx + 1}`) }} />
+                                    <h3 className="analytics-section-title ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb?.label || `Bagian ${sIdx + 1}`)) }} />
                                   </div>
-                                  {sec.pb?.settings?.description && <p className="analytics-section-desc ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb.settings.description) }} />}
+                                  {sec.pb?.settings?.description && <p className="analytics-section-desc ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.settings.description)) }} />}
                                 </div>
                                 <span className="analytics-section-qcount">{sec.questions.length} Pertanyaan</span>
                               </div>
@@ -1434,7 +1435,7 @@ export default function DashboardPage() {
                                     <div className="analytics-q-header">
                                       <div className="analytics-q-title-wrap">
                                         <span className="q-number-span">{localIdx + 1}.</span>
-                                        <h4 className="analytics-q-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: prepareMathHtml(q.label || '') }} />
+                                        <h4 className="analytics-q-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label || '')) }} />
                                       </div>
                                       <div className="analytics-q-tags">
                                         <span className="analytics-type-badge">{typeLabels[q.type] || q.type}</span>
@@ -1462,7 +1463,7 @@ export default function DashboardPage() {
                                             <div key={opt.id} className="analytics-bar-item">
                                               <div className="analytics-bar-info">
                                                 <div className="analytics-opt-label">
-                                                  <span className="ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(opt.label || '') }} />
+                                                  <span className="ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(opt.label || '')) }} />
                                                   {opt.is_correct && <span className="analytics-correct-key">✓ Kunci Jawaban</span>}
                                                 </div>
                                                 <span className="analytics-opt-stats">
@@ -1488,8 +1489,8 @@ export default function DashboardPage() {
                                         {allAnsForQ.length === 0 ? (
                                           <p className="analytics-empty-text">Belum ada jawaban untuk pertanyaan ini.</p>
                                         ) : (
-                                          allAnsForQ.slice(0, 5).map((item, itemIdx) => (
-                                            <div key={itemIdx} className="analytics-feed-row">
+                                          allAnsForQ.slice(0, 5).map((item) => (
+                                            <div key={item.ans?.id || `${item.user?.email || 'anon'}-${item.submittedAt || ''}`} className="analytics-feed-row">
                                               <div className="analytics-feed-user">
                                                 <strong>{item.user?.full_name || 'Responden'}</strong>
                                                 <span>• {item.submittedAt ? formatDateString(item.submittedAt) : 'Proses'}</span>
@@ -1630,9 +1631,9 @@ export default function DashboardPage() {
                                   <div className="detail-section-header-left">
                                     <div className="detail-section-badge-row">
                                       <span className="detail-section-badge">Bagian {sIdx + 1}</span>
-                                      <h3 className="detail-section-title ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb?.label || `Bagian ${sIdx + 1}`) }} />
+                                      <h3 className="detail-section-title ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb?.label || `Bagian ${sIdx + 1}`)) }} />
                                     </div>
-                                    {sec.pb?.settings?.description && <p className="detail-section-desc ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb.settings.description) }} />}
+                                    {sec.pb?.settings?.description && <p className="detail-section-desc ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.settings.description)) }} />}
                                   </div>
                                   <span className="detail-section-qcount">{sec.questions.length} Pertanyaan</span>
                                 </div>
@@ -1660,7 +1661,7 @@ export default function DashboardPage() {
                                       <div className="detail-question-header">
                                         <div className="detail-question-title-wrap">
                                           <span className="q-number-span">{localIdx + 1}.</span>
-                                          <h3 className="detail-question-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: prepareMathHtml(q.label || '') }} />
+                                          <h3 className="detail-question-title ql-editor" title={plainLabel(q.label)} dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label || '')) }} />
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                                           <span className="detail-type-badge">
@@ -1703,7 +1704,7 @@ export default function DashboardPage() {
                                                       flexShrink: 0,
                                                     }}
                                                   />
-                                                  <span className="ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(opt.label || '') }} />
+                                                  <span className="ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(opt.label || '')) }} />
                                                 </div>
 
                                                 {/* Indicator */}
@@ -1893,7 +1894,7 @@ export default function DashboardPage() {
                         {activityResult.answers.map((a, idx) => (
                           <div key={a.question_id} className="detail-question-card activity-q-card">
                             <div className="detail-question-header">
-                              <h3 className="detail-question-title ql-editor" dangerouslySetInnerHTML={{ __html: `${idx + 1}. ${prepareMathHtml(a.label || '')}` }}>
+                              <h3 className="detail-question-title ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(`${idx + 1}. ${prepareMathHtml(a.label || '')}`) }}>
                               </h3>
                               {a.is_correct !== null && a.is_correct !== undefined && (
                                 <span className={`correct-tag ${a.is_correct ? '' : 'incorrect-tag'}`}>
@@ -1903,12 +1904,12 @@ export default function DashboardPage() {
                             </div>
                             <div className="resp-answer-value">
                               <span className="ans-label-tag">Jawaban kamu:</span>
-                              <span className="ans-text-content ql-editor" dangerouslySetInnerHTML={{ __html: a.user_answer ? prepareMathHtml(a.user_answer) : '<i style="color:#94a3b8">(tidak dijawab)</i>' }} />
+                              <span className="ans-text-content ql-editor" dangerouslySetInnerHTML={{ __html: a.user_answer ? safeHtml(prepareMathHtml(a.user_answer)) : '<i style="color:#94a3b8">(tidak dijawab)</i>' }} />
                             </div>
                             {a.correct_answer && (
                               <div className="resp-answer-value key-answer-box">
                                 <span className="key-label-tag">Kunci Jawaban:</span>
-                                <span className="key-text-content ql-editor" dangerouslySetInnerHTML={{ __html: prepareMathHtml(a.correct_answer) }} />
+                                <span className="key-text-content ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(a.correct_answer)) }} />
                               </div>
                             )}
                           </div>

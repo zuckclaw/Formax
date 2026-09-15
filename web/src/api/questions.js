@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiFetch, readJsonResponse } from './config';
+import { API_BASE_URL, apiFetch, getAuthHeaders, readJsonResponse } from './config';
 
 // ============================================================
 // QUESTIONS
@@ -12,7 +12,7 @@ export async function createQuestionInForm(token, formId, data) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -27,7 +27,7 @@ export async function updateQuestion(token, questionId, data) {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -40,7 +40,7 @@ export async function updateQuestion(token, questionId, data) {
 export async function deleteQuestion(token, questionId) {
   const res = await apiFetch(`${API_BASE_URL}/questions/${questionId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal menghapus pertanyaan');
 }
@@ -57,7 +57,7 @@ export async function createOption(token, questionId, data) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -72,7 +72,7 @@ export async function updateOption(token, optionId, data) {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -85,7 +85,7 @@ export async function updateOption(token, optionId, data) {
 export async function deleteOption(token, optionId) {
   const res = await apiFetch(`${API_BASE_URL}/options/${optionId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal menghapus opsi');
 }

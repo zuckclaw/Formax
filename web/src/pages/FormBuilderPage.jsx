@@ -2104,8 +2104,8 @@ export default function FormBuilderPage() {
                           <div className="fb-import-q-label">{q.label}</div>
                           {q.options.length > 0 && (
                             <div className="fb-import-q-options">
-                              {q.options.map((o, i) => (
-                                <span key={i} className={`fb-import-q-opt ${o.is_correct ? 'correct' : ''}`}>
+                              {q.options.map((o) => (
+                                <span key={o.order_index ?? o.label} className={`fb-import-q-opt ${o.is_correct ? 'correct' : ''}`}>
                                   {String.fromCharCode(65 + o.order_index)}. {o.label}{o.is_correct ? ' ★' : ''}
                                 </span>
                               ))}
@@ -2113,8 +2113,8 @@ export default function FormBuilderPage() {
                           )}
                           {q.errors.length > 0 && (
                             <div className="fb-import-q-errors">
-                              {q.errors.map((err, i) => (
-                                <span key={i} className="fb-import-q-error-tag">
+                              {q.errors.map((err) => (
+                                <span key={err} className="fb-import-q-error-tag">
                                   <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                   {err}
                                 </span>

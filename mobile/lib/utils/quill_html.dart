@@ -85,11 +85,17 @@ class QuillHtml {
       listAlign = null;
     }
 
-    for (final op in delta.operations) {
-      if (!op.isInsert) continue;
-      final data = op.data;
-      final attrs =
-          (op.attributes ?? const <String, dynamic>{}) as Map<String, dynamic>;
+    // flutter_quill does not export the Delta type, so this public bridge
+    // keeps a dynamic input for compatibility with Document.toDelta().
+    // ignore: avoid_dynamic_calls
+    for (final rawOp in delta.toJson()) {
+      if (rawOp is! Map) continue;
+      final op = Map<String, dynamic>.from(rawOp);
+      final data = op['insert'];
+      if (data == null) continue;
+      final attrs = op['attributes'] is Map
+          ? Map<String, dynamic>.from(op['attributes'] as Map)
+          : <String, dynamic>{};
 
       if (data == '\n') {
         blockAlign = attrs['align'] as String?;

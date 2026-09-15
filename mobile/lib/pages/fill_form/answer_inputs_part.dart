@@ -335,7 +335,8 @@ extension _FillFormAnswerInputs on _FillFormPageState {
 
   // --- DROPDOWN ---
   Widget _buildDropdownInput(Question question) {
-    final selectedValue = _answers[question.id]?['answer_text'] ?? '';
+    final selectedValue =
+        _answers[question.id]?['answer_text'] as String? ?? '';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -371,7 +372,8 @@ extension _FillFormAnswerInputs on _FillFormPageState {
 
   // --- DATE INPUT ---
   Widget _buildDateInput(Question question) {
-    final currentDate = _answers[question.id]?['answer_text'] ?? '';
+    final currentDate =
+        _answers[question.id]?['answer_text'] as String? ?? '';
 
     return InkWell(
       onTap: () async {
@@ -436,8 +438,8 @@ extension _FillFormAnswerInputs on _FillFormPageState {
   // --- LINEAR SCALE ---
   Widget _buildLinearScaleInput(Question question) {
     final settings = question.settings;
-    final min = settings['scale_min'] ?? 1;
-    final max = settings['scale_max'] ?? 5;
+    final min = (settings['scale_min'] as num?)?.toInt() ?? 1;
+    final max = (settings['scale_max'] as num?)?.toInt() ?? 5;
     final current =
         int.tryParse(_answers[question.id]?['answer_text'] ?? '') ?? -1;
     return Column(
@@ -447,14 +449,14 @@ extension _FillFormAnswerInputs on _FillFormPageState {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              settings['min_label'] ?? '$min',
+              (settings['min_label'] as String?) ?? '$min',
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             Text(
-              settings['max_label'] ?? '$max',
+              (settings['max_label'] as String?) ?? '$max',
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

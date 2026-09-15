@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "formax.support@gmail.com")
-APP_PASSWORD = os.getenv("APP_PASSWORD", "duea yiju iblv ljgz")
+APP_PASSWORD = (os.getenv("APP_PASSWORD") or "").strip()
 
 
 def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "Verifikasi"):
@@ -120,8 +120,14 @@ Tim Form4x
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
+        import ssl
+
+        if not APP_PASSWORD:
+            print("Failed to send email: APP_PASSWORD belum dikonfigurasi (isi di .env)")
+            return False
+        context = ssl.create_default_context()
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
+        server.starttls(context=context)
         server.login(SENDER_EMAIL, APP_PASSWORD)
         server.send_message(msg)
         server.quit()

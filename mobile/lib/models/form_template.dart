@@ -52,13 +52,13 @@ class FormTemplate {
     }
     return FormTemplate(
       id: map['id']?.toString(),
-      title: (map['title'] as String?)?.trim().isEmpty == true
+      title: (map['title']?.toString() ?? '').trim().isEmpty
           ? 'Tanpa Judul'
-          : (map['title'] ?? 'Tanpa Judul'),
-      subtitle: map['description'] ?? '',
+          : map['title'].toString(),
+      subtitle: map['description']?.toString() ?? '',
       bannerUrl: map['banner_url']?.toString(),
       questionsJson: qs,
-      isSystem: map['is_system'] ?? false,
+      isSystem: map['is_system'] == true,
     );
   }
 }

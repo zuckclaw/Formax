@@ -18,7 +18,7 @@ from html.parser import HTMLParser
 _ALLOWED_TAGS = {
     "p", "br", "strong", "b", "em", "i", "u", "s", "strike", "del",
     "span", "ul", "ol", "li", "h1", "h2", "h3", "h4", "blockquote",
-    "a", "sub", "sup", "font", "div", "pre",
+    "a", "sub", "sup", "font", "div", "pre", "img", "hr",
     # audio/video untuk RichTextEditor dcb894e — harus di-allow agar tidak di-strip
     "audio", "video", "source",
     # KaTeX / math — harus di-allow agar rumus tidak hilang (fix \frac tampil sebagai teks)
@@ -65,7 +65,25 @@ _ALLOWED_ATTRS = {
 _UNSAFE_STYLE = _re.compile(
     r"(url\s*\(|expression\s*\(|javascript:|@import|behavior\s*:|-moz-binding)"
 )
-_SAFE_PREFIXES = ("http://", "https://", "mailto:", "tel:", "/", "#", "data:image/", "data:audio/", "data:video/")
+# Hanya izinkan data: untuk gambar raster & audio/video — TOLAK svg+xml (bisa bawa <script>).
+_SAFE_PREFIXES = ("http://", "https://", "mailto:", "tel:", "/", "#")
+_SAFE_DATA_PREFIXES = (
+    "data:image/png;", "data:image/jpeg;", "data:image/jpg;",
+    "data:image/gif;", "data:image/webp;",
+    "data:audio/", "data:video/",
+)
+
+
+def _is_safe_url(value: str) -> bool:
+    test = value.strip().lower()
+    if test.startswith(_SAFE_PREFIXES):
+        return True
+    if test.startswith("data:"):
+        # data URL harus base64 + tipe yang diizinkan; tolak svg & html.
+        if "svg" in test.split(";")[0] or "html" in test.split(";")[0]:
+            return False
+        return test.startswith(_SAFE_DATA_PREFIXES)
+    return False
 
 _STRIP_TAG_RE = _re.compile(r"<[^>]+>")
 
@@ -90,9 +108,8 @@ class _Sanitizer(HTMLParser):
                 if not _UNSAFE_STYLE.search(value.lower()):
                     rendered.append((kl, value[:2000]))
             elif kl in ("href", "src"):
-                test = value.strip().lower()
-                if test.startswith(_SAFE_PREFIXES):
-                    rendered.append((kl, value))
+                if _is_safe_url(value):
+                    rendered.append((kl, value[:5000]))
             elif kl == "class":
                 # allow class but strip unsafe chars
                 if not _UNSAFE_STYLE.search(value.lower()):
@@ -104,7 +121,7 @@ class _Sanitizer(HTMLParser):
                 # data-value, data-latex, aria-hidden untuk ql-formula / displayMath / katex
                 if not _UNSAFE_STYLE.search(value.lower()) and "javascript:" not in value.lower():
                     rendered.append((kl, value[:2000]))
-            elif allowed is None or kl in allowed:
+            elif allowed is not None and kl in allowed:
                 rendered.append((kl, value[:2000]))
         return "".join(f' {k}="{_html.escape(v, quote=True)}"' for k, v in rendered)
 
@@ -114,6 +131,9 @@ class _Sanitizer(HTMLParser):
             self._skipping += 1
             return
         if tag in _VOID_TAGS:
+            # Void tag tetap harus ada di allowlist — cegah <img> lolos tanpa izin.
+            if tag not in _ALLOWED_TAGS:
+                return
             self.out.append(f"<{tag}{self._attrs(tag, attrs)} />")
             return
         if tag in _ALLOWED_TAGS:
@@ -135,15 +155,17 @@ class _Sanitizer(HTMLParser):
 
     def handle_data(self, data):
         if self._skipping == 0:
-            self.out.append(data)
+            # Escape teks agar <script> yang lolos via entity tidak jadi tag aktif.
+            self.out.append(_html.escape(data, quote=False))
 
     def handle_entityref(self, name):
         if self._skipping == 0:
-            self.out.append(_html.unescape(f"&{name};"))
+            # Pertahankan sebagai entity ter-escape, jangan unescape jadi markup aktif.
+            self.out.append(f"&amp;{name};")
 
     def handle_charref(self, name):
         if self._skipping == 0:
-            self.out.append(_html.unescape(f"&#{name};"))
+            self.out.append(f"&amp;#{name};")
 
 
 def sanitize_html(value, max_len=100000):

@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import HomePage from './pages/HomePage';
 import TentangPage from './pages/TentangPage';
 import CaraPakaiPage from './pages/CaraPakaiPage';
@@ -15,7 +16,9 @@ function PrivateRoute({ children }) {
   const location = useLocation();
 
   if (!token) {
-    const redirectUrl = encodeURIComponent(location.pathname + location.search);
+    const raw = location.pathname + location.search;
+    const safe = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
+    const redirectUrl = encodeURIComponent(safe);
     return <Navigate to={`/auth?redirect=${redirectUrl}`} replace />;
   }
 
@@ -24,17 +27,33 @@ function PrivateRoute({ children }) {
 
 function PublicRoute({ children }) {
   const token = getValidToken();
-  const isRemembered = localStorage.getItem('auth_remember') === 'true';
-  // Jika sudah login dengan remember me, langsung ke dashboard tanpa perlu login lagi
-  if (token && isRemembered) {
+  // Jika sudah punya sesi valid (remember maupun session), jangan tampilkan /auth lagi.
+  if (token) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
 
+function AuthExpiredListener() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    const onExpired = () => {
+      const publicPaths = ['/', '/tentang', '/cara-pakai', '/auth'];
+      const isPublicFill = location.pathname.startsWith('/f/') || location.pathname.startsWith('/forms/public/');
+      if (publicPaths.includes(location.pathname) || isPublicFill) return;
+      navigate('/auth?expired=1', { replace: true });
+    };
+    globalThis.addEventListener('auth:expired', onExpired);
+    return () => globalThis.removeEventListener('auth:expired', onExpired);
+  }, [navigate, location.pathname]);
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <AuthExpiredListener />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/tentang" element={<TentangPage />} />
@@ -80,23 +99,10 @@ function App() {
             </PrivateRoute>
           }
         />
-        {/* Form Filler Routes — wajib login */}
-        <Route
-          path="/f/:slug"
-          element={
-            <PrivateRoute>
-              <FormFillPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/forms/public/:slug"
-          element={
-            <PrivateRoute>
-              <FormFillPage />
-            </PrivateRoute>
-          }
-        />
+        {/* Form Filler Routes — publik, boleh anonim (Google-Forms style).
+            Proteksi login (jika form butuh login) ditangani di dalam FormFillPage. */}
+        <Route path="/f/:slug" element={<FormFillPage />} />
+        <Route path="/forms/public/:slug" element={<FormFillPage />} />
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

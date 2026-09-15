@@ -23,6 +23,11 @@ except Exception as _e:
 
 def _column_exists_conn(conn, table_name: str, column_name: str, dialect: str) -> bool:
     """Cek kolom pakai conn yang sama (hindari inspect(engine) di dalam transaksi -> deadlock SQLite)."""
+    import re as _re
+    if not _re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', table_name or ''):
+        return False
+    if not _re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', column_name or ''):
+        return False
     try:
         if dialect == "postgresql":
             r = conn.execute(text(
@@ -212,13 +217,19 @@ _allowed_origins = [o.strip() for o in _allowed_origins_raw.split(",") if o.stri
 if _allowed_origins:
     # Production: origin eksplisit + regex untuk semua preview Vercel (formax-*.vercel.app)
     # Ini fix OPTIONS 400 di branch preview seperti fathinjam -> https://formax-b68duq2b1-fthnjamaluddn.vercel.app
+    # CATATAN KEAMANAN: regex preview sengaja longgar agar branch preview lolos.
+    # Jangan andalkan regex ini untuk proteksi data sensitif — proteksi utama tetap
+    # JWT + validasi ownership per-endpoint. Untuk lockdown penuh, isi ALLOWED_ORIGINS
+    # dengan daftar eksplisit dan hapus allow_origin_regex.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_allowed_origins,
         # Izin origin dev (Flutter Web pakai port acak localhost, React dev 5173/3000)
         # supaya preflight CORS tidak kena "400 Disallowed CORS origin" -> image
         # gagal tampil "HTTP request failed, statusCode: 0" di Flutter Web.
-        allow_origin_regex=r"https://formax.*\.vercel\.app|http://(localhost|127\.0\.0\.1)(:\d+)?",
+        # Regex di-anchor penuh ^...$ agar https://formax-x.vercel.app.evil.com
+        # tidak lolos, dan hanya subdomain formax-* resmi yang diizinkan.
+        allow_origin_regex=r"^https://formax-[a-z0-9-]+\.vercel\.app$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -242,19 +253,17 @@ async def add_corp_header(request, call_next):
     if request.url.path.startswith("/static"):
         # Izinkan embed cross-origin untuk banner & upload
         response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-        response.headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"
-        # Pastikan CORS tetap ada untuk static (StaticFiles tidak lewat CORSMiddleware di beberapa versi)
-        origin = request.headers.get("origin")
-        if origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Methods"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-        else:
-            response.headers["Access-Control-Allow-Origin"] = "*"
+        # Cegah MIME-sniffing: file .txt/.png palsu berisi HTML tidak dieksekusi browser.
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # Jangan refleksikan Origin sembarang — biarkan CORSMiddleware yang
+        # menentukan Access-Control-Allow-Origin agar tidak membuka CORS ke domain jahat.
     return response
 
 # Serve file QR code & hasil upload
-app.mount("/static", StaticFiles(directory="static"), name="static")
+_STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static")
+_STATIC_DIR = os.path.abspath(_STATIC_DIR)
+os.makedirs(_STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=_STATIC_DIR, html=False), name="static")
 
 app.include_router(auth.router)
 app.include_router(templates.router)

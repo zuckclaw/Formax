@@ -324,11 +324,12 @@ class _FillFormPageState extends State<FillFormPage> {
 
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final subJson = _safeJsonDecode(response.body);
-        if (subJson == null) {
+        final decoded = _safeJsonDecode(response.body);
+        if (decoded is! Map) {
           setState(() => _errorMsg = 'Format respons tidak valid');
           return;
         }
+        final subJson = Map<String, dynamic>.from(decoded);
         setState(() {
           _submissionId = subJson['id'];
           _showJoinTokenDialog = false;
@@ -347,7 +348,7 @@ class _FillFormPageState extends State<FillFormPage> {
             : 'Gagal memulai form (${response.statusCode})';
         final lowerDetail = detail.toLowerCase();
 
-        if (lowerDetail.contains('token') || (_formData?.joinToken != null)) {
+        if (lowerDetail.contains('token') || (_formData?.requireJoinToken == true)) {
           setState(() {
             _showJoinTokenDialog = true;
             _joinTokenError = joinToken != null ? detail : null;

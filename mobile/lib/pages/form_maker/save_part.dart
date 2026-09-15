@@ -576,12 +576,13 @@ extension _FormMakerSave on _FormMakerPageState {
 
     final qrRes = await ApiService.generateQrCode(formId);
 
-    if (qrRes['success'] == true) {
-      var shareLink = qrRes['data']['share_link'] as String;
+    if (qrRes['success'] == true && qrRes['data'] is Map) {
+      final qrData = Map<String, dynamic>.from(qrRes['data'] as Map);
+      var shareLink = qrData['share_link'] as String;
       // Paksa link publik selalu menunjuk ke frontend yang dideploy (Vercel),
       // bukan localhost yang mungkin di-set di env backend.
       shareLink = ApiService.publicFormLink(shareLink);
-      String qrUrl = qrRes['data']['qr_code_url'] as String;
+      String qrUrl = qrData['qr_code_url'] as String;
       if (qrUrl.contains('localhost')) {
         final apiHost = Uri.parse(ApiService.baseUrl).host;
         qrUrl = qrUrl.replaceAll('localhost', apiHost);

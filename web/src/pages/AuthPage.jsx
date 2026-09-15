@@ -88,7 +88,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const res = await login({ email: cleanEmail, password: cleanPassword, remember: !!loginData.remember });
-      setAuth(res.access_token, !!loginData.remember);
+      setAuth(res.access_token, !!loginData.remember, res.refresh_token || null);
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect');
       navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard');
@@ -162,7 +162,7 @@ export default function AuthPage() {
         password: removeEmojis(registerData.password),
         otp: otpCode,
       });
-      setAuth(res.access_token, !!registerData.remember);
+      setAuth(res.access_token, !!registerData.remember, res.refresh_token || null);
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect');
       navigate(redirectPath ? decodeURIComponent(redirectPath) : '/dashboard');

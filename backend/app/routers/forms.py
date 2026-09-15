@@ -5,7 +5,7 @@ import secrets
 from typing import List
 
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -32,14 +32,36 @@ QR_DIR = "static/qrcodes"
 
 
 @router.get("", response_model=List[schemas.FormListOut])
-def list_my_forms(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def list_my_forms(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    limit: int = Query(default=100, ge=1, le=200, description="Maksimal form dikembalikan"),
+    offset: int = Query(default=0, ge=0, description="Lewati N form terbaru"),
+):
     """Ini yang dipakai buat halaman 'History' — list form + jumlah submission masing-masing."""
-    forms = db.query(models.Form).filter(models.Form.owner_id == current_user.id).all()
+    # Optimasi N+1: satu query GROUP BY untuk semua count.
+    # Pagination: cegah OOM saat user punya ribuan form.
+    forms = (
+        db.query(models.Form)
+        .filter(models.Form.owner_id == current_user.id)
+        .order_by(models.Form.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    if not forms:
+        return []
+    form_ids = [f.id for f in forms]
+    counts = dict(
+        db.query(models.Submission.form_id, func.count(models.Submission.id))
+        .filter(models.Submission.form_id.in_(form_ids))
+        .group_by(models.Submission.form_id)
+        .all()
+    )
     result = []
     for f in forms:
-        total = db.query(func.count(models.Submission.id)).filter(models.Submission.form_id == f.id).scalar()
         item = schemas.FormListOut.model_validate(f)
-        item.total_submissions = total or 0
+        item.total_submissions = counts.get(f.id, 0) or 0
         result.append(item)
     return result
 
@@ -68,6 +90,16 @@ def create_form(
         raise HTTPException(status_code=400, detail="Slug sudah dipakai, pilih yang lain")
     payload.slug = raw_slug  # normalisasi
 
+    # Validasi template SEBELUM insert agar tidak ada transaksi kotor saat 404/403.
+    template = None
+    if payload.template_id:
+        # FIX Bug 15 & 16: cek ownership + 404 jika template tidak ada / bukan milik user
+        template = db.query(models.Template).filter(models.Template.id == str(payload.template_id)).first()
+        if not template:
+            raise HTTPException(status_code=404, detail="Template tidak ditemukan")
+        if not template.is_system and template.owner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Bukan template milikmu")
+
     form = models.Form(
         owner_id=current_user.id,
         template_id=payload.template_id,
@@ -90,15 +122,14 @@ def create_form(
         accept_responses=payload.accept_responses if payload.accept_responses is not None else True,
     )
     db.add(form)
-    db.flush()
+    try:
+        db.flush()
+    except Exception:
+        db.rollback()
+        raise
 
     if payload.template_id:
-        # FIX Bug 15 & 16: cek ownership + 404 jika template tidak ada / bukan milik user
-        template = db.query(models.Template).filter(models.Template.id == str(payload.template_id)).first()
-        if not template:
-            raise HTTPException(status_code=404, detail="Template tidak ditemukan")
-        if not template.is_system and template.owner_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Bukan template milikmu")
+        # template & template_questions sudah divalidasi di atas sebelum insert.
         if not form.banner_url and template.banner_url:
             form.banner_url = template.banner_url
         template_questions = (
@@ -130,7 +161,11 @@ def create_form(
             for opt in q.options:
                 db.add(models.QuestionOption(question_id=new_q.id, label=opt.label, value=opt.value, order_index=opt.order_index, is_correct=opt.is_correct, is_other=getattr(opt, 'is_other', False)))
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.expire_all()
     db.refresh(form)
     return form
@@ -138,11 +173,12 @@ def create_form(
 
 # ── Public form access (MUST be declared before /{form_id} to avoid route conflict) ──
 
-@router.get("/public/{slug}", response_model=schemas.FormOut)
+@router.get("/public/{slug}", response_model=schemas.PublicFormOut)
 def get_form_by_slug(slug: str, db: Session = Depends(get_db)):
     """
     Dipanggil pas orang buka link form. Tidak wajib login (agar bisa diisi siapa saja
     seperti Google Forms). Tetap cek window waktu & accept_responses.
+    Sengaja TIDAK mengembalikan is_correct / join_token asli agar kunci ujian aman.
     """
     form = db.query(models.Form).filter(models.Form.slug == slug).first()
     if not form:
@@ -172,7 +208,29 @@ def get_form_by_slug(slug: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Form belum dibuka")
     if form.end_date and now > _dt(form.end_date):
         raise HTTPException(status_code=403, detail="Waktu pengisian form sudah berakhir")
-    return form
+    # Bangun respons publik tanpa is_correct & tanpa join_token asli.
+    pub_questions = []
+    for q in sorted(list(getattr(form, "questions", []) or []), key=lambda x: getattr(x, "order_index", 0)):
+        pub_opts = [
+            schemas.PublicQuestionOptionOut.model_validate(o, from_attributes=True)
+            for o in sorted(list(getattr(q, "options", []) or []), key=lambda x: getattr(x, "order_index", 0))
+        ]
+        pub_questions.append(schemas.PublicQuestionOut(
+            id=q.id, type=q.type, label=q.label, placeholder=q.placeholder,
+            is_required=q.is_required, order_index=q.order_index,
+            settings=q.settings or {}, options=pub_opts,
+        ))
+    return schemas.PublicFormOut(
+        id=form.id, title=form.title, description=form.description,
+        banner_url=form.banner_url, status=form.status, slug=form.slug,
+        require_join_token=bool(form.join_token),
+        accept_responses=form.accept_responses, allow_see_result=form.allow_see_result,
+        max_submissions=form.max_submissions, require_fullscreen=form.require_fullscreen,
+        reveal_answers=form.reveal_answers, shuffle_questions=bool(getattr(form, "shuffle_questions", False)),
+        shuffle_options=bool(getattr(form, "shuffle_options", False)),
+        start_date=form.start_date, end_date=form.end_date,
+        created_at=form.created_at, questions=pub_questions,
+    )
 
 
 # ── Owner-only form access (after /public/{slug} to avoid route conflict) ──
@@ -311,9 +369,8 @@ def publish_form(form_id: str, db: Session = Depends(get_db), current_user: mode
     if form.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Bukan form milikmu")
 
-    if form.join_token is None and form.status != models.FormStatus.published:
-        form.join_token = security.generate_join_token()
-
+    # Jangan auto-generate join_token saat publish — token hanya dibuat jika
+    # owner eksplisit mengaktifkan via use_join_token / regenerate endpoint.
     form.status = models.FormStatus.published
     db.commit()
     db.refresh(form)
@@ -356,12 +413,20 @@ def generate_qr(request: Request, form_id: str, db: Session = Depends(get_db), c
     if form.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Bukan form milikmu")
 
+    # Sanitasi slug agar tidak bisa path traversal (mis. slug lama berisi ../).
+    safe_slug = os.path.basename(str(form.slug or "").strip().lower())
+    if not safe_slug or not _SLUG_RE.match(safe_slug):
+        raise HTTPException(status_code=422, detail="Slug form tidak valid untuk QR")
+
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").strip().rstrip("/")
-    public_url = f"{frontend_url}/f/{form.slug}"
+    public_url = f"{frontend_url}/f/{safe_slug}"
     img = qrcode.make(public_url)
 
     os.makedirs(QR_DIR, exist_ok=True)
-    filepath = f"{QR_DIR}/{form.slug}.png"
+    filepath = os.path.join(QR_DIR, f"{safe_slug}.png")
+    # Pastikan path tetap di dalam QR_DIR (defense in depth).
+    if os.path.abspath(filepath) != os.path.abspath(os.path.join(QR_DIR, f"{safe_slug}.png")):
+        raise HTTPException(status_code=422, detail="Slug form tidak valid untuk QR")
     img.save(filepath)
 
     # FIX base_url sama: kalau enkripnya belongs BASE_URL dikosongkan (kosong),
@@ -373,7 +438,7 @@ def generate_qr(request: Request, form_id: str, db: Session = Depends(get_db), c
         qr_base = str(request.base_url).rstrip("/")
     else:
         qr_base = BASE_URL
-    form.qr_code_url = f"{qr_base}/static/qrcodes/{form.slug}.png"
+    form.qr_code_url = f"{qr_base}/static/qrcodes/{safe_slug}.png"
     db.commit()
     return {"qr_code_url": form.qr_code_url, "share_link": public_url}
 

@@ -1,16 +1,23 @@
-import { API_BASE_URL, apiFetch, readJsonResponse } from './config';
+import { API_BASE_URL, apiFetch, getAuthHeaders, readJsonResponse } from './config';
 
 /**
  * Download template Word (.docx) untuk import soal
  */
 export async function downloadTemplateDocx(token) {
   const res = await apiFetch(`${API_BASE_URL}/import/template-docx`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
 
   if (!res.ok) {
-    const json = await res.json().catch(() => null);
-    throw new Error(json?.detail || 'Gagal mengunduh template');
+    let msg = `Gagal mengunduh template (HTTP ${res.status})`;
+    try {
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const json = await res.json();
+        if (typeof json?.detail === 'string') msg = json.detail;
+      }
+    } catch { /* pakai pesan default */ }
+    throw new Error(msg);
   }
 
   const blob = await res.blob();
@@ -33,7 +40,7 @@ export async function previewDocxImport(token, formId, file) {
 
   const res = await apiFetch(`${API_BASE_URL}/forms/${formId}/questions/import-docx/preview`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
     body: formData,
   });
 
@@ -48,7 +55,7 @@ export async function confirmDocxImport(token, formId, questions) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify({ questions }),
   });

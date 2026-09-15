@@ -4,6 +4,7 @@ import { createForm } from '../api/forms';
 import { generateAiForm } from '../api/ai';
 import { getValidToken } from '../utils/authStorage';
 import { prepareMathHtml } from '../utils/mathRender';
+import { safeHtml } from '../utils/safeHtml';
 import ThemeToggle from '../components/ThemeToggle';
 import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
@@ -86,7 +87,7 @@ function stripHtml(html) {
 
 export default function AiFormBuilderPage() {
   const navigate = useNavigate();
-  const token = getValidToken() || localStorage.getItem('token');
+  const token = getValidToken();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -415,8 +416,8 @@ export default function AiFormBuilderPage() {
               {!isGenerating && preview && (
                 <div className="ai-preview-content">
                   <div className="ai-preview-form-header">
-                    <h3 className="ai-preview-title" dangerouslySetInnerHTML={{ __html: prepareMathHtml(preview.title) }} />
-                    {preview.description && <p className="ai-preview-desc" dangerouslySetInnerHTML={{ __html: prepareMathHtml(preview.description) }} />}
+                    <h3 className="ai-preview-title" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.title)) }} />
+                    {preview.description && <p className="ai-preview-desc" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.description)) }} />}
                   </div>
 
                   {previewSections.map((sec, sIdx) => (
@@ -432,7 +433,7 @@ export default function AiFormBuilderPage() {
                               </span>
                             )}
                           </div>
-                          <h4 className="ai-preview-section-title" dangerouslySetInnerHTML={{ __html: prepareMathHtml(sec.pb.label) }} />
+                          <h4 className="ai-preview-section-title" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.label)) }} />
                           {sec.pb.settings?.description && <p className="ai-preview-section-desc">{stripHtml(sec.pb.settings.description)}</p>}
                         </div>
                       )}
@@ -440,7 +441,7 @@ export default function AiFormBuilderPage() {
                         <div key={qIdx} className="ai-preview-q">
                           <div className="ai-preview-q-header">
                             <span className="ai-preview-q-num">{qIdx + 1}.</span>
-                            <span className="ai-preview-q-label" dangerouslySetInnerHTML={{ __html: prepareMathHtml(q.label) }} />
+                            <span className="ai-preview-q-label" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label)) }} />
                             {q.is_required && <span className="ai-preview-required" title="Wajib diisi">*</span>}
                             <span className="ai-preview-q-type">{QUESTION_TYPE_LABELS[q.type] || q.type}</span>
                           </div>
@@ -449,7 +450,7 @@ export default function AiFormBuilderPage() {
                               {q.options.map((o, oIdx) => (
                                 <div key={oIdx} className={`ai-preview-opt ${o.is_correct ? 'correct' : ''}`}>
                                   <span className="ai-preview-opt-dot">{String.fromCharCode(65 + oIdx)}</span>
-                                  <span dangerouslySetInnerHTML={{ __html: prepareMathHtml(o.label) }} />
+                                  <span dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(o.label)) }} />
                                   {o.is_correct && (
                                     <span className="ai-preview-correct">
                                       <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12" /></svg>

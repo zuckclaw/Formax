@@ -41,23 +41,7 @@ Future<Map<String, dynamic>> _tplCreate(
       return {'success': true, 'data': data};
     } else {
       // Tampilkan detail validasi Pydantic (422) yang sering jadi penyebab draft tidak tersimpan
-      String detail = 'Failed to create template';
-      if (data is Map) {
-        if (data['detail'] is String) {
-          detail = data['detail'];
-        } else if (data['detail'] is List) {
-          // FastAPI 422 returns list of errors
-          try {
-            detail = (data['detail'] as List)
-                .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
-                .join(', ');
-          } catch (_) {
-            detail = data['detail'].toString();
-          }
-        } else if (data['message'] != null) {
-          detail = data['message'].toString();
-        }
-      }
+      String detail = _apiErrorDetail(data, 'Failed to create template');
       if (response.statusCode == 401) {
         detail = 'Sesi habis / token tidak valid — login ulang. ($detail)';
       }
@@ -97,16 +81,7 @@ Future<Map<String, dynamic>> _tplUpdate(
         .timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200) return {'success': true, 'data': data};
-    String detail = data is Map && data['detail'] is String
-        ? data['detail']
-        : 'Failed to update template';
-    if (data is Map && data['detail'] is List) {
-      try {
-        detail = (data['detail'] as List)
-            .map((e) => '${e['loc']?.last ?? 'field'}: ${e['msg']}')
-            .join(', ');
-      } catch (_) {}
-    }
+    String detail = _apiErrorDetail(data, 'Failed to update template');
     return {'success': false, 'message': detail};
   } catch (e, stack) {
     debugPrint('[ApiService] updateTemplate exception: $e\n$stack');

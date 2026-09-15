@@ -20,16 +20,19 @@ Future<Map<String, dynamic>> _miscFormSubs(String formId) async {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-    );
+    ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       return {'success': true, 'data': ApiService._safeJson(response.body)};
     }
     final body = ApiService._safeJson(response.body);
+    if (ApiService._isSessionExpired(response.statusCode, body)) {
+      return ApiService._unauthorizedResult(body);
+    }
     final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -46,16 +49,19 @@ Future<Map<String, dynamic>> _miscMySubs() async {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-    );
+    ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       return {'success': true, 'data': ApiService._safeJson(response.body)};
     }
     final body = ApiService._safeJson(response.body);
+    if (ApiService._isSessionExpired(response.statusCode, body)) {
+      return ApiService._unauthorizedResult(body);
+    }
     final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -74,17 +80,20 @@ Future<Map<String, dynamic>> _miscSubResult(
         'X-Respondent-Key': respondentKey,
         if (token != null) 'Authorization': 'Bearer $token',
       },
-    );
+    ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
+    }
+    if (ApiService._isSessionExpired(response.statusCode, data)) {
+      return ApiService._unauthorizedResult(data);
     }
     final msg = data is Map
         ? (data['detail'] ?? 'Gagal memuat hasil')
         : 'Gagal memuat hasil';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -104,16 +113,19 @@ Future<Map<String, dynamic>> _miscSearch(String query) async {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-    );
+    ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       return {'success': true, 'data': ApiService._safeJson(response.body)};
     }
     final body = ApiService._safeJson(response.body);
+    if (ApiService._isSessionExpired(response.statusCode, body)) {
+      return ApiService._unauthorizedResult(body);
+    }
     final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -132,18 +144,21 @@ Future<Map<String, dynamic>> _miscUpdateProfile(
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(payload),
-    );
+    ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
+    }
+    if (ApiService._isSessionExpired(response.statusCode, data)) {
+      return ApiService._unauthorizedResult(data);
     }
     final msg = data is Map
         ? (data['detail'] ?? 'Failed to update profile')
         : 'Failed to update profile';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -176,9 +191,12 @@ Future<Map<String, dynamic>> _miscExport(
     final msg = body is Map
         ? (body['detail'] ?? 'Export gagal (${response.statusCode})')
         : 'Export gagal (${response.statusCode})';
+    if (ApiService._isSessionExpired(response.statusCode, body)) {
+      return ApiService._unauthorizedResult(body);
+    }
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': e.toString()};
+    return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
 
@@ -194,7 +212,7 @@ String? _extractFilename(String? contentDisposition) {
 // Satu percobaan upload. Dipisah agar bisa di-retry untuk error koneksi-level
 // ("HTTPS request failed, statusCode: 0") yang sering terjadi karena tunnel
 // ngrok free putus saat tubuh request besar, dan umumnya bersifat sementara.
-Future<Map<String, dynamic>> _uploadOnce(dynamic file) async {
+Future<Map<String, dynamic>> _uploadOnce(XFile file) async {
   final token = await ApiService.getToken();
   if (token == null) return {'success': false, 'message': 'No token found'};
 
@@ -212,7 +230,7 @@ Future<Map<String, dynamic>> _uploadOnce(dynamic file) async {
     final bytes = await file.readAsBytes();
     String filename = 'upload';
     try {
-      filename = file.name as String;
+      filename = file.name;
     } catch (_) {
       try {
         filename = file.path.toString().split('/').last;
@@ -221,13 +239,13 @@ Future<Map<String, dynamic>> _uploadOnce(dynamic file) async {
     request.files.add(
       http.MultipartFile.fromBytes(
         'file',
-        bytes as List<int>,
+        bytes,
         filename: filename,
       ),
     );
   } else {
     request.files.add(
-      await http.MultipartFile.fromPath('file', file.path as String),
+      await http.MultipartFile.fromPath('file', file.path),
     );
   }
 

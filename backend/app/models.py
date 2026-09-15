@@ -240,3 +240,18 @@ class EmailVerification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
 
+
+# ============================================================
+# 10. REVOKED TOKENS (denylist logout + rotasi refresh)
+# ============================================================
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+
+    # jti dari klaim JWT (32 hex). Jadi PK agar revoke idempoten.
+    jti = Column(String(64), primary_key=True)
+    user_id = Column(String(36), nullable=True, index=True)
+    # Kapan token asli kedaluwarsa (untuk cleanup). Naive UTC seperti kolom lain.
+    expires_at = Column(DateTime, nullable=True, index=True)
+    reason = Column(String(20), nullable=True, default="logout")
+    created_at = Column(DateTime, default=datetime.utcnow)
+

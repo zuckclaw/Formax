@@ -1,11 +1,11 @@
-import { API_BASE_URL, apiFetch, readJsonResponse } from './config';
+import { API_BASE_URL, apiFetch, getAuthHeaders, readJsonResponse } from './config';
 
 /**
  * List semua template (system + user templates)
  */
 export async function getTemplates(token) {
   const res = await apiFetch(`${API_BASE_URL}/templates`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
     cache: 'no-store',
   });
   return readJsonResponse(res, 'Gagal mengambil templates');
@@ -16,7 +16,7 @@ export async function getTemplates(token) {
  */
 export async function getTemplate(token, templateId) {
   const res = await apiFetch(`${API_BASE_URL}/templates/${templateId}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal mengambil template');
 }
@@ -26,7 +26,7 @@ export async function getTemplate(token, templateId) {
  */
 export async function getMyTemplates(token) {
   const res = await apiFetch(`${API_BASE_URL}/templates/mine`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
     cache: 'no-store',
   });
   return readJsonResponse(res, 'Gagal mengambil templates');
@@ -40,7 +40,7 @@ export async function createTemplate(token, data) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -53,7 +53,7 @@ export async function createTemplate(token, data) {
 export async function deleteTemplate(token, templateId) {
   const res = await apiFetch(`${API_BASE_URL}/templates/${templateId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal menghapus template');
 }

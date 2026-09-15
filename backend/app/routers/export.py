@@ -126,6 +126,16 @@ def _strip_grid_row(value):
     return value
 
 
+def _safe_cell(value):
+    """Cegah Excel formula injection: sel berawalan =,+,-,@ di-prefix apostrof."""
+    if value is None:
+        return ""
+    s = str(value)
+    if s[:1] in ("=", "+", "-", "@"):
+        return "'" + s
+    return s
+
+
 def _user_selected(ans):
     if not ans:
         return []
@@ -133,9 +143,6 @@ def _user_selected(ans):
         return [_strip_grid_row(x) for x in ans.answer_options]
     if ans.answer_text:
         return [_strip_grid_row(ans.answer_text)]
-    return []
-    if ans.answer_text:
-        return [ans.answer_text]
     return []
 
 
@@ -222,8 +229,8 @@ def export_submissions_to_excel(
 
         row = [
             idx,
-            name,
-            email,
+            _safe_cell(name),
+            _safe_cell(email),
             _fmt_datetime(sub.started_at),
             _fmt_datetime(sub.submitted_at),
             _duration_str(sub),
@@ -246,7 +253,7 @@ def export_submissions_to_excel(
     ws = wb.create_sheet("Detail Jawaban")
 
     detail_headers = ["No", "Nama Pengisi", "Email", "Waktu Submit", "Skor /100"] + [
-        f"{i + 1}. {q.label}" for i, q in enumerate(questions)
+        _safe_cell(f"{i + 1}. {q.label}") for i, q in enumerate(questions)
     ]
     ws.append(detail_headers)
 
@@ -256,13 +263,13 @@ def export_submissions_to_excel(
         email = sub.user.email if sub.user else ""
         score = _score_percent(question_map, sub)
 
-        row = [idx, name, email, _fmt_datetime(sub.submitted_at), f"{score}/100" if score is not None else "-"]
+        row = [idx, _safe_cell(name), _safe_cell(email), _fmt_datetime(sub.submitted_at), f"{score}/100" if score is not None else "-"]
         for q in questions:
             ans = answers.get(q.id)
             value = _answer_value(ans)
             if value and _is_graded(q):
                 value = ("✓ " if _is_correct(q, ans) else "✗ ") + value
-            row.append(value)
+            row.append(_safe_cell(value))
         ws.append(row)
 
     _style_header_row(ws, 1, len(detail_headers))
@@ -282,7 +289,7 @@ def export_submissions_to_excel(
 
     for idx, q in enumerate(questions, start=1):
         _style_title_row(ws, row, ncols)
-        ws.cell(row=row, column=1).value = f"{idx}. {q.label} ({q.type})"
+        ws.cell(row=row, column=1).value = _safe_cell(f"{idx}. {q.label} ({q.type})")
         row += 1
 
         answered = 0
@@ -306,11 +313,11 @@ def export_submissions_to_excel(
                         count += 1
                 percent = round((count / answered) * 100) if answered else 0
                 keterangan = "✓ Kunci" if opt.is_correct else ""
-                ws.append([opt.label, count, f"{percent}%", keterangan])
+                ws.append([_safe_cell(opt.label), count, f"{percent}%", keterangan])
                 row += 1
 
-            ws.append(["Total responden menjawab", answered, "", ""])
-            ws.append(["Total responden tidak menjawab", total_respondents - answered, "", ""])
+            ws.append([_safe_cell("Total responden menjawab"), answered, "", ""])
+            ws.append([_safe_cell("Total responden tidak menjawab"), total_respondents - answered, "", ""])
             row += 2
         else:
             headers = ["Jumlah Menjawab", "Total Responden", "Persentase", "Contoh Jawaban"]
@@ -325,8 +332,8 @@ def export_submissions_to_excel(
                 ans = {a.question_id: a for a in sub.answers}.get(q.id)
                 value = _answer_value(ans)
                 if value and len(samples) < 3:
-                    samples.append(value)
-            ws.append([answered, total_respondents, f"{percent}%", "\n".join(samples)])
+                    samples.append(_safe_cell(value))
+            ws.append([answered, total_respondents, f"{percent}%", _safe_cell("\n".join(samples))])
             row += 2
 
     _style_body(ws, 2, ws.max_row, ncols)
@@ -340,8 +347,9 @@ def export_submissions_to_excel(
     buffer.seek(0)
 
     filename = f"{form.slug}-hasil.xlsx"
+    safe_filename = "".join(c for c in filename if c.isalnum() or c in ("-", "_", ".")).strip() or "hasil.xlsx"
     return StreamingResponse(
         buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"; filename*=UTF-8\'\'{safe_filename}'},
     )

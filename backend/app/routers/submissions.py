@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models, schemas
 from ..deps import get_db, get_current_user, get_optional_user, get_respondent_key
@@ -290,6 +290,8 @@ def save_answer(
         raise HTTPException(status_code=400, detail="Form ini sudah kamu submit, tidak bisa diubah lagi")
 
     form = db.query(models.Form).filter(models.Form.id == submission.form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form tidak ditemukan")
     if form.end_date and _window_now() > _window_dt(form.end_date):
         raise HTTPException(status_code=403, detail="Waktu pengisian sudah habis")
 
@@ -363,6 +365,8 @@ def submit_final(
         raise HTTPException(status_code=400, detail="Sudah pernah disubmit")
 
     form = db.query(models.Form).filter(models.Form.id == submission.form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form tidak ditemukan")
     is_time_expired = False
     if form.end_date and _window_now() > _window_dt(form.end_date):
         submission.is_auto_submitted = True
@@ -422,6 +426,8 @@ def submit_final(
 def list_my_submissions(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    limit: int = Query(default=100, ge=1, le=200, description="Maksimal submission"),
+    offset: int = Query(default=0, ge=0),
 ):
     """
     Aktivitas Saya — daftar form yang pernah/sedang diisi oleh user login sebagai responden.
@@ -430,13 +436,34 @@ def list_my_submissions(
     """
     subs = (
         db.query(models.Submission)
+        .options(selectinload(models.Submission.answers))
         .filter(models.Submission.user_id == current_user.id)
         .order_by(models.Submission.started_at.desc())
+        .limit(limit)
+        .offset(offset)
         .all()
     )
+    if not subs:
+        return []
+    # Bulk fetch forms + owners + question counts (hindari N+1).
+    form_ids = list({s.form_id for s in subs if s.form_id})
+    forms = db.query(models.Form).filter(models.Form.id.in_(form_ids)).all() if form_ids else []
+    form_map = {f.id: f for f in forms}
+    owner_ids = list({f.owner_id for f in forms if f.owner_id})
+    owners = db.query(models.User).filter(models.User.id.in_(owner_ids)).all() if owner_ids else []
+    owner_map = {u.id: u for u in owners}
+    q_counts = dict(
+        db.query(models.Question.form_id, func.count(models.Question.id))
+        .filter(
+            models.Question.form_id.in_(form_ids),
+            models.Question.type != models.QuestionType.page_break,
+        )
+        .group_by(models.Question.form_id)
+        .all()
+    ) if form_ids else {}
     result = []
     for sub in subs:
-        form = db.query(models.Form).filter(models.Form.id == sub.form_id).first()
+        form = form_map.get(sub.form_id)
         if not form:
             # form sudah dihapus — tetap tampilkan submission tanpa form
             result.append(
@@ -444,6 +471,7 @@ def list_my_submissions(
                     id=sub.id,
                     form_id=sub.form_id,
                     user_id=sub.user_id,
+                    respondent_key=sub.respondent_key,
                     started_at=sub.started_at,
                     submitted_at=sub.submitted_at,
                     is_auto_submitted=bool(sub.is_auto_submitted),
@@ -456,8 +484,8 @@ def list_my_submissions(
             )
             continue
 
-        owner = db.query(models.User).filter(models.User.id == form.owner_id).first() if form.owner_id else None
-        total_q = db.query(func.count(models.Question.id)).filter(models.Question.form_id == form.id, models.Question.type != models.QuestionType.page_break).scalar() or 0
+        owner = owner_map.get(form.owner_id) if form.owner_id else None
+        total_q = q_counts.get(form.id, 0) or 0
 
         form_brief = schemas.FormBriefOut(
             id=form.id,
@@ -477,6 +505,7 @@ def list_my_submissions(
                 id=sub.id,
                 form_id=sub.form_id,
                 user_id=sub.user_id,
+                respondent_key=sub.respondent_key,
                 started_at=sub.started_at,
                 submitted_at=sub.submitted_at,
                 is_auto_submitted=bool(sub.is_auto_submitted),
@@ -495,6 +524,8 @@ def list_submissions_for_form(
     form_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    limit: int = Query(default=200, ge=1, le=1000, description="Maksimal submission"),
+    offset: int = Query(default=0, ge=0),
 ):
     """Halaman 'Lihat Respon' — owner form lihat semua jawaban yang masuk."""
     form = db.query(models.Form).filter(models.Form.id == form_id).first()
@@ -503,7 +534,15 @@ def list_submissions_for_form(
     if form.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Bukan form milikmu")
 
-    return db.query(models.Submission).filter(models.Submission.form_id == form_id).all()
+    return (
+        db.query(models.Submission)
+        .options(selectinload(models.Submission.answers), selectinload(models.Submission.user))
+        .filter(models.Submission.form_id == form_id)
+        .order_by(models.Submission.submitted_at.desc().nullslast(), models.Submission.started_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
 
 
 # ============================================================

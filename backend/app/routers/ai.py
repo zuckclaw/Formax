@@ -15,6 +15,8 @@ from .. import models
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 _rate_store = {}
+_RATE_STORE_MAX_KEYS = 5000
+
 
 def _check_rate_limit(user_id: str, limit: int = 15, window_sec: int = 60):
     now = time.time()
@@ -24,6 +26,12 @@ def _check_rate_limit(user_id: str, limit: int = 15, window_sec: int = 60):
         raise HTTPException(status_code=429, detail="Terlalu banyak permintaan AI. Silakan tunggu 1 menit.")
     lst.append(now)
     _rate_store[user_id] = lst
+    # Cegah leak memori: hapus key kedaluwarsa & batasi jumlah key (single-process).
+    # Tanpa ini dict tumbuh selamanya (satu key per user) dan hilang saat restart/worker lain.
+    if len(_rate_store) > _RATE_STORE_MAX_KEYS:
+        expired = [k for k, v in _rate_store.items() if not v or (now - v[-1] > window_sec)]
+        for k in expired[:1000]:
+            _rate_store.pop(k, None)
 
 class AiGenerateRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=120)

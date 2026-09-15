@@ -47,29 +47,51 @@ def _extract_images_from_paragraph(para, base_url: str = "") -> list[str]:
     if not r_ids:
         return img_urls
 
-    os.makedirs("static/uploads", exist_ok=True)
+    _base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "static", "uploads"))
+    os.makedirs(_base, exist_ok=True)
 
-    for r_id in r_ids:
+    # Batas agar preview .docx jahat (zip-bomb / ratusan gambar) tidak penuhi disk.
+    MAX_IMAGES_PER_DOC = 30
+    MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+    for r_id in r_ids[:MAX_IMAGES_PER_DOC]:
         try:
             rel_part = part.related_parts[r_id]
             blob = getattr(rel_part, "blob", None)
-            if blob:
-                c_type = str(getattr(rel_part, "content_type", "")).lower()
+            if not blob:
+                continue
+            if len(blob) > MAX_IMAGE_BYTES or len(blob) < 16:
+                continue
+            c_type = str(getattr(rel_part, "content_type", "")).lower()
+            ext = ".png"
+            if "jpeg" in c_type or "jpg" in c_type:
+                # Validasi magic JPEG agar blob HTML tidak disimpan sebagai gambar.
+                if blob[:3] != b"\xff\xd8\xff":
+                    continue
+                ext = ".jpg"
+            elif "png" in c_type:
+                if blob[:8] != b"\x89PNG\r\n\x1a\n":
+                    continue
                 ext = ".png"
-                if "jpeg" in c_type or "jpg" in c_type:
-                    ext = ".jpg"
-                elif "gif" in c_type:
-                    ext = ".gif"
-                elif "webp" in c_type:
-                    ext = ".webp"
-                elif "bmp" in c_type:
-                    ext = ".bmp"
+            elif "gif" in c_type:
+                if blob[:6] not in (b"GIF87a", b"GIF89a"):
+                    continue
+                ext = ".gif"
+            elif "webp" in c_type:
+                if not (blob[:4] == b"RIFF" and blob[8:12] == b"WEBP"):
+                    continue
+                ext = ".webp"
+            else:
+                # Tolak bmp/tiff/svg/dll — hanya raster aman yang diizinkan.
+                continue
 
-                filename = f"docx_{uuid.uuid4().hex[:12]}{ext}"
-                filepath = os.path.join("static/uploads", filename)
+            filename = f"docx_{uuid.uuid4().hex[:12]}{ext}"
+            filepath = os.path.abspath(os.path.join(_base, filename))
+            if os.path.commonpath([filepath, _base]) != _base:
+                continue
 
-                with open(filepath, "wb") as f:
-                    f.write(blob)
+            with open(filepath, "wb") as f:
+                f.write(blob)
 
                 if base_url:
                     img_url = f"{base_url.rstrip('/')}/static/uploads/{filename}"

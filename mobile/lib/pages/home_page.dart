@@ -170,9 +170,14 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _isLoadingTemplates = false;
       if (res['success'] == true) {
-        final rawList = res['data'] as List<dynamic>;
-        _myTemplates = rawList
-            .map((e) => FormTemplate.fromJson(e as Map))
+        final raw = res['data'];
+        if (raw is! List) {
+          debugPrint('[Home] getMyTemplates data bukan List');
+          return;
+        }
+        _myTemplates = raw
+            .whereType<Map>()
+            .map((e) => FormTemplate.fromJson(e))
             .toList();
       } else {
         debugPrint('[Home] getMyTemplates gagal: ${res['message']}');
@@ -289,9 +294,9 @@ class _HomePageState extends State<HomePage> {
           _isLoadingSearch = false;
           if (result['success'] == true) {
             final raw = result['data'];
-            _searchData = raw is Map<String, dynamic>
-                ? raw
-                : Map<String, dynamic>.from(raw as Map);
+            _searchData = raw is Map
+                ? Map<String, dynamic>.from(raw)
+                : <String, dynamic>{};
           } else {
             _searchData = {};
           }
@@ -302,9 +307,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadUserProfile() async {
     final result = await ApiService.getMe();
-    if (result['success'] == true && mounted) {
+    final data = result['data'];
+    final profile = data is Map ? Map<String, dynamic>.from(data) : null;
+    if (result['success'] == true && profile != null && mounted) {
       setState(() {
-        _fullName = result['data']['full_name'] ?? 'User';
+        _fullName = profile['full_name'] as String? ?? 'User';
       });
     }
   }

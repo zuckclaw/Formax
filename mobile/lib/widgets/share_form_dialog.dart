@@ -53,9 +53,17 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
     try {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/${widget.fileName ?? 'qrcode-form.png'}');
-      final res = await http.get(Uri.parse(widget.qrUrl));
+      final res = await http.get(
+        Uri.parse(widget.qrUrl),
+        headers: const {'ngrok-skip-browser-warning': 'true'},
+      ).timeout(const Duration(seconds: 15));
       if (res.statusCode != 200 || res.bodyBytes.isEmpty) {
         throw Exception('Respons kosong (${res.statusCode})');
+      }
+      final ct = res.headers['content-type'] ?? '';
+      // QR harus PNG; jika ngrok kembalikan HTML interstitial, jangan simpan sebagai PNG.
+      if (ct.contains('text/html')) {
+        throw Exception('Server mengembalikan halaman HTML, bukan gambar QR');
       }
       await file.writeAsBytes(res.bodyBytes);
       await SharePlus.instance.share(

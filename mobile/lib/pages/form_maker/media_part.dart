@@ -36,39 +36,54 @@ extension _FormMakerMedia on _FormMakerPageState {
     // (bisa 4-12 MB) gagal diupload lewat tunnel ngrok HTTPS dengan error
     // "HTTPS request failed, statusCode: 0" (koneksi putus saat tubuh request besar).
     // Pola ini sama dengan profil (avatar) & isi form (file upload) yang sudah bekerja.
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      imageQuality: 85,
-    );
-    if (pickedFile != null) {
-      final activePageId =
-          _builderState.activePageId ?? _builderState.pages.first.id;
+    try {
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (!mounted) return;
+      if (pickedFile != null) {
+        final activePageId =
+            _builderState.activePageId ?? _builderState.pages.first.id;
 
-      // Upload the image to the backend first
-      final uploadResult = await ApiService.uploadFile(pickedFile);
-      if (uploadResult['success'] == true) {
-        final fileUrl = uploadResult['file_url'] as String;
+        // Upload the image to the backend first
+        final uploadResult = await ApiService.uploadFile(pickedFile);
+        if (!mounted) return;
+        if (uploadResult['success'] == true) {
+          final fileUrl = uploadResult['file_url'] as String?;
+          if (fileUrl == null || fileUrl.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Upload berhasil tapi URL kosong')),
+            );
+            return;
+          }
 
-        // Perilaku seperti Google Form: jika ada pertanyaan yang sedang dipilih,
-        // gambar ditempel ke pertanyaan itu (bukan membuat pertanyaan baru).
-        final attached = _builderState.attachImageToActiveQuestion(fileUrl);
-        if (!attached) {
-          _builderState.addQuestion(
-            activePageId,
-            QuestionType.image,
-            imageUrl: fileUrl,
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal unggah gambar: ${uploadResult['message']}'),
-            ),
-          );
+          // Perilaku seperti Google Form: jika ada pertanyaan yang sedang dipilih,
+          // gambar ditempel ke pertanyaan itu (bukan membuat pertanyaan baru).
+          final attached = _builderState.attachImageToActiveQuestion(fileUrl);
+          if (!attached) {
+            _builderState.addQuestion(
+              activePageId,
+              QuestionType.image,
+              imageUrl: fileUrl,
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal unggah gambar: ${uploadResult['message']}'),
+              ),
+            );
+          }
         }
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memilih gambar: $e')),
+      );
     }
   }
 

@@ -46,10 +46,15 @@ class _ProfilePageState extends State<ProfilePage> {
     final result = await ApiService.getMe();
     if (result['success'] == true && mounted) {
       final data = result['data'];
+      final profile = data is Map ? Map<String, dynamic>.from(data) : null;
+      if (profile == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
       setState(() {
-        _nameController.text = data['full_name'] ?? '';
-        _email = data['email'] ?? '';
-        _avatarUrl = data['avatar_url'];
+        _nameController.text = profile['full_name'] as String? ?? '';
+        _email = profile['email'] as String? ?? '';
+        _avatarUrl = profile['avatar_url'] as String?;
         _originalName = _nameController.text;
         _originalAvatarUrl = _avatarUrl;
         _isLoading = false;
@@ -230,7 +235,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Upload the new image first if picked
     if (_pickedImage != null) {
-      final uploadResult = await ApiService.uploadFile(_pickedImage!);
+      final uploadResult = await ApiService.uploadFile(XFile(_pickedImage!.path));
       if (!mounted) return;
       if (uploadResult['success'] == true) {
         uploadedAvatarUrl = uploadResult['file_url'] as String;

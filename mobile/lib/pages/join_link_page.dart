@@ -34,7 +34,8 @@ class _JoinLinkPageState extends State<JoinLinkPage> {
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (result['success'] == true) {
-      final slug = result['data']['slug'] ?? '';
+      final data = result['data'];
+      final slug = ((data is Map) ? data['slug'] : null)?.toString() ?? '';
       if (slug.isNotEmpty) {
         Navigator.push(
           context,

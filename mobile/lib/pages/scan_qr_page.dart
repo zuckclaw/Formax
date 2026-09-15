@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
@@ -15,6 +16,7 @@ class _ScanQRPageState extends State<ScanQRPage> {
   bool _isProcessing = false;
   String? _errorText;
   QRViewController? _controller;
+  StreamSubscription? _scanSub;
   final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
 
   @override
@@ -26,23 +28,53 @@ class _ScanQRPageState extends State<ScanQRPage> {
     _controller?.resumeCamera();
   }
 
+  @override
+  void dispose() {
+    _scanSub?.cancel();
+    // QRViewController self-dispose saat QRView unmount (deprecated dispose dihapus).
+    super.dispose();
+  }
+
   void _onQRViewCreated(QRViewController controller) {
     _controller = controller;
-    controller.scannedDataStream.listen((scanData) async {
+    _scanSub?.cancel();
+    _scanSub = controller.scannedDataStream.listen((scanData) async {
       if (_isProcessing) return;
 
       final link = scanData.code ?? '';
       if (link.isEmpty) return;
 
+      if (!mounted) return;
       setState(() => _isProcessing = true);
 
-      final result = await ApiService.validateFormLink(link);
+      Map<String, dynamic> result;
+      try {
+        result = await ApiService.validateFormLink(link).timeout(
+          const Duration(seconds: 15),
+        );
+      } on TimeoutException {
+        if (!mounted) return;
+        setState(() {
+          _errorText = 'Koneksi timeout — coba lagi';
+          _isProcessing = false;
+        });
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _errorText = 'Gagal validasi link: $e';
+          _isProcessing = false;
+        });
+        return;
+      }
       if (!mounted) return;
 
       if (result['success'] == true) {
-        final slug = result['data']['slug'] ?? '';
+        final data = result['data'];
+        final slug = (data is Map ? data['slug'] : null)?.toString() ?? '';
         if (slug.isNotEmpty) {
-          _controller?.pauseCamera();
+          await _controller?.pauseCamera();
+          if (!mounted) return;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => FillFormPage(slug: slug)),
@@ -51,7 +83,7 @@ class _ScanQRPageState extends State<ScanQRPage> {
           setState(() => _errorText = 'Form tidak ditemukan');
         }
       } else {
-        setState(() => _errorText = result['message'] ?? 'Link tidak valid');
+        setState(() => _errorText = (result['message']?.toString() ?? 'Link tidak valid'));
       }
 
       if (mounted) {

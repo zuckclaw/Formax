@@ -115,12 +115,15 @@ void main() {
 
       final payload = state.buildApiPayload();
       expect(payload, hasLength(1));
+      final settings = Map<String, dynamic>.from(
+        payload.first['settings'] as Map,
+      );
       expect(
-        payload.first['settings']['image_url'],
+        settings['image_url'],
         equals('http://example.com/image1.jpg'),
       );
       expect(
-        payload.first['settings']['image_urls'],
+        settings['image_urls'],
         equals(['http://example.com/image2.jpg']),
       );
     });

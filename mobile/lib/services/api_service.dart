@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Part: endpoint AUTH — Tahap 8a. ApiService tetap fasad publik via
 // forwarder satu baris; puluhan call-site tidak berubah.
@@ -17,6 +20,23 @@ part 'api/forms_part.dart';
 // Part: endpoint MISC (submissions/search/profil/export/upload) — Tahap 8d.
 // Pola sama: fasad + forwarder.
 part 'api/misc_part.dart';
+
+String _apiErrorDetail(Object? data, String fallback) {
+  if (data is! Map) return fallback;
+  final detail = data['detail'];
+  if (detail is String) return detail;
+  if (detail is List) {
+    return detail.map((item) {
+      if (item is! Map) return item.toString();
+      final error = Map<String, dynamic>.from(item);
+      final location = error['loc'];
+      final parts = location is List ? location : const <dynamic>[];
+      final field = parts.isEmpty ? 'field' : parts.last.toString();
+      return '$field: ${error['msg'] ?? ''}';
+    }).join(', ');
+  }
+  return data['message']?.toString() ?? fallback;
+}
 
 class ApiService {
   static String get baseUrl {
@@ -35,13 +55,30 @@ class ApiService {
   }
 
   static String publicFormLink(String slug) {
-    final s = slug.startsWith('http')
-        ? Uri.parse(slug).pathSegments.last
-        : slug;
-    return '${frontendUrl.replaceAll(RegExp(r'/+$'), '')}/f/$s';
+    try {
+      final s = slug.startsWith('http')
+          ? Uri.parse(slug).pathSegments.last
+          : slug;
+      final clean = s.trim().isEmpty ? slug.trim() : s.trim();
+      return '${frontendUrl.replaceAll(RegExp(r'/+$'), '')}/f/$clean';
+    } catch (_) {
+      return '${frontendUrl.replaceAll(RegExp(r'/+$'), '')}/f/$slug';
+    }
   }
 
   static String? _sessionToken;
+
+  // Secure storage hanya untuk Android/iOS (Keystore/Keychain).
+  // Web/Desktop fallback ke SharedPreferences agar tidak crash (plugin tidak didukung).
+  static const _secure = FlutterSecureStorage(
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+  static const _kAccessToken = 'access_token';
+
+  static bool get _useSecure =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   // Safe JSON decode — tidak throw jika body kosong / HTML error page
   static dynamic _safeJson(String body) {
@@ -82,31 +119,103 @@ class ApiService {
     return 'Terjadi kesalahan saat menghubungi server.';
   }
 
+  /// True jika respons 401 karena token kedaluwarsa/tidak valid (bukan salah password).
+  /// Dipakai untuk auto-logout agar user tidak stuck dengan sesi mati.
+  static bool _isSessionExpired(int statusCode, dynamic body) {
+    if (statusCode != 401) return false;
+    final detail = (body is Map ? body['detail'] : null)?.toString().toLowerCase() ?? '';
+    return detail.contains('kadaluarsa') || detail.contains('tidak valid');
+  }
+
+  static Future<Map<String, dynamic>> _unauthorizedResult(dynamic body) async {
+    try {
+      await removeToken();
+    } catch (_) {}
+    final msg = (body is Map && body['detail'] != null)
+        ? body['detail'].toString()
+        : 'Sesi kedaluwarsa, silakan login ulang';
+    return {'success': false, 'message': msg.toString(), 'expired': true};
+  }
+
   // Menyimpan token. Jika rememberMe false, token hanya disimpan di memori.
+  // rememberMe true (Android/iOS): Keystore/Keychain. Web/Desktop: SharedPreferences.
+  // Token lama di SharedPreferences otomatis dimigrasi ke secure saat dibaca.
   static Future<void> saveToken(String token, {bool rememberMe = true}) async {
     _sessionToken = token;
     if (rememberMe) {
+      if (_useSecure) {
+        try {
+          await _secure.write(key: _kAccessToken, value: token);
+          // Bersihkan sisa plaintext lama agar tidak ada dua sumber.
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove(_kAccessToken);
+          } catch (_) {}
+          return;
+        } catch (_) {
+          // Fallback ke prefs bila secure gagal (mis. device tanpa lock screen).
+        }
+      }
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', token);
+      await prefs.setString(_kAccessToken, token);
     } else {
       // Pastikan token lama di storage dihapus jika user memilih tidak di-remember
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('access_token');
+      try {
+        if (_useSecure) await _secure.delete(key: _kAccessToken);
+      } catch (_) {}
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_kAccessToken);
+      } catch (_) {}
     }
   }
 
   // Mengambil token (prioritaskan dari memori)
   static Future<String?> getToken() async {
     if (_sessionToken != null) return _sessionToken;
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
+    if (_useSecure) {
+      try {
+        final s = await _secure.read(key: _kAccessToken);
+        if (s != null && s.isNotEmpty) {
+          _sessionToken = s;
+          return s;
+        }
+      } catch (_) {}
+      // Migrasi sekali: token lama masih di prefs plaintext -> pindah ke secure.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final legacy = prefs.getString(_kAccessToken);
+        if (legacy != null && legacy.isNotEmpty) {
+          try {
+            await _secure.write(key: _kAccessToken, value: legacy);
+            await prefs.remove(_kAccessToken);
+          } catch (_) {}
+          _sessionToken = legacy;
+          return legacy;
+        }
+      } catch (_) {}
+      return null;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final t = prefs.getString(_kAccessToken);
+      if (t != null && t.isNotEmpty) _sessionToken = t;
+      return _sessionToken;
+    } catch (_) {
+      return _sessionToken;
+    }
   }
 
   // Menghapus token (Logout)
   static Future<void> removeToken() async {
     _sessionToken = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
+    try {
+      if (_useSecure) await _secure.delete(key: _kAccessToken);
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kAccessToken);
+    } catch (_) {}
   }
 
   static Future<String> getRespondentKey() async {
@@ -120,11 +229,19 @@ class ApiService {
   }
 
   static String _generateUuid() {
-    // UUID v4 sederhana tanpa dependency eksternal
-    final rnd = DateTime.now().microsecondsSinceEpoch;
-    final rand = (rnd * 2654435761) % 0x7FFFFFFF;
-    final hex = rand.toRadixString(16).padLeft(8, '0');
-    return 'anon-$hex-${DateTime.now().millisecondsSinceEpoch}';
+    // UUID v4 dengan CSPRNG (Random.secure), bukan timestamp predictible.
+    try {
+      final r = math.Random.secure();
+      const hexChars = '0123456789abcdef';
+      final sb = StringBuffer();
+      for (var i = 0; i < 32; i++) {
+        sb.write(hexChars[r.nextInt(16)]);
+      }
+      final hex = sb.toString();
+      return 'anon-${hex.substring(0, 8)}-${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}';
+    } catch (_) {
+      return 'anon-${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}';
+    }
   }
 
   // Slug dari judul form — pola sama dengan web (generateSlug) agar konsisten.
@@ -312,6 +429,6 @@ class ApiService {
   // _extractFilename & _uploadOnce ikut pindah ke api/misc_part.dart
   // (pemakainya hanya di sana).
 
-  static Future<Map<String, dynamic>> uploadFile(dynamic file) =>
+  static Future<Map<String, dynamic>> uploadFile(XFile file) =>
       _miscUpload(file);
 }

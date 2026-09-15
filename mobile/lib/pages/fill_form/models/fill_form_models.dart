@@ -24,12 +24,12 @@ class QuestionOption {
         ? json
         : Map<String, dynamic>.from(json);
     return QuestionOption(
-      id: map['id'] ?? '',
-      label: map['label'] ?? '',
-      value: map['value'],
-      orderIndex: map['order_index'] ?? 0,
-      isCorrect: map['is_correct'] ?? false,
-      isOther: map['is_other'] ?? false,
+      id: map['id']?.toString() ?? '',
+      label: map['label']?.toString() ?? '',
+      value: map['value']?.toString(),
+      orderIndex: (map['order_index'] is int) ? map['order_index'] as int : int.tryParse('${map['order_index']}') ?? 0,
+      isCorrect: map['is_correct'] == true,
+      isOther: map['is_other'] == true,
     );
   }
 }
@@ -66,16 +66,16 @@ class Question {
         : <String, dynamic>{};
     final optionsRaw = map['options'];
     final options = optionsRaw is List
-        ? optionsRaw.map((o) => QuestionOption.fromJson(o)).toList()
+        ? optionsRaw.whereType<Map>().map((o) => QuestionOption.fromJson(o)).toList()
         : <QuestionOption>[];
 
     return Question(
-      id: map['id'] ?? '',
-      type: map['type'] ?? 'text',
-      label: map['label'] ?? '',
-      placeholder: map['placeholder'],
-      isRequired: map['is_required'] ?? false,
-      orderIndex: map['order_index'] ?? 0,
+      id: map['id']?.toString() ?? '',
+      type: map['type']?.toString() ?? 'text',
+      label: map['label']?.toString() ?? '',
+      placeholder: map['placeholder']?.toString(),
+      isRequired: map['is_required'] == true,
+      orderIndex: (map['order_index'] is int) ? map['order_index'] as int : int.tryParse('${map['order_index']}') ?? 0,
       settings: settings,
       options: options,
     );
@@ -106,6 +106,7 @@ class FormData {
   final String? bannerUrl;
   final String slug;
   final String? joinToken;
+  final bool requireJoinToken;
   final bool acceptResponses;
   final String? startDate;
   final String? endDate;
@@ -122,6 +123,7 @@ class FormData {
     this.bannerUrl,
     required this.slug,
     this.joinToken,
+    this.requireJoinToken = false,
     this.acceptResponses = true,
     this.startDate,
     this.endDate,
@@ -134,19 +136,23 @@ class FormData {
         ? json
         : Map<String, dynamic>.from(json);
     return FormData(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      description: map['description'],
-      bannerUrl: map['banner_url'],
-      slug: map['slug'] ?? '',
-      joinToken: map['join_token'],
-      acceptResponses: map['accept_responses'] ?? true,
-      startDate: map['start_date'],
-      endDate: map['end_date'],
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? '',
+      description: map['description']?.toString(),
+      bannerUrl: map['banner_url']?.toString(),
+      slug: map['slug']?.toString() ?? '',
+      // Backend PublicFormOut TIDAK kirim join_token (hanya flag require_join_token).
+      // Tetap baca join_token bila ada (compat form lama), utama pakai flag bool.
+      joinToken: map['join_token']?.toString(),
+      requireJoinToken: map['require_join_token'] == true,
+      acceptResponses: map['accept_responses'] == true || map['accept_responses'] == null,
+      startDate: map['start_date']?.toString(),
+      endDate: map['end_date']?.toString(),
       ownerId: map['owner_id']?.toString(),
       questions:
-          (map['questions'] as List<dynamic>?)
-              ?.map((q) => Question.fromJson(q as Map))
+          (map['questions'] as List?)
+              ?.whereType<Map>()
+              .map((q) => Question.fromJson(q))
               .toList() ??
           [],
     );

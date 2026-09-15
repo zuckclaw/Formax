@@ -27,6 +27,15 @@ class SignUpRequest(BaseModel):
             raise ValueError("Nama lengkap tidak boleh kosong")
         return cleaned
 
+    @field_validator("password")
+    @classmethod
+    def _validate_password(cls, v: str) -> str:
+        if len(v or "") < 6:
+            raise ValueError("Password minimal 6 karakter")
+        if len(v) > 128:
+            raise ValueError("Password terlalu panjang (maks 128 karakter)")
+        return v
+
 
 class SendOTPRequest(BaseModel):
     email: EmailStr
@@ -69,6 +78,28 @@ class ProfileUpdateRequest(BaseModel):
             return cleaned
         return v
 
+    @field_validator("avatar_url")
+    @classmethod
+    def _validate_avatar_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        s = v.strip()
+        if not s:
+            return None
+        if len(s) > 2000:
+            raise ValueError("avatar_url terlalu panjang")
+        low = s.lower()
+        if low.startswith("javascript:") or low.startswith("data:text/html"):
+            raise ValueError("avatar_url tidak valid")
+        if not (
+            low.startswith("http://")
+            or low.startswith("https://")
+            or low.startswith("blob:")
+            or low.startswith("data:image/")
+        ):
+            raise ValueError("avatar_url harus http(s)://, blob:, atau data:image/")
+        return s
+
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
@@ -78,6 +109,13 @@ class ChangePasswordRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    # Refresh token untuk /auth/refresh (rotasi). Opsional agar client lama
+    # yang hanya baca access_token tetap kompatibel.
+    refresh_token: Optional[str] = None
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class UserOut(BaseModel):
@@ -114,10 +152,67 @@ class QuestionOptionUpdate(BaseModel):
     is_correct: Optional[bool] = None
     is_other: Optional[bool] = None
 
+    @field_validator("label")
+    @classmethod
+    def _clean_label(cls, v):
+        return sanitize_html(v)
+
 
 class QuestionOptionOut(QuestionOptionCreate):
     id: uuid.UUID
     is_other: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+# Skema PUBLIK — tanpa is_correct agar kunci jawaban tidak bocor ke responden.
+# Dipakai untuk GET /forms/public/{slug} dan join flow.
+class PublicQuestionOptionOut(BaseModel):
+    id: uuid.UUID
+    label: str
+    value: Optional[str] = None
+    order_index: int = 0
+    is_other: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class PublicQuestionOut(BaseModel):
+    id: uuid.UUID
+    type: QuestionType
+    label: str
+    placeholder: Optional[str]
+    is_required: bool
+    order_index: int
+    settings: dict
+    options: List[PublicQuestionOptionOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class PublicFormOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: Optional[str]
+    banner_url: Optional[str]
+    status: FormStatus
+    slug: str
+    # join_token sengaja TIDAK dikirim (cukup flag butuh token atau tidak)
+    require_join_token: bool = False
+    accept_responses: bool
+    allow_see_result: bool
+    max_submissions: int
+    require_fullscreen: bool
+    reveal_answers: bool
+    shuffle_questions: bool = False
+    shuffle_options: bool = False
+    start_date: Optional[datetime]
+    end_date: Optional[datetime]
+    created_at: datetime
+    questions: List[PublicQuestionOut] = []
 
     class Config:
         from_attributes = True
@@ -240,6 +335,15 @@ class FormCreate(BaseModel):
     def _clean_html_fields(cls, v):
         return sanitize_html(v)
 
+    @field_validator("max_submissions")
+    @classmethod
+    def _check_max_sub(cls, v: int) -> int:
+        if v is None:
+            return 1
+        if v < 0 or v > 100:
+            raise ValueError("max_submissions harus 0..100 (0 = tak terbatas)")
+        return v
+
 
 class FormUpdate(BaseModel):
     title: Optional[str] = None
@@ -262,6 +366,15 @@ class FormUpdate(BaseModel):
     @classmethod
     def _clean_html_fields(cls, v):
         return sanitize_html(v)
+
+    @field_validator("max_submissions")
+    @classmethod
+    def _check_max_sub(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return None
+        if v < 0 or v > 100:
+            raise ValueError("max_submissions harus 0..100 (0 = tak terbatas)")
+        return v
 
 
 class FormOut(BaseModel):
@@ -342,6 +455,14 @@ class SearchResultOut(BaseModel):
 class JoinFormRequest(BaseModel):
     token: Optional[str] = None   # wajib diisi kalau form.join_token gak null
 
+    @field_validator("token")
+    @classmethod
+    def _clean_token(cls, v):
+        if v is None:
+            return None
+        cleaned = str(v).strip().upper()[:32]
+        return cleaned or None
+
 
 class SubmissionStartOut(BaseModel):
     id: uuid.UUID
@@ -357,6 +478,55 @@ class AnswerSave(BaseModel):
     answer_text: Optional[str] = None
     answer_options: Optional[List[str]] = None
     file_url: Optional[str] = None
+
+    @field_validator("answer_text")
+    @classmethod
+    def _limit_text(cls, v):
+        if v is None:
+            return None
+        if len(v) > 20000:
+            raise ValueError("answer_text terlalu panjang (maks 20000 karakter)")
+        return sanitize_html(v)
+
+    @field_validator("answer_options")
+    @classmethod
+    def _limit_options(cls, v):
+        if v is not None:
+            if len(v) > 50:
+                raise ValueError("answer_options terlalu banyak (maks 50)")
+            cleaned: List[str] = []
+            for item in v:
+                if item is None:
+                    continue
+                s = str(item)
+                if len(s) > 2000:
+                    raise ValueError("salah satu answer_options terlalu panjang (maks 2000 karakter)")
+                cleaned.append(sanitize_html(s))
+            return cleaned
+        return v
+
+    @field_validator("file_url")
+    @classmethod
+    def _limit_file_url(cls, v):
+        if v is None:
+            return None
+        s = v.strip()
+        if not s:
+            return None
+        if len(s) > 2000:
+            raise ValueError("file_url terlalu panjang")
+        low = s.lower()
+        if low.startswith("javascript:") or low.startswith("data:text/html"):
+            raise ValueError("file_url tidak valid")
+        # Hanya izinkan file milik sendiri (serve /static/uploads/) atau http(s) —
+        # cegah tempel URL file orang lain / skema berbahaya.
+        if not (
+            "/static/uploads/" in s
+            or low.startswith("http://")
+            or low.startswith("https://")
+        ):
+            raise ValueError("file_url harus menunjuk ke /static/uploads/ atau http(s)://")
+        return s
 
 
 class AnswerOut(BaseModel):
@@ -480,6 +650,11 @@ class DocxImportQuestionIn(BaseModel):
     label: str
     is_required: bool = False
     options: List[QuestionOptionCreate] = []
+
+    @field_validator("label")
+    @classmethod
+    def _clean_label(cls, v):
+        return sanitize_html(v)
 
 
 class DocxImportRequest(BaseModel):

@@ -4,7 +4,7 @@ import { API_BASE_URL, apiFetch, readJsonResponse, getAuthHeaders } from './conf
  * Ambil detail form publik berdasarkan slug (support anonim via X-Respondent-Key)
  */
 export async function getPublicFormBySlug(token, slug) {
-  const res = await apiFetch(`${API_BASE_URL}/forms/public/${slug}`, {
+  const res = await apiFetch(`${API_BASE_URL}/forms/public/${encodeURIComponent(slug)}`, {
     headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal mengambil data form');
@@ -17,13 +17,14 @@ export async function getPublicFormBySlug(token, slug) {
  * @param {string} [joinToken] - Join token jika form membutuhkan token ujian
  */
 export async function joinForm(token, slug, joinToken = null) {
-  const res = await apiFetch(`${API_BASE_URL}/forms/public/${slug}/join`, {
+  const body = joinToken ? { token: joinToken } : {};
+  const res = await apiFetch(`${API_BASE_URL}/forms/public/${encodeURIComponent(slug)}/join`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...getAuthHeaders(token),
     },
-    body: JSON.stringify({ token: joinToken || null }),
+    body: JSON.stringify(body),
   });
   return readJsonResponse(res, 'Gagal bergabung ke form');
 }
@@ -32,7 +33,7 @@ export async function joinForm(token, slug, joinToken = null) {
  * Autosave jawaban per soal
  */
 export async function saveAnswer(token, submissionId, payload) {
-  const res = await apiFetch(`${API_BASE_URL}/submissions/${submissionId}/answers`, {
+  const res = await apiFetch(`${API_BASE_URL}/submissions/${encodeURIComponent(submissionId)}/answers`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -106,7 +107,7 @@ export async function deleteSubmission(token, submissionId) {
  */
 export async function getMySubmissions(token) {
   const res = await apiFetch(`${API_BASE_URL}/submissions/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal mengambil aktivitas saya');
 }

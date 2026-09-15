@@ -1,11 +1,11 @@
-import { API_BASE_URL, apiFetch, readJsonResponse } from './config';
+import { API_BASE_URL, apiFetch, getAuthHeaders, readJsonResponse } from './config';
 
 /**
  * List semua form milik user (untuk halaman History / Recent History)
  */
 export async function getMyForms(token) {
   const res = await apiFetch(`${API_BASE_URL}/forms`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal mengambil daftar form');
 }
@@ -18,7 +18,7 @@ export async function createForm(token, data) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -29,8 +29,8 @@ export async function createForm(token, data) {
  * Get detail form (owner only)
  */
 export async function getForm(token, formId) {
-  const res = await apiFetch(`${API_BASE_URL}/forms/${formId}`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const res = await apiFetch(`${API_BASE_URL}/forms/${encodeURIComponent(formId)}`, {
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal mengambil form');
 }
@@ -39,11 +39,11 @@ export async function getForm(token, formId) {
  * Update form (title, description, status, dates, etc.)
  */
 export async function updateForm(token, formId, data) {
-  const res = await apiFetch(`${API_BASE_URL}/forms/${formId}`, {
+  const res = await apiFetch(`${API_BASE_URL}/forms/${encodeURIComponent(formId)}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -54,9 +54,9 @@ export async function updateForm(token, formId, data) {
  * Hapus form
  */
 export async function deleteForm(token, formId) {
-  const res = await apiFetch(`${API_BASE_URL}/forms/${formId}`, {
+  const res = await apiFetch(`${API_BASE_URL}/forms/${encodeURIComponent(formId)}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal menghapus form');
 }
@@ -67,7 +67,7 @@ export async function deleteForm(token, formId) {
 export async function generateQR(token, formId) {
   const res = await apiFetch(`${API_BASE_URL}/forms/${formId}/generate-qr`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal generate QR');
 }
@@ -77,7 +77,7 @@ export async function generateQR(token, formId) {
  */
 export async function getFormSubmissions(token, formId) {
   const res = await apiFetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   return readJsonResponse(res, 'Gagal mengambil hasil respons');
 }
@@ -87,10 +87,28 @@ export async function getFormSubmissions(token, formId) {
  */
 export async function exportSubmissions(token, formId, formSlug = 'form') {
   const res = await apiFetch(`${API_BASE_URL}/forms/${formId}/export`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
   if (!res.ok) {
-    throw new Error('Gagal mengekspor data ke Excel');
+    let detail = 'Gagal mengekspor data ke Excel';
+    try {
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const j = await res.json();
+        if (typeof j?.detail === 'string') detail = j.detail;
+      }
+    } catch { /* abaikan, pakai pesan default */ }
+    throw new Error(`${detail} (HTTP ${res.status})`);
+  }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    // Backend mengirim error JSON tapi status 200 — jangan simpan sebagai xlsx rusak.
+    try {
+      const j = await res.json();
+      throw new Error(j?.detail || 'Gagal mengekspor data ke Excel');
+    } catch (e) {
+      if (e.message && !e.message.includes('Unexpected')) throw e;
+    }
   }
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
@@ -98,7 +116,10 @@ export async function exportSubmissions(token, formId, formSlug = 'form') {
   a.href = url;
   a.download = `${formSlug}-hasil.xlsx`;
   document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
+  try {
+    a.click();
+  } finally {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
 }

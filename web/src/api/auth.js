@@ -1,4 +1,5 @@
-import { API_BASE_URL, apiFetch, readJsonResponse } from './config';
+import { API_BASE_URL, apiFetch, getAuthHeaders, readJsonResponse } from './config';
+import { clearAuth, getRefreshToken, getValidToken } from '../utils/authStorage';
 
 /**
  * Kirim OTP ke email (wajib sebelum signup)
@@ -11,9 +12,7 @@ export async function sendOtp(email) {
     body: JSON.stringify({ email }),
   });
 
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.detail || 'Gagal mengirim OTP');
-  return json;
+  return readJsonResponse(res, 'Gagal mengirim OTP');
 }
 
 /**
@@ -21,7 +20,7 @@ export async function sendOtp(email) {
  * @param {string} email
  */
 export async function sendForgotPasswordOtp(email) {
-  const res = await apiFetch(`${API_BASE_URL}/auth/forgot-password/send-otp`, {
+  const res = await apiFetch(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -36,7 +35,7 @@ export async function sendForgotPasswordOtp(email) {
  * @param {string} otp
  */
 export async function verifyForgotPasswordOtp(email, otp) {
-  const res = await apiFetch(`${API_BASE_URL}/auth/forgot-password/verify-otp`, {
+  const res = await apiFetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, otp }),
@@ -50,7 +49,7 @@ export async function verifyForgotPasswordOtp(email, otp) {
  * @param {{ email: string, otp: string, new_password: string }} data
  */
 export async function resetPassword(data) {
-  const res = await apiFetch(`${API_BASE_URL}/auth/forgot-password/reset-password`, {
+  const res = await apiFetch(`${API_BASE_URL}/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -92,7 +91,7 @@ export async function login(data) {
  */
 export async function getMe(token) {
   const res = await apiFetch(`${API_BASE_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...getAuthHeaders(token) },
   });
 
   return readJsonResponse(res, 'Gagal mengambil data user');
@@ -108,7 +107,7 @@ export async function updateMe(token, data) {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -126,7 +125,7 @@ export async function changePassword(token, data) {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...getAuthHeaders(token),
     },
     body: JSON.stringify(data),
   });
@@ -135,12 +134,33 @@ export async function changePassword(token, data) {
 }
 
 /**
+ * Tukar refresh token dengan pasangan access+refresh baru (rotasi sekali pakai).
+ * Backend mencabut refresh lama agar tidak bisa dipakai ulang.
+ */
+export async function refreshSession(refreshToken) {
+  const res = await apiFetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  return readJsonResponse(res, 'Sesi kedaluwarsa, silakan login ulang');
+}
+
+/**
  * Logout (client-side: hapus token dari localStorage)
+ * Sekaligus cabut token di server (denylist) agar token curian mati.
+ * Tetap hapus lokal meski server offline — jangan blokir UX logout.
  */
 export function logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('auth_expires');
-  localStorage.removeItem('auth_remember');
-  try { sessionStorage.removeItem('token'); } catch {}
+  const token = (() => { try { return getValidToken() } catch { return null } })();
+  const refresh = (() => { try { return getRefreshToken() } catch { return null } })();
+  clearAuth();
+  try {
+    const qs = refresh ? `?refresh_token=${encodeURIComponent(refresh)}` : '';
+    apiFetch(`${API_BASE_URL}/auth/logout${qs}`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(token) },
+    }, 8000).catch(() => null);
+  } catch { /* logout remains client-side when storage/network is unavailable */ }
 }
