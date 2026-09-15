@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createForm } from '../api/forms';
-import { generateAiForm } from '../api/ai';
+import { generateAiForm, extractAiFileText } from '../api/ai';
 import { getValidToken } from '../utils/authStorage';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
@@ -11,13 +11,6 @@ import ThemeToggle from '../components/ThemeToggle';
 import 'katex/dist/katex.min.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
-
-const DYNAMIC_SUBTITLES = [
-  'Buat kuis, survei & form otomatis berstandar tinggi dengan kecerdasan buatan kami!',
-  'Susun soal matematika lengkap dengan rumus LaTeX instan & akurat',
-  'Generate form pendaftaran & kuesioner interaktif dalam hitungan detik',
-  'Solusi kecerdasan buatan terbaik untuk pembuatan formulir modern tanpa ribet',
-];
 
 const QUESTION_TYPE_LABELS = {
   text: 'Teks Singkat',
@@ -35,7 +28,7 @@ const PRESET_PROMPTS = [
     icon: '📐',
     label: 'Ujian Matematika SMA',
     title: 'Kuis Matematika SMA — Aljabar Kuadrat',
-    description: 'Ujian pengukur pemahaman aljabar dan fungsi kuadrat kelas 10.',
+    description: 'Ujian pemahaman aljabar kuadrat dan persamaan linear kelas 10.',
     prompt: 'Buatkan kuis Matematika SMA kelas 10, 2 Bagian: Identitas Siswa & 5 soal pilihan ganda tentang aljabar kuadrat dan persamaan linear. Sertakan rumus matematika LaTeX \\(f(x) = ax^2 + bx + c\\) dan kunci jawaban akurat.',
     questions: 5,
     includeCorrect: true,
@@ -53,7 +46,7 @@ const PRESET_PROMPTS = [
   },
   {
     icon: '🎓',
-    label: 'Form Pendaftaran Event',
+    label: 'Pendaftaran Webinar',
     title: 'Form Pendaftaran Webinar Nasional 2026',
     description: 'Pendaftaran peserta webinar teknologi dan kecerdasan buatan.',
     prompt: 'Buatkan formulir pendaftaran webinar 5 bidang: Nama Lengkap (text), Email (text), Instansi/Profesi (dropdown), Tanggal Lahir (date), dan Upload Bukti Transfer/Kartu Identitas (file_upload).',
@@ -63,7 +56,7 @@ const PRESET_PROMPTS = [
   },
   {
     icon: '💼',
-    label: 'Evaluasi Kinerja Dosen',
+    label: 'Evaluasi Pembelajaran',
     title: 'Survei Evaluasi Pembelajaran & Pengajar',
     description: 'Evaluasi rutin semesteran mengenai metode pengajaran dan kesiapan materi.',
     prompt: 'Buatkan kuesioner evaluasi dosen oleh mahasiswa 5 soal pilihan skala rating (Sangat Baik s/d Sangat Kurang) mengenai penguasaan materi, ketepatan waktu, dan kejelasan penjelasan.',
@@ -73,9 +66,9 @@ const PRESET_PROMPTS = [
   },
   {
     icon: '🇬🇧',
-    label: 'Kuis Bahasa Inggris',
+    label: 'English Quiz',
     title: 'English Proficiency Quiz — Grammar & Tenses',
-    description: 'Short quiz to assess basic English grammar, tenses, and daily vocabulary.',
+    description: 'Quiz to assess basic English grammar, tenses, and daily vocabulary.',
     prompt: 'Make an English exam for 10th grade students focusing on tenses (simple present, past tense, future tense) with 5 multiple choice questions and answer keys.',
     questions: 5,
     includeCorrect: true,
@@ -83,14 +76,11 @@ const PRESET_PROMPTS = [
   },
 ];
 
-function stripHtml(html) {
-  if (!html) return '';
-  return String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
 export default function AiFormBuilderPage() {
   const navigate = useNavigate();
   const token = getValidToken();
+  const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -102,39 +92,103 @@ export default function AiFormBuilderPage() {
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
-  const [activePreset, setActivePreset] = useState(null);
   const [showPortal, setShowPortal] = useState(true);
+  const [showTitleField, setShowTitleField] = useState(false);
 
-  // Dynamic Subtitle Cycling Animation State
-  const [subtitleIndex, setSubtitleIndex] = useState(0);
-  const [isSubtitleFading, setIsSubtitleFading] = useState(false);
+  // File Attachment State
+  const [attachedFile, setAttachedFile] = useState(null); // { name, size, text, charCount }
+  const [isExtractingFile, setIsExtractingFile] = useState(false);
 
+  // Auto-resize prompt textarea
   useEffect(() => {
-    const timer = setInterval(() => {
-      setIsSubtitleFading(true);
-      setTimeout(() => {
-        setSubtitleIndex((prev) => (prev + 1) % DYNAMIC_SUBTITLES.length);
-        setIsSubtitleFading(false);
-      }, 400);
-    }, 3800);
-    return () => clearInterval(timer);
-  }, []);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(260, Math.max(80, textareaRef.current.scrollHeight))}px`;
+    }
+  }, [prompt]);
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3200);
   }, []);
 
-  const handleApplyPreset = (preset, index) => {
+  const handleApplyPreset = (preset) => {
     setTitle(preset.title);
     setDescription(preset.description);
     setPrompt(preset.prompt);
     setNumQuestions(preset.questions);
     setIncludeCorrect(preset.includeCorrect);
     setUseSections(preset.useSections);
-    setActivePreset(index);
     setError('');
-    showToast(`Template "${preset.label}" berhasil diterapkan!`, 'info');
+    showToast(`Template "${preset.label}" diterapkan!`, 'info');
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Ukuran file maksimal 8 MB', 'error');
+      return;
+    }
+
+    const filename = file.name.toLowerCase();
+    const validExtensions = ['.docx', '.txt', '.md', '.csv', '.json', '.tsv'];
+    const isValid = validExtensions.some((ext) => filename.endsWith(ext));
+    if (!isValid) {
+      showToast('Format tidak didukung. Gunakan .docx, .txt, .md, .csv, atau .json', 'error');
+      return;
+    }
+
+    setIsExtractingFile(true);
+    try {
+      // If it's pure text / md / json / csv, read instantly via FileReader
+      if (!filename.endsWith('.docx')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target.result || '';
+          setAttachedFile({
+            name: file.name,
+            size: (file.size / 1024).toFixed(1) + ' KB',
+            text: content.slice(0, 15000),
+            charCount: content.length,
+          });
+          setIsExtractingFile(false);
+          showToast(`File "${file.name}" siap digunakan oleh AI!`, 'success');
+        };
+        reader.onerror = () => {
+          setIsExtractingFile(false);
+          showToast('Gagal membaca file teks', 'error');
+        };
+        reader.readAsText(file);
+      } else {
+        // Extract .docx on server
+        const res = await extractAiFileText(token, file);
+        setAttachedFile({
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          text: res.text,
+          charCount: res.char_count,
+        });
+        showToast(`Dokumen Word "${file.name}" berhasil diekstraksi!`, 'success');
+        setIsExtractingFile(false);
+      }
+    } catch (err) {
+      setIsExtractingFile(false);
+      showToast(err.message || 'Gagal mengekstrak isi file', 'error');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setAttachedFile(null);
+    showToast('File lampiran dilepas', 'info');
   };
 
   const handleGenerate = async () => {
@@ -158,7 +212,6 @@ export default function AiFormBuilderPage() {
 
     setError('');
     setIsGenerating(true);
-    setPreview(null);
     try {
       const data = await generateAiForm(token, {
         title: title.trim() || undefined,
@@ -167,9 +220,10 @@ export default function AiFormBuilderPage() {
         num_questions: Number(resolvedNumQuestions),
         include_correct: includeCorrect,
         use_sections: useSections,
+        file_context: attachedFile?.text || undefined,
       });
       setPreview(data);
-      showToast('Form cerdas berhasil digenerate!', 'success');
+      showToast('Form berhasil diracik oleh Formax AI!', 'success');
     } catch (err) {
       setError(err.message || 'Gagal generate form');
       showToast(err.message || 'Gagal generate form', 'error');
@@ -178,8 +232,13 @@ export default function AiFormBuilderPage() {
     }
   };
 
-  const handleRegenerate = () => {
-    handleGenerate();
+  const handleKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!isGenerating && prompt.trim()) {
+        handleGenerate();
+      }
+    }
   };
 
   const handleConfirm = async () => {
@@ -204,7 +263,7 @@ export default function AiFormBuilderPage() {
           })),
         })),
       };
-      
+
       const created = await createForm(token, {
         title: payload.title,
         description: payload.description,
@@ -217,7 +276,7 @@ export default function AiFormBuilderPage() {
         reveal_answers: includeCorrect,
       });
       showToast('Form disimpan! Mengalihkan ke editor...', 'success');
-      setTimeout(() => navigate(`/form-builder/${created.id}`), 700);
+      setTimeout(() => navigate(`/form-builder/${created.id}`), 600);
     } catch (err) {
       showToast(err.message || 'Gagal menyimpan form', 'error');
     } finally {
@@ -249,332 +308,444 @@ export default function AiFormBuilderPage() {
   })();
 
   return (
-    <div className={`ai-root ${!showPortal ? 'ai-stagger-in' : ''}`}>
+    <div className={`claude-ai-root ${!showPortal ? 'ai-stagger-in' : ''}`}>
       {showPortal && <AiIntroPortal onComplete={() => setShowPortal(false)} />}
 
-      {/* Animated Ambient Waves Background */}
-      <div className="ai-bg-waves" aria-hidden="true">
-        <div className="ai-glow-orb orb-1" />
-        <div className="ai-glow-orb orb-2" />
-        <div className="ai-glow-orb orb-3" />
-        <svg className="ai-wave-svg wave-1" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="currentColor" d="M0,192L48,176C96,160,192,128,288,138.7C384,149,480,203,576,213.3C672,224,768,192,864,165.3C960,139,1056,117,1152,128C1248,139,1344,181,1392,202.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
-        </svg>
-        <svg className="ai-wave-svg wave-2" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="currentColor" d="M0,96L48,122.7C96,149,192,203,288,208C384,213,480,171,576,144C672,117,768,107,864,128C960,149,1056,203,1152,213.3C1248,224,1344,160,1392,128L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
-        </svg>
-        <svg className="ai-wave-svg wave-3" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="currentColor" d="M0,224L60,213.3C120,203,240,181,360,186.7C480,192,600,224,720,213.3C840,203,960,149,1080,138.7C1200,128,1320,160,1380,176L1440,192L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z" />
+      {/* Signature Soft Wave Background */}
+      <div className="claude-wave-bg" aria-hidden="true">
+        <div className="claude-wave-orb claude-wave-orb-a" />
+        <div className="claude-wave-orb claude-wave-orb-b" />
+        <svg className="claude-wave-svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path className="claude-wave-path wave-back" d="M0,160L48,149.3C96,139,192,117,288,128C384,139,480,181,576,186.7C672,192,768,160,864,138.7C960,117,1056,107,1152,122.7C1248,139,1344,181,1392,202.7L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
+          <path className="claude-wave-path wave-front" d="M0,224L60,213.3C120,203,240,181,360,186.7C480,192,600,224,720,213.3C840,203,960,160,1080,149.3C1200,139,1320,160,1380,170.7L1440,181L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z" />
         </svg>
       </div>
 
-      <header className="ai-header">
-        <div className="ai-header-left">
-          <button className="ai-back-btn" onClick={handleBack} aria-label="Kembali ke Dashboard" title="Kembali ke Dashboard">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><polyline points="15 18 9 12 15 6" /></svg>
+      {/* Modern Clean Top Navbar */}
+      <header className="claude-ai-nav">
+        <div className="claude-ai-nav-left">
+          <button className="claude-back-btn" onClick={handleBack} title="Kembali ke Dasbor">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Dasbor</span>
           </button>
-          <img src={logoForm4x} alt="Formax Logo" className="ai-logo" />
-          <div className="ai-brand-wrap">
-            <div className="ai-title-row">
-              <h1 className="ai-title">Formax AI</h1>
-              <span className="ai-badge-chip">Smart Engine 2.0</span>
-            </div>
-            <p className={`ai-subtitle ${isSubtitleFading ? 'fading' : ''}`}>
-              {DYNAMIC_SUBTITLES[subtitleIndex]}
-            </p>
+          <div className="claude-brand-divider" />
+          <div className="claude-brand">
+            <img src={logoForm4x} alt="Form4x" className="claude-logo-img" />
+            <span className="claude-brand-name">Formax AI</span>
+            <span className="claude-badge">Smart Architect</span>
           </div>
         </div>
-        <div className="ai-header-right">
+        <div className="claude-ai-nav-right">
+          {preview && (
+            <button
+              className="claude-btn-new-prompt"
+              onClick={() => {
+                setPreview(null);
+                setPrompt('');
+                setAttachedFile(null);
+              }}
+            >
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Buat Baru</span>
+            </button>
+          )}
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="ai-main">
-        <div className="ai-grid">
-          {/* LEFT: Input & Primary Prompt Action */}
-          <section className="ai-card ai-input-card">
-            <div className="ai-card-header">
-              <div className="ai-card-icon-wrap">
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-                </svg>
+      {/* Main Content Area */}
+      <main className="claude-main-container">
+        {/* Toast Notification */}
+        {toast && (
+          <div className={`claude-toast claude-toast-${toast.type}`}>
+            <span>{toast.msg}</span>
+          </div>
+        )}
+
+        {!preview ? (
+          /* =======================================================================
+             VIEW 1: PROMPT WORKSPACE (Claude Central Omnibox)
+             ======================================================================= */
+          <div className="claude-hero-section">
+            <div className="claude-hero-header">
+              <div className="claude-hero-icon-pill">
+                <span className="claude-sparkle">✨</span>
+                <span>Form Generator Cerdas</span>
               </div>
-              <div>
-                <h2 className="ai-card-title">Instruksi AI (Prompt)</h2>
-                <p className="ai-card-desc">Tulis instruksi atau pilih template cepat untuk membuat form cerdas secara otomatis.</p>
-              </div>
+              <h1 className="claude-hero-title">Formulir apa yang ingin Anda buat hari ini?</h1>
+              <p className="claude-hero-desc">
+                Ketik instruksi, pilih templat instan, atau sisipkan dokumen untuk membuat ujian, kuis, atau kuesioner otomatis.
+              </p>
             </div>
 
-            {/* PRESET PROMPT CHIPS */}
-            <div className="ai-presets-container">
-              <span className="ai-presets-label">⚡ Template Prompt Cepat:</span>
-              <div className="ai-presets-grid">
-                {PRESET_PROMPTS.map((preset, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`ai-preset-chip ${activePreset === idx ? 'active' : ''}`}
-                    onClick={() => handleApplyPreset(preset, idx)}
-                  >
-                    <span className="ai-preset-icon">{preset.icon}</span>
-                    <span>{preset.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* THE CLAUDE OMNIBOX */}
+            <div className={`claude-omnibox-card ${error ? 'has-error' : ''}`}>
+              {/* Optional Form Title & Description Expander */}
+              {showTitleField && (
+                <div className="claude-custom-meta">
+                  <input
+                    type="text"
+                    className="claude-meta-input"
+                    placeholder="Judul Form (opsional)..."
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    maxLength={120}
+                  />
+                  <input
+                    type="text"
+                    className="claude-meta-input meta-desc"
+                    placeholder="Deskripsi / Petunjuk Singkat (opsional)..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={500}
+                  />
+                </div>
+              )}
 
-            <div className="ai-form-group">
-              <label className="ai-label">Judul Form <span className="ai-optional">(opsional)</span></label>
-              <input className="ai-input" type="text" placeholder="Contoh: Kuis Matematika SMA — Aljabar" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
-            </div>
-
-            <div className="ai-form-group">
-              <label className="ai-label">Deskripsi Form <span className="ai-optional">(opsional)</span></label>
-              <textarea className="ai-textarea" rows={2} placeholder="Contoh: Petunjuk pengerjaan dan durasi waktu..." value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} />
-            </div>
-
-            <div className="ai-form-group">
-              <label className="ai-label">Instruksi Detail Prompt <span className="ai-required">*</span></label>
+              {/* Main Prompt Textarea */}
               <textarea
-                className={`ai-textarea ai-prompt ${error ? 'ai-textarea-invalid' : ''}`}
-                rows={5}
-                placeholder="Contoh: Buatkan ujian Matematika SMA kelas 10 tentang fungsi kuadrat, 5 soal pilihan ganda dengan 4 opsi, kunci jawaban akurat, dan rumus LaTeX \(f(x) = ax^2 + bx + c\)..."
+                ref={textareaRef}
+                className="claude-omnibox-textarea"
+                rows={3}
+                placeholder="Deskripsikan form yang Anda butuhkan (contoh: 'Buatkan kuis Matematika SMA 5 soal tentang fungsi kuadrat dengan rumus LaTeX dan kunci jawaban')..."
                 value={prompt}
                 onChange={(e) => {
                   const val = e.target.value;
                   setPrompt(val);
-                  setActivePreset(null);
                   if (error) setError('');
                   const detected = extractQuestionCountFromPrompt(val);
                   if (detected !== null && detected !== numQuestions) {
                     setNumQuestions(detected);
                   }
                 }}
+                onKeyDown={handleKeyDown}
                 maxLength={4000}
               />
-              <div className="ai-char-count">{prompt.length} / 4000 karakter</div>
+
+              {/* Attached File Preview Chip */}
+              {attachedFile && (
+                <div className="claude-attached-chip">
+                  <div className="claude-attached-icon">📄</div>
+                  <div className="claude-attached-info">
+                    <span className="claude-attached-name">{attachedFile.name}</span>
+                    <span className="claude-attached-meta">
+                      {attachedFile.size} &bull; {attachedFile.charCount.toLocaleString()} karakter terbaca
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="claude-attached-remove"
+                    onClick={handleRemoveFile}
+                    title="Hapus file lampiran"
+                  >
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {error && (
+                <div className="claude-omnibox-error">
+                  <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Omnibox Bottom Toolbar */}
+              <div className="claude-omnibox-toolbar">
+                <div className="claude-toolbar-left">
+                  {/* Hidden File Input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".docx,.txt,.md,.csv,.json,.tsv"
+                    style={{ display: 'none' }}
+                    onChange={handleFileUpload}
+                  />
+
+                  {/* Attachment Button */}
+                  <button
+                    type="button"
+                    className={`claude-toolbar-btn ${attachedFile ? 'active' : ''}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isExtractingFile}
+                    title="Sisipkan file dokumen (.docx, .txt, .md, .csv, .json)"
+                  >
+                    {isExtractingFile ? (
+                      <span className="claude-micro-spinner" />
+                    ) : (
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    )}
+                    <span>{attachedFile ? 'File Terlampir' : 'Sisipkan File'}</span>
+                  </button>
+
+                  {/* Question Count Pill Dropdown */}
+                  <div className="claude-pill-dropdown-wrap">
+                    <select
+                      className="claude-pill-select"
+                      value={numQuestions}
+                      onChange={(e) => setNumQuestions(Number(e.target.value))}
+                      title="Jumlah target soal"
+                    >
+                      {[3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30].map((n) => (
+                        <option key={n} value={n}>
+                          {n} Soal
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Correct Answers Toggle Pill */}
+                  <button
+                    type="button"
+                    className={`claude-pill-toggle ${includeCorrect ? 'active' : ''}`}
+                    onClick={() => setIncludeCorrect((v) => !v)}
+                    title="Aktifkan/Matikan kunci jawaban otomatis untuk pilihan ganda"
+                  >
+                    <span className="claude-pill-dot" />
+                    <span>Kunci Jawaban</span>
+                  </button>
+
+                  {/* Sections Toggle Pill */}
+                  <button
+                    type="button"
+                    className={`claude-pill-toggle ${useSections ? 'active' : ''}`}
+                    onClick={() => setUseSections((v) => !v)}
+                    title="Bagi formulir ke dalam beberapa sesi (Identitas & Soal)"
+                  >
+                    <span className="claude-pill-dot" />
+                    <span>Bagian Sesi</span>
+                  </button>
+
+                  {/* Toggle Custom Title Button */}
+                  <button
+                    type="button"
+                    className={`claude-toolbar-btn-text ${showTitleField ? 'active' : ''}`}
+                    onClick={() => setShowTitleField((v) => !v)}
+                  >
+                    {showTitleField ? 'Tutup Judul Kustom' : '+ Judul Kustom'}
+                  </button>
+                </div>
+
+                <div className="claude-toolbar-right">
+                  <span className="claude-char-hint">{prompt.length} / 4000</span>
+                  <button
+                    type="button"
+                    className="claude-send-btn"
+                    onClick={handleGenerate}
+                    disabled={isGenerating || !prompt.trim()}
+                    title="Generate Form (Ctrl + Enter)"
+                  >
+                    {isGenerating ? (
+                      <span className="claude-send-spinner" />
+                    ) : (
+                      <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    )}
+                    <span>{isGenerating ? 'Meracik...' : 'Buat Form'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {error && (
-              <div className="ai-error">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                <span>{error}</span>
+            {/* PRESET PROMPTS / SUGGESTION CARDS */}
+            <div className="claude-suggestions-container">
+              <div className="claude-suggestions-label">Atau mulai dengan template cepat:</div>
+              <div className="claude-suggestions-grid">
+                {PRESET_PROMPTS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="claude-suggestion-card"
+                    onClick={() => handleApplyPreset(preset)}
+                  >
+                    <div className="claude-sugg-top">
+                      <span className="claude-sugg-icon">{preset.icon}</span>
+                      <span className="claude-sugg-label">{preset.label}</span>
+                    </div>
+                    <p className="claude-sugg-desc">{preset.description}</p>
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+          </div>
+        ) : (
+          /* =======================================================================
+             VIEW 2: GENERATED RESULT WORKSPACE (Artifacts View)
+             ======================================================================= */
+          <div className="claude-result-layout">
+            {/* Left Column: Quick Tweak Bar */}
+            <aside className="claude-result-sidebar">
+              <div className="claude-sidebar-card">
+                <h3 className="claude-sidebar-heading">Instruksi AI Digunakan</h3>
+                <p className="claude-sidebar-prompt-text">"{prompt}"</p>
 
-            {/* GENERATE BUTTON DIRECTLY UNDER PROMPT */}
-            <button className="ai-generate-btn" onClick={handleGenerate} disabled={isGenerating || !prompt.trim()}>
-              {isGenerating ? (
-                <>
-                  <span className="ai-btn-spinner" />
-                  Formax AI Sedang Meracik...
-                </>
-              ) : (
-                <>
-                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
-                  Generate Form Cerdas
-                </>
-              )}
-            </button>
-            <p className="ai-generate-hint">Otomatis mendeteksi Bahasa Indonesia &amp; Inggris secara mulus</p>
-          </section>
-
-          {/* RIGHT PANEL: Live Preview + Dedicated Settings UI */}
-          <div className="ai-right-panel">
-            {/* CARD 1: Live Preview */}
-            <section className="ai-card ai-preview-card">
-              <div className="ai-preview-header">
-                <div className="ai-card-header" style={{ marginBottom: 0 }}>
-                  <div className="ai-card-icon-wrap preview-icon">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                <div className="claude-sidebar-meta-list">
+                  <div className="claude-sidebar-meta-item">
+                    <span className="meta-label">Total Soal</span>
+                    <span className="meta-val">{preview.questions.filter((q) => q.type !== 'page_break').length}</span>
                   </div>
-                  <div>
-                    <h2 className="ai-card-title">Preview Hasil Form</h2>
-                    <p className="ai-card-desc">Review struktur form sebelum dikonfirmasi dan dimasukkan ke Editor Form.</p>
+                  <div className="claude-sidebar-meta-item">
+                    <span className="meta-label">Bagian (Sesi)</span>
+                    <span className="meta-val">{previewSections.length}</span>
+                  </div>
+                  <div className="claude-sidebar-meta-item">
+                    <span className="meta-label">Kunci Jawaban</span>
+                    <span className="meta-val">{includeCorrect ? 'Aktif' : 'Non-aktif'}</span>
                   </div>
                 </div>
-                {preview && (
-                  <span className="ai-preview-count">
-                    {preview.questions.filter((q) => q.type !== 'page_break').length} Pertanyaan &bull; {previewSections.length} Bagian
-                  </span>
-                )}
+
+                <div className="claude-sidebar-actions">
+                  <button
+                    className="claude-btn-outline"
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                  >
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>{isGenerating ? 'Meracik Ulang...' : 'Regenerate'}</span>
+                  </button>
+                  <button
+                    className="claude-btn-outline"
+                    onClick={() => setPreview(null)}
+                  >
+                    <span>Edit Prompt</span>
+                  </button>
+                </div>
+              </div>
+            </aside>
+
+            {/* Right Column: Live Form Sheet */}
+            <section className="claude-result-main">
+              <div className="claude-result-action-bar">
+                <div>
+                  <h2 className="claude-result-top-title">Hasil Racikan Formax AI</h2>
+                  <p className="claude-result-top-sub">Review seluruh pertanyaan dan rumus LaTeX sebelum disimpan ke formulir.</p>
+                </div>
+                <button
+                  className="claude-btn-primary-glow"
+                  onClick={handleConfirm}
+                  disabled={isGenerating}
+                >
+                  <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{isGenerating ? 'Menyimpan...' : 'Simpan & Buka di Editor'}</span>
+                </button>
               </div>
 
-              {isGenerating && (
-                <div className="ai-loading">
-                  <div className="ai-orb-wrap">
-                    <div className="ai-orb" />
-                    <div className="ai-orb-ring" />
-                    <div className="ai-orb-ring delay" />
-                  </div>
-                  <div className="ai-loading-text">
-                    <strong>Formax AI sedang meracik form...</strong>
-                    <span>Menganalisis instruksi, menyusun soal &amp; merender formula matematika</span>
-                  </div>
-                  <div className="ai-loading-shimmer">
-                    <div className="ai-shimmer-line w-80" />
-                    <div className="ai-shimmer-line w-60" />
-                    <div className="ai-shimmer-line w-90" />
-                  </div>
-                  <div className="ai-loading-dots"><span /><span /><span /></div>
+              {/* Form Artifact Paper */}
+              <div className="claude-form-paper">
+                <div className="claude-paper-header">
+                  <h1
+                    className="claude-paper-title"
+                    dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.title)) }}
+                  />
+                  {preview.description && (
+                    <p
+                      className="claude-paper-desc"
+                      dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.description)) }}
+                    />
+                  )}
                 </div>
-              )}
 
-              {!isGenerating && !preview && (
-                <div className="ai-empty">
-                  <div className="ai-empty-icon-wrap">
-                    <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                  </div>
-                  <p>Belum Ada Hasil Form</p>
-                  <small>Pilih salah satu <strong>Template Prompt Cepat</strong> atau ketik instruksi di sebelah kiri, lalu klik <strong>Generate Form Cerdas</strong>.</small>
-                </div>
-              )}
-
-              {!isGenerating && preview && (
-                <div className="ai-preview-content">
-                  <div className="ai-preview-form-header">
-                    <h3 className="ai-preview-title" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.title)) }} />
-                    {preview.description && <p className="ai-preview-desc" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.description)) }} />}
-                  </div>
-
-                  {previewSections.map((sec, sIdx) => (
-                    <div key={sIdx} className="ai-preview-section">
-                      {sec.pb && (
-                        <div className="ai-preview-section-header">
-                          <div className="ai-preview-section-top">
-                            <span className="ai-preview-badge">Bagian {sIdx + 1}</span>
-                            {sec.pb.settings?.shuffle && (
-                              <span className="ai-preview-shuffle">
-                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                Diacak per responden
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="ai-preview-section-title" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.label)) }} />
-                          {sec.pb.settings?.description && <p className="ai-preview-section-desc">{stripHtml(sec.pb.settings.description)}</p>}
+                {previewSections.map((sec, sIdx) => (
+                  <div key={sIdx} className="claude-section-block">
+                    {sec.pb && (
+                      <div className="claude-section-header">
+                        <div className="claude-section-top">
+                          <span className="claude-section-pill">Bagian {sIdx + 1}</span>
+                          {sec.pb.settings?.shuffle && (
+                            <span className="claude-shuffle-pill">🔀 Acak Soal</span>
+                          )}
                         </div>
-                      )}
+                        <h3
+                          className="claude-section-title"
+                          dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.label)) }}
+                        />
+                        {sec.pb.settings?.description && (
+                          <p
+                            className="claude-section-desc"
+                            dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.settings.description)) }}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    <div className="claude-questions-flow">
                       {sec.questions.map((q, qIdx) => (
-                        <div key={qIdx} className="ai-preview-q">
-                          <div className="ai-preview-q-header">
-                            <span className="ai-preview-q-num">{qIdx + 1}.</span>
-                            <span className="ai-preview-q-label" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label)) }} />
-                            {q.is_required && <span className="ai-preview-required" title="Wajib diisi">*</span>}
-                            <span className="ai-preview-q-type">{QUESTION_TYPE_LABELS[q.type] || q.type}</span>
+                        <div key={qIdx} className="claude-q-card">
+                          <div className="claude-q-top">
+                            <span className="claude-q-number">{qIdx + 1}</span>
+                            <div className="claude-q-label-wrap">
+                              <div
+                                className="claude-q-label"
+                                dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label)) }}
+                              />
+                            </div>
+                            <span className="claude-q-type-badge">
+                              {QUESTION_TYPE_LABELS[q.type] || q.type}
+                            </span>
                           </div>
-                          {q.options && q.options.length > 0 && (
-                            <div className="ai-preview-opts">
-                              {q.options.map((o, oIdx) => (
-                                <div key={oIdx} className={`ai-preview-opt ${o.is_correct ? 'correct' : ''}`}>
-                                  <span className="ai-preview-opt-dot">{String.fromCharCode(65 + oIdx)}</span>
-                                  <span dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(o.label)) }} />
-                                  {o.is_correct && (
-                                    <span className="ai-preview-correct">
-                                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12" /></svg>
-                                      Kunci Jawaban
-                                    </span>
+
+                          {/* Options if choices */}
+                          {['single_choice', 'checkbox', 'dropdown'].includes(q.type) && (
+                            <div className="claude-q-options">
+                              {(q.options || []).map((opt, oIdx) => (
+                                <div
+                                  key={oIdx}
+                                  className={`claude-option-item ${opt.is_correct ? 'is-correct' : ''}`}
+                                >
+                                  <div className="claude-option-indicator">
+                                    {q.type === 'single_choice' && <span className="radio-circle" />}
+                                    {q.type === 'checkbox' && <span className="checkbox-square" />}
+                                    {q.type === 'dropdown' && <span className="dropdown-num">{oIdx + 1}</span>}
+                                  </div>
+                                  <span
+                                    className="claude-option-label"
+                                    dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(opt.label)) }}
+                                  />
+                                  {opt.is_correct && (
+                                    <span className="claude-correct-badge">✓ Kunci Jawaban</span>
                                   )}
                                 </div>
                               ))}
                             </div>
                           )}
-                          {q.type === 'text' && <div className="ai-preview-placeholder">{q.placeholder || 'Jawaban teks singkat...'}</div>}
-                          {q.type === 'paragraph' && <div className="ai-preview-placeholder">{q.placeholder || 'Jawaban paragraf panjang...'}</div>}
-                          {q.type === 'date' && (
-                            <div className="ai-preview-placeholder ai-date-placeholder">
-                              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-                              Pilih Tanggal
+
+                          {q.type === 'text' && (
+                            <div className="claude-input-dummy">
+                              <span>{q.placeholder || 'Jawaban teks singkat...'}</span>
                             </div>
                           )}
-                          {q.type === 'file_upload' && (
-                            <div className="ai-preview-placeholder ai-date-placeholder">
-                              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                              Pilih berkas dokumen/gambar untuk diunggah...
+
+                          {q.type === 'paragraph' && (
+                            <div className="claude-input-dummy dummy-long">
+                              <span>Jawaban paragraf panjang...</span>
                             </div>
                           )}
                         </div>
                       ))}
                     </div>
-                  ))}
-
-                  <div className="ai-preview-actions">
-                    <button className="ai-btn-secondary" onClick={handleRegenerate} disabled={isGenerating}>
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                      Regenerate AI
-                    </button>
-                    <button className="ai-btn-primary" onClick={handleConfirm} disabled={isGenerating}>
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                      Confirm &amp; Buka Editor Form
-                    </button>
                   </div>
-                  <p className="ai-confirm-hint">Setelah Confirm, form otomatis tersimpan sebagai draft dan langsung dapat Anda kelola di Editor Formax.</p>
-                </div>
-              )}
-            </section>
-
-            {/* CARD 2: Pengaturan Detail Form & Opsi AI */}
-            <section className="ai-card ai-settings-card">
-              <div className="ai-card-header">
-                <div className="ai-card-icon-wrap settings-icon">
-                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="ai-card-title">Pengaturan Form &amp; Opsi AI</h2>
-                  <p className="ai-card-desc">Atur jumlah target soal, kunci jawaban otomatis, dan struktur bagian form.</p>
-                </div>
-              </div>
-
-              <div className="ai-form-group">
-                <label className="ai-label">Target Jumlah Soal / Pertanyaan</label>
-                <div className="ai-num-row">
-                  <input type="range" min={3} max={30} value={numQuestions} onChange={(e) => setNumQuestions(Number(e.target.value))} className="ai-range" />
-                  <div className="ai-num-badge">{numQuestions} Soal</div>
-                </div>
-                <span className="ai-hint">Kisaran 3-30 soal (rekomendasi: 5-10)</span>
-              </div>
-
-              <div className="ai-toggles">
-                <label className="ai-toggle-row">
-                  <div className="ai-toggle-info">
-                    <span className="ai-toggle-title">Kunci Jawaban Otomatis</span>
-                    <span className="ai-toggle-sub">AI menandai 1 opsi benar untuk tiap soal pilihan ganda</span>
-                  </div>
-                  <button type="button" className={`ai-toggle ${includeCorrect ? 'on' : 'off'}`} onClick={() => setIncludeCorrect((v) => !v)} aria-label="Toggle kunci jawaban">
-                    <span className="ai-toggle-slider" />
-                  </button>
-                </label>
-
-                <label className="ai-toggle-row">
-                  <div className="ai-toggle-info">
-                    <span className="ai-toggle-title">Gunakan Bagian (Section)</span>
-                    <span className="ai-toggle-sub">Pisahkan Bagian Identitas &amp; Bagian Pertanyaan</span>
-                  </div>
-                  <button type="button" className={`ai-toggle ${useSections ? 'on' : 'off'}`} onClick={() => setUseSections((v) => !v)} aria-label="Toggle bagian">
-                    <span className="ai-toggle-slider" />
-                  </button>
-                </label>
-              </div>
-
-              <div className="ai-billing-hint" style={{ marginTop: '20px' }}>
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Model AI: <strong>Formax Smart Architect</strong> — Berkualitas Tinggi &amp; mendukung LaTeX.</span>
+                ))}
               </div>
             </section>
           </div>
-        </div>
+        )}
       </main>
-
-      {toast && <div className={`ai-toast ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
 }

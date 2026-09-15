@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import re
 import time
@@ -6,7 +7,7 @@ import random
 from typing import Optional, List
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 
 from ..deps import get_current_user
@@ -42,6 +43,7 @@ class AiGenerateRequest(BaseModel):
     include_correct: bool = True
     use_sections: bool = True
     prefer_type: Optional[str] = None
+    file_context: Optional[str] = Field(None, max_length=20000)
 
 class AiQuestionOptionOut(BaseModel):
     label: str
@@ -116,10 +118,14 @@ def _build_user_prompt(req: AiGenerateRequest, effective_num_questions: int) -> 
     is_math = bool(re.search(r'(matematika|math|aljabar|kalkulus|geometri|trigonometri|fisika|rumus|persamaan|equation|hitung|kuadrat|pecahan|integral|turunan)', req.prompt, re.IGNORECASE))
     math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX!" if is_math else ""
 
+    file_context_hint = ""
+    if req.file_context and req.file_context.strip():
+        file_context_hint = f"\n=== REFERENSI DOKUMEN / MATERI TERLAMPIR ===\n{req.file_context.strip()[:15000]}\n=== AKHIR DOKUMEN TERLAMPIR ===\n(PENTING: Buat soal/formulir berdasarkan materi dokumen di atas secara relevan dan presisi.)\n"
+
     return f"""{title_hint}
 {desc_hint}
 Prompt Pengguna: "{req.prompt}"
-Target Jumlah Soal (tidak menghitung page_break): {effective_num_questions} soal (Wajib tepat {effective_num_questions} pertanyaan)
+{file_context_hint}Target Jumlah Soal (tidak menghitung page_break): {effective_num_questions} soal (Wajib tepat {effective_num_questions} pertanyaan)
 {correct_hint}
 {section_hint}
 {type_hint}
@@ -705,3 +711,51 @@ async def generate_form(payload: AiGenerateRequest, current_user: models.User = 
         questions=questions,
         usage={"model": os.getenv("GEMINI_MODEL", "gemini-3.6-flash"), "prompt_chars": len(payload.prompt)}
     )
+
+
+@router.post("/extract-file")
+async def extract_file_content(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user)
+):
+    _check_rate_limit(str(current_user.id), limit=30)
+    filename = (file.filename or "").lower()
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Ukuran file maksimal 8 MB")
+
+    text_content = ""
+    if filename.endswith(".docx"):
+        try:
+            import docx
+            doc = docx.Document(io.BytesIO(data))
+            paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+            # Also extract tables if present
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = " | ".join(c.text.strip() for c in row.cells if c.text.strip())
+                    if row_text:
+                        paragraphs.append(row_text)
+            text_content = "\n".join(paragraphs)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Gagal membaca file .docx: {str(e)}")
+    elif filename.endswith((".txt", ".md", ".csv", ".json", ".tsv", ".yaml", ".yml")):
+        try:
+            text_content = data.decode("utf-8", errors="ignore").strip()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Gagal membaca teks file: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail="Format file tidak didukung. Gunakan .docx, .txt, .md, .csv, atau .json")
+
+    if not text_content or not text_content.strip():
+        raise HTTPException(status_code=400, detail="File kosong atau tidak mengandung teks yang dapat dibaca.")
+
+    # Limit extracted context to 15,000 characters
+    trimmed_text = text_content.strip()[:15000]
+    return {
+        "filename": file.filename,
+        "text": trimmed_text,
+        "char_count": len(trimmed_text),
+        "preview": trimmed_text[:150] + ("..." if len(trimmed_text) > 150 else "")
+    }
+
