@@ -6,6 +6,7 @@ import { getValidToken } from '../utils/authStorage';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
 import { validatePrompt, extractQuestionCountFromPrompt } from '../utils/promptValidator';
+import AiIntroPortal from '../components/AiIntroPortal';
 import ThemeToggle from '../components/ThemeToggle';
 import 'katex/dist/katex.min.css';
 import logoForm4x from '../assets/logo_form4x.png';
@@ -102,6 +103,7 @@ export default function AiFormBuilderPage() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
   const [activePreset, setActivePreset] = useState(null);
+  const [showPortal, setShowPortal] = useState(true);
 
   // Dynamic Subtitle Cycling Animation State
   const [subtitleIndex, setSubtitleIndex] = useState(0);
@@ -247,7 +249,9 @@ export default function AiFormBuilderPage() {
   })();
 
   return (
-    <div className="ai-root">
+    <div className={`ai-root ${!showPortal ? 'ai-stagger-in' : ''}`}>
+      {showPortal && <AiIntroPortal onComplete={() => setShowPortal(false)} />}
+
       {/* Animated Ambient Waves Background */}
       <div className="ai-bg-waves" aria-hidden="true">
         <div className="ai-glow-orb orb-1" />
