@@ -62,6 +62,274 @@ function generateSlug(title) {
     .substring(0, 60) + '-' + Date.now().toString(36);
 }
 
+/* ========== PREVIEW PANEL COMPONENT ========== */
+function PreviewPanel({ formData, questions, onClose }) {
+  const [previewAnswers, setPreviewAnswers] = useState({});
+
+  // Sort & split into sections (reuse same logic as builder)
+  const sortedQuestions = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const sections = [];
+  let cur = { pb: null, questions: [] };
+  sortedQuestions.forEach((q) => {
+    if (q.type === 'page_break') {
+      if (cur.questions.length > 0 || cur.pb) {
+        sections.push(cur);
+        cur = { pb: q, questions: [] };
+      } else {
+        cur.pb = q;
+      }
+    } else {
+      cur.questions.push(q);
+    }
+  });
+  sections.push(cur);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  // Lock body scroll when open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const handleAnswerChange = (questionId, value) => {
+    setPreviewAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  // Strip HTML for safe display in preview inputs
+  const stripHtml = (html) =>
+    String(html ?? '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+  return (
+    <div className="fb-preview-overlay" onClick={onClose}>
+      <div className="fb-preview-panel" onClick={(e) => e.stopPropagation()}>
+        {/* Preview Header */}
+        <div className="fb-preview-header">
+          <div className="fb-preview-header-left">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="fb-preview-icon">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <h3 className="fb-preview-title">Preview Form</h3>
+            <span className="fb-preview-badge">{questions.filter((q) => q.type !== 'page_break').length} soal</span>
+          </div>
+          <button className="fb-preview-close" onClick={onClose} aria-label="Tutup preview" title="Tutup (Esc)">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Preview Content — scrollable */}
+        <div className="fb-preview-content">
+          {/* Banner */}
+          {formData.banner_url && (
+            <div className="prev-banner-wrap">
+              <NgrokImage src={formData.banner_url} alt="Banner form" className="prev-banner-img" />
+            </div>
+          )}
+
+          {/* Form Title & Description */}
+          <div className="prev-form-header">
+            <h2 className="prev-form-title">{formData.title || 'Tanpa Judul'}</h2>
+            {formData.description && (
+              <div
+                className="prev-form-desc ql-editor"
+                dangerouslySetInnerHTML={{ __html: formData.description }}
+              />
+            )}
+          </div>
+
+          {/* Sections & Questions */}
+          {sections.map((sec, secIdx) => {
+            // Skip completely empty sections (no pb, no questions) except first
+            if (secIdx > 0 && !sec.pb && sec.questions.length === 0) return null;
+
+            return (
+              <div key={secIdx} className="prev-section">
+                {/* Section / Page Break header */}
+                {sec.pb && (
+                  <div className="prev-section-header">
+                    <span className="prev-section-badge">Bagian {secIdx + 1}</span>
+                    <h3 className="prev-section-title">
+                      {stripHtml(sec.pb.label) || `Bagian ${secIdx + 1}`}
+                    </h3>
+                    {sec.questions.length > 0 && (
+                      <span className="prev-section-count">{sec.questions.length} soal</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Questions in this section */}
+                {sec.questions.map((q, qIdx) => {
+                  const displayNum = qIdx + 1;
+                  const ansVal = previewAnswers[q.id] || '';
+
+                  return (
+                    <div key={q.id} className="prev-question-card">
+                      <div className="prev-q-header">
+                        <span className="prev-q-number">{displayNum}.</span>
+                        <span
+                          className="prev-q-label"
+                          dangerouslySetInnerHTML={{ __html: q.label }}
+                        />
+                        {q.is_required && <span className="prev-q-required">*</span>}
+                      </div>
+
+                      {/* Question Input by type — interactive */}
+                      {q.type === 'text' && (
+                        <input
+                          type="text"
+                          className="prev-input prev-text-input"
+                          placeholder={q.placeholder || 'Ketik jawaban Anda di sini...'}
+                          value={ansVal}
+                          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        />
+                      )}
+
+                      {q.type === 'single_choice' && (
+                        <div className="prev-options-list">
+                          {(q.options || []).map((opt) => {
+                            const optLabel = stripHtml(opt.label);
+                            const isSelected = ansVal === opt.label || ansVal === optLabel;
+                            return (
+                              <label
+                                key={opt.id}
+                                className={`prev-option-item ${isSelected ? 'selected' : ''}`}
+                              >
+                                <div className={`prev-radio ${isSelected ? 'checked' : ''}`}>
+                                  {isSelected && <div className="prev-radio-dot" />}
+                                </div>
+                                <span
+                                  className="prev-opt-label"
+                                  dangerouslySetInnerHTML={{ __html: opt.label }}
+                                />
+                                <input
+                                  type="radio"
+                                  name={`prev-${q.id}`}
+                                  className="prev-hidden-input"
+                                  checked={isSelected}
+                                  onChange={() => handleAnswerChange(q.id, opt.label)}
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {q.type === 'checkbox' && (
+                        <div className="prev-options-list">
+                          {(q.options || []).map((opt) => {
+                            const optLabel = stripHtml(opt.label);
+                            const currentSelected = Array.isArray(ansVal) ? ansVal : (ansVal ? ansVal.split(', ') : []);
+                            const isSelected = currentSelected.includes(opt.label) || currentSelected.includes(optLabel);
+                            return (
+                              <label
+                                key={opt.id}
+                                className={`prev-option-item ${isSelected ? 'selected' : ''}`}
+                              >
+                                <div className={`prev-checkbox ${isSelected ? 'checked' : ''}`}>
+                                  {isSelected && (
+                                    <svg width="10" height="10" fill="none" stroke="white" viewBox="0 0 24 24" strokeWidth="3">
+                                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span
+                                  className="prev-opt-label"
+                                  dangerouslySetInnerHTML={{ __html: opt.label }}
+                                />
+                                <input
+                                  type="checkbox"
+                                  className="prev-hidden-input"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    let next;
+                                    if (isSelected) {
+                                      next = currentSelected.filter(
+                                        (item) => item !== opt.label && item !== optLabel
+                                      );
+                                    } else {
+                                      next = [...currentSelected, opt.label];
+                                    }
+                                    handleAnswerChange(q.id, next.length > 0 ? next : '');
+                                  }}
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {q.type === 'dropdown' && (
+                        <div className="prev-dropdown-wrap">
+                          <select
+                            className="prev-dropdown"
+                            value={ansVal}
+                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                          >
+                            <option value="">— Pilih jawaban —</option>
+                            {(q.options || []).map((opt) => (
+                              <option key={opt.id} value={opt.label}>
+                                {stripHtml(opt.label)}
+                              </option>
+                            ))}
+                          </select>
+                          <svg className="prev-dropdown-chevron" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      )}
+
+                      {q.type === 'date' && (
+                        <input
+                          type="date"
+                          className="prev-input prev-date-input"
+                          value={ansVal}
+                          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        />
+                      )}
+
+                      {q.type === 'file_upload' && (
+                        <div className="prev-file-area">
+                          <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="prev-file-icon">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span className="prev-file-text">Upload file (tidak aktif di preview)</span>
+                          <span className="prev-file-hint">File upload hanya tersedia di form asli</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          {/* Empty state */}
+          {questions.length === 0 && (
+            <div className="prev-empty">
+              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2} className="prev-empty-icon">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p>Belum ada soal ditambahkan</p>
+              <span>Tambahkan soal terlebih dahulu untuk melihat preview</span>
+            </div>
+          )}
+
+          {/* Bottom spacer */}
+          <div style={{ height: '40px' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FormBuilderPage() {
   const navigate = useNavigate();
   const { formId } = useParams();
@@ -75,6 +343,7 @@ export default function FormBuilderPage() {
   const [templateSaving, setTemplateSaving] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('soal');
+  const [showPreview, setShowPreview] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [toast, setToast] = useState(null);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -1073,6 +1342,13 @@ export default function FormBuilderPage() {
             </button>
             <button className={`fb-tab ${activeTab === 'setelan' ? 'active' : ''}`} onClick={() => setActiveTab('setelan')}>
               Setelan
+            </button>
+            <button className={`fb-tab fb-preview-tab ${showPreview ? 'active' : ''}`} onClick={() => setShowPreview(true)} title="Preview tampilan form">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ marginRight: '4px', verticalAlign: '-2.5px' }}>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Preview
             </button>
           </div>
 
@@ -2350,6 +2626,9 @@ export default function FormBuilderPage() {
           {toast.msg}
         </div>
       )}
+
+      {/* ========== PREVIEW PANEL (Sliding from right) ========== */}
+      {showPreview && <PreviewPanel formData={formData} questions={questions} onClose={() => setShowPreview(false)} />}
     </div>
   );
 }
