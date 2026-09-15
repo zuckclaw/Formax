@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from ..deps import get_current_user
 from .. import models
+from ..utils.prompt_validator import validate_prompt
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -637,6 +638,10 @@ def _validate_and_normalize(raw_questions: list, num_questions: int, use_section
 
 @router.post("/generate-form", response_model=AiGenerateOut)
 async def generate_form(payload: AiGenerateRequest, current_user: models.User = Depends(get_current_user)):
+    is_valid, err_msg = validate_prompt(payload.prompt)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err_msg or "Prompt tidak valid atau terdeteksi ketikan acak.")
+
     _check_rate_limit(str(current_user.id))
 
     title = (payload.title or "").strip()

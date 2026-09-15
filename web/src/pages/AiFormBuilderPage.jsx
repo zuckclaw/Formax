@@ -5,6 +5,7 @@ import { generateAiForm } from '../api/ai';
 import { getValidToken } from '../utils/authStorage';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
+import { validatePrompt } from '../utils/promptValidator';
 import ThemeToggle from '../components/ThemeToggle';
 import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
@@ -134,8 +135,10 @@ export default function AiFormBuilderPage() {
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || prompt.trim().length < 10) {
-      setError('Prompt minimal 10 karakter. Jelaskan form yang ingin Anda buat.');
+    const validation = validatePrompt(prompt);
+    if (!validation.isValid) {
+      setError(validation.error);
+      showToast(validation.error, 'error');
       return;
     }
     if (numQuestions < 3 || numQuestions > 30) {
@@ -320,13 +323,14 @@ export default function AiFormBuilderPage() {
             <div className="ai-form-group">
               <label className="ai-label">Instruksi Detail Prompt <span className="ai-required">*</span></label>
               <textarea
-                className="ai-textarea ai-prompt"
+                className={`ai-textarea ai-prompt ${error ? 'ai-textarea-invalid' : ''}`}
                 rows={5}
                 placeholder="Contoh: Buatkan ujian Matematika SMA kelas 10 tentang fungsi kuadrat, 5 soal pilihan ganda dengan 4 opsi, kunci jawaban akurat, dan rumus LaTeX \(f(x) = ax^2 + bx + c\)..."
                 value={prompt}
                 onChange={(e) => {
                   setPrompt(e.target.value);
                   setActivePreset(null);
+                  if (error) setError('');
                 }}
                 maxLength={4000}
               />
