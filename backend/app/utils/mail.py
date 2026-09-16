@@ -2,6 +2,9 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -10,8 +13,9 @@ APP_PASSWORD = (os.getenv("APP_PASSWORD") or "").strip()
 
 
 def send_otp_email(recipient_email: str, otp_code: str, purpose: str = "Verifikasi"):
+    sender_email = os.getenv("SENDER_EMAIL", SENDER_EMAIL)
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Form4x Support <{SENDER_EMAIL}>"
+    msg["From"] = f"Form4x Support <{sender_email}>"
     msg["To"] = recipient_email
     msg["Subject"] = f"{otp_code} - {purpose} Form4x"
 
@@ -122,13 +126,17 @@ Tim Form4x
     try:
         import ssl
 
-        if not APP_PASSWORD:
+        app_password = (os.getenv("APP_PASSWORD") or APP_PASSWORD).strip()
+        smtp_server = os.getenv("SMTP_SERVER", SMTP_SERVER)
+        smtp_port = int(os.getenv("SMTP_PORT", SMTP_PORT))
+
+        if not app_password:
             print("Failed to send email: APP_PASSWORD belum dikonfigurasi (isi di .env)")
             return False
         context = ssl.create_default_context()
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
         server.starttls(context=context)
-        server.login(SENDER_EMAIL, APP_PASSWORD)
+        server.login(sender_email, app_password)
         server.send_message(msg)
         server.quit()
         return True

@@ -221,7 +221,7 @@ def get_form_by_slug(slug: str, db: Session = Depends(get_db)):
             settings=q.settings or {}, options=pub_opts,
         ))
     return schemas.PublicFormOut(
-        id=form.id, title=form.title, description=form.description,
+        id=form.id, owner_id=form.owner_id, title=form.title, description=form.description,
         banner_url=form.banner_url, status=form.status, slug=form.slug,
         require_join_token=bool(form.join_token),
         accept_responses=form.accept_responses, allow_see_result=form.allow_see_result,

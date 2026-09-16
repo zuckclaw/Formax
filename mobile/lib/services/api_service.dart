@@ -66,6 +66,45 @@ class ApiService {
     }
   }
 
+  // Persistent HTTP client dengan connection pooling / HTTP Keep-Alive
+  // agar tidak perlu negosiasi TLS/TCP berulang pada setiap request.
+  static final http.Client client = http.Client();
+
+  /// Default headers dengan bypass ngrok warning page & keep-alive
+  static Map<String, String> defaultHeaders({
+    String? token,
+    String? respondentKey,
+    String contentType = 'application/json',
+  }) {
+    return {
+      'Content-Type': contentType,
+      'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      if (respondentKey != null && respondentKey.isNotEmpty)
+        'X-Respondent-Key': respondentKey,
+    };
+  }
+
+  /// Ekstrak User ID langsung dari payload token JWT secara lokal (0 ms, tanpa request jaringan)
+  static String? getUserIdFromToken([String? token]) {
+    try {
+      final t = token ?? _sessionToken;
+      if (t == null || t.isEmpty) return null;
+      final parts = t.split('.');
+      if (parts.length != 3) return null;
+      final normalized = base64Url.normalize(parts[1]);
+      final payloadString = utf8.decode(base64Url.decode(normalized));
+      final payload = jsonDecode(payloadString);
+      if (payload is Map && payload['sub'] != null) {
+        return payload['sub'].toString();
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static String? _sessionToken;
 
   // Secure storage hanya untuk Android/iOS (Keystore/Keychain).

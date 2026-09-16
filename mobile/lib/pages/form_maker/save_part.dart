@@ -11,26 +11,12 @@ part of '../formmakerpage.dart';
 
 extension _FormMakerSave on _FormMakerPageState {
   Map<String, dynamic> _buildPublishSettings() {
-    // Fix: sesuaikan dengan web â€” hanya kirim start/end_date jika Form Timer benar-benar butuh window
-    // Jika Enable Timer OFF atau mode 'Start when respondent opens' (per-responden, bukan window global) â†’ jangan kirim window
-    // Ini yang sebelumnya bikin publish langsung 403 'Form belum dibuka' karena start_date = now future + naive WIB mismatch
-    DateTime? startDate;
-    DateTime? endDate;
-    final isPerRespondent =
-        _timerMode == 'Start when respondent opens the form';
-    if (!_enableTimer || isPerRespondent) {
-      startDate = null;
-      endDate = null;
-    } else {
-      // Start at specific date and time â†’ window global.
-      // Backend mengharapkan format waktu LOKAL (WIB) tanpa zona (seperti datetime-local di web).
-      // Kurangi 5 menit (bukan 60s) untuk mencegah error "Form belum dibuka" jika jam HP lebih cepat dari server.
-      startDate =
-          _startDate ?? DateTime.now().subtract(const Duration(minutes: 5));
-      endDate = _endDate ?? startDate.add(_getDurationValueAsDuration());
-    }
+    // Parity dengan web: kirim start_date dan end_date dalam format ISO waktu lokal
+    // (sesuai ekspektasi backend dan input datetime-local web).
+    final startStr = _startDate?.toIso8601String().substring(0, 19);
+    final endStr = _endDate?.toIso8601String().substring(0, 19);
 
-    // Batas respons: 1 kali / tanpa batas / kustom (>= 2) â€” seperti web.
+    // Batas respons: 1 kali / tanpa batas / kustom (>= 2) — seperti web.
     int maxSub;
     switch (_submissionLimit) {
       case 'unlimited':
@@ -55,9 +41,8 @@ extension _FormMakerSave on _FormMakerPageState {
       'shuffle_questions': _shuffleQuestions,
       'shuffle_options': _shuffleOptions,
       'use_join_token': _useJoinToken,
-      // Kirim waktu lokal tanpa Z, sesuai ekspektasi backend (seperti datetime-local)
-      'start_date': startDate?.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
+      'start_date': startStr,
+      'end_date': endStr,
     };
   }
 

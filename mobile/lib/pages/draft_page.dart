@@ -31,8 +31,11 @@ class _DraftPageState extends State<DraftPage> {
     throw Exception(res['message'] ?? 'Gagal memuat draft');
   }
 
-  void _refresh() {
+  Future<void> _refresh() async {
     setState(() => _draftsFuture = _fetchDrafts());
+    try {
+      await _draftsFuture;
+    } catch (_) {}
   }
 
   Future<void> _openDraft(FormModel form) async {
@@ -118,7 +121,7 @@ class _DraftPageState extends State<DraftPage> {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      onRefresh: () async => _refresh(),
+      onRefresh: _refresh,
       child: FutureBuilder<List<FormModel>>(
         future: _draftsFuture,
         builder: (context, snapshot) {

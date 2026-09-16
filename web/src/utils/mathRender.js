@@ -103,6 +103,13 @@ export function prepareMathHtml(html) {
   }
   // handle ql-formula kosong (old data) : <span class="ql-formula" data-value="\frac{3}{6}"></span>
   let out = changed ? parts.join('') : html
+  if (out && typeof out === 'string' && out.includes('undefined')) {
+    out = out
+      .replace(/<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*data-latex="undefined"[^>]*>.*?<\/div>/gi, '')
+      .replace(/<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*>\s*undefined\s*<\/div>/gi, '')
+      .replace(/<span[^>]*class="[^"]*ql-formula[^"]*"[^>]*data-value="undefined"[^>]*>.*?<\/span>/gi, '');
+    changed = true;
+  }
   // jika ada ql-formula kosong, render sekali tanpa DOM (string replace ringan)
   if (out.includes('ql-formula') && out.includes('data-value')) {
     out = out.replace(/<span[^>]*class="[^"]*ql-formula[^"]*"[^>]*data-value="([^"]+)"[^>]*>\s*<\/span>/g, (full, latex) => {

@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import Base, engine
@@ -171,6 +172,24 @@ try:
             except Exception as _e:
                 print(f"[migrate] drop constraint failed: {_e}")
 
+        # Index performa query relasional (forms, submissions, questions, options, answers)
+        indexes_to_create = [
+            ("ix_forms_owner_id", "forms", "(owner_id)"),
+            ("ix_forms_created_at", "forms", "(created_at DESC)"),
+            ("ix_forms_owner_created", "forms", "(owner_id, created_at DESC)"),
+            ("ix_submissions_form_id", "submissions", "(form_id)"),
+            ("ix_submissions_user_id", "submissions", "(user_id)"),
+            ("ix_submissions_started_at", "submissions", "(started_at DESC)"),
+            ("ix_questions_form_id", "questions", "(form_id)"),
+            ("ix_question_options_question_id", "question_options", "(question_id)"),
+            ("ix_answers_submission_id", "answers", "(submission_id)"),
+        ]
+        for idx_name, tbl, cols in indexes_to_create:
+            try:
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {tbl} {cols}"))
+            except Exception:
+                pass
+
 except Exception as _e:
     print(f"[migrate] auto-migrate failed (akan lanjut, cek manual): {_e}")
     import traceback as _tb
@@ -209,6 +228,7 @@ except Exception as _e:
 
 
 app = FastAPI(title="Form Maker API", version="2.0.0")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # CORS: baca dari env ALLOWED_ORIGINS (comma-separated), fallback buka untuk ngrok/Vercel
 _allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "")

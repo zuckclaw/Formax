@@ -86,7 +86,7 @@ class Form(Base):
     __tablename__ = "forms"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
-    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     template_id = Column(String(36), ForeignKey("templates.id", ondelete="SET NULL"), nullable=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -113,7 +113,7 @@ class Form(Base):
     shuffle_questions = Column(Boolean, default=False)  # acak soal per-section untuk responden
     shuffle_options = Column(Boolean, default=False)    # acak opsi jawaban per-soal
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     owner = relationship("User", back_populates="forms")
@@ -131,8 +131,8 @@ class Question(Base):
     )
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
-    form_id = Column(String(36), ForeignKey("forms.id", ondelete="CASCADE"), nullable=True)
-    template_id = Column(String(36), ForeignKey("templates.id", ondelete="CASCADE"), nullable=True)
+    form_id = Column(String(36), ForeignKey("forms.id", ondelete="CASCADE"), nullable=True, index=True)
+    template_id = Column(String(36), ForeignKey("templates.id", ondelete="CASCADE"), nullable=True, index=True)
     type = Column(Enum(QuestionType), nullable=False)
     label = Column(String, nullable=False)
     placeholder = Column(String, nullable=True)
@@ -154,7 +154,7 @@ class QuestionOption(Base):
     __tablename__ = "question_options"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
-    question_id = Column(String(36), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(String(36), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True)
     label = Column(String, nullable=False)
     value = Column(String, nullable=True)
     order_index = Column(Integer, default=0)
@@ -171,12 +171,12 @@ class Submission(Base):
     __tablename__ = "submissions"
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
-    form_id = Column(String(36), ForeignKey("forms.id", ondelete="CASCADE"), nullable=False)
+    form_id = Column(String(36), ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
     # Responden: harus login ATAU punya respondent_key (anonim). user_id nullable utk anonim.
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)  # login (opsional)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # login (opsional)
     respondent_key = Column(String(64), nullable=True)  # anonim: UUID client utk identitas tanpa akun
 
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=datetime.utcnow, index=True)
     is_auto_submitted = Column(Boolean, default=False)
     submitted_at = Column(DateTime, nullable=True)
     is_cheated = Column(Boolean, default=False)  # ditandai curang jika keluar mode fullscreen
@@ -198,8 +198,8 @@ class Answer(Base):
     )
 
     id = Column(String(36), primary_key=True, default=gen_uuid)
-    submission_id = Column(String(36), ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
-    question_id = Column(String(36), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
+    submission_id = Column(String(36), ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id = Column(String(36), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True)
     answer_text = Column(Text, nullable=True)
     answer_options = Column(JSON, nullable=True)
     file_url = Column(String, nullable=True)

@@ -78,12 +78,21 @@ class _FillFormPageState extends State<FillFormPage> {
   bool _isOwnerPreview = false;
 
   /// True jika user login saat ini adalah pemilik [formData].
-  /// Gagal mengambil profil → false (fail-open ke alur normal).
+  /// Menggunakan ekstraksi JWT lokal terlebih dahulu (0 ms, hemat bandwidth),
+  /// fallback ke ApiService.getMe() jika token tidak dapat di-parse.
   Future<bool> _isOwnerOf(FormData formData, String? token) async {
     try {
       if (token == null) return false;
       final ownerId = formData.ownerId;
       if (ownerId == null || ownerId.isEmpty) return false;
+
+      // 1. Ekstrak user id lokal dari token (instan, tanpa round-trip jaringan)
+      final localUserId = ApiService.getUserIdFromToken(token);
+      if (localUserId != null && localUserId.isNotEmpty) {
+        return localUserId == ownerId;
+      }
+
+      // 2. Fallback jika parsing lokal gagal
       final me = await ApiService.getMe();
       if (me['success'] != true || me['data'] is! Map) return false;
       final myId = (me['data'] as Map)['id']?.toString();
@@ -133,10 +142,11 @@ class _FillFormPageState extends State<FillFormPage> {
   // ── Countdown helper ──────────────────────────────────────
   DateTime? _parseEndDate(String? s) {
     if (s == null || s.isEmpty) return null;
-    final dt = DateTime.tryParse(s);
+    final normalized = s.trim().replaceFirst(' ', 'T');
+    final dt = DateTime.tryParse(normalized);
     if (dt == null) return null;
-    // Naik ISO tanpa info zona (mis. dari mobile) dianggap waktu lokal.
-    if (!s.contains('Z') && !s.contains('+')) return dt;
+    // Naik ISO tanpa info zona (mis. dari mobile/web) dianggap waktu lokal.
+    if (!normalized.contains('Z') && !normalized.contains('+')) return dt;
     return dt.toLocal();
   }
 
@@ -249,14 +259,13 @@ class _FillFormPageState extends State<FillFormPage> {
       final respondentKey = await ApiService.getRespondentKey();
 
       // 1. Fetch form data by slug (publik — boleh tanpa login)
-      final formResponse = await http.get(
+      final formResponse = await ApiService.client.get(
         Uri.parse('${ApiService.baseUrl}/forms/public/${widget.slug}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
+      ).timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
       if (formResponse.statusCode != 200) {
@@ -312,15 +321,14 @@ class _FillFormPageState extends State<FillFormPage> {
       }
 
       final respondentKey = await ApiService.getRespondentKey();
-      final response = await http.post(
+      final response = await ApiService.client.post(
         Uri.parse('${ApiService.baseUrl}/forms/public/${widget.slug}/join'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
         body: jsonEncode(body),
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -375,20 +383,19 @@ class _FillFormPageState extends State<FillFormPage> {
 
     try {
       final respondentKey = await ApiService.getRespondentKey();
-      final response = await http.put(
+      final response = await ApiService.client.put(
         Uri.parse('${ApiService.baseUrl}/submissions/$_submissionId/answers'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
         body: jsonEncode({
           'question_id': questionId,
           'answer_text': answer['answer_text'],
           'answer_options': answer['answer_options'],
           'file_url': answer['file_url'],
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (_) {
       // Auto-save gagal silent — user tetap bisa lanjut isi
@@ -427,14 +434,13 @@ class _FillFormPageState extends State<FillFormPage> {
       final token = await ApiService.getToken();
       final respondentKey = await ApiService.getRespondentKey();
 
-      final response = await http.post(
+      final response = await ApiService.client.post(
         Uri.parse('${ApiService.baseUrl}/submissions/$_submissionId/submit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
+      ).timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -645,14 +651,56 @@ class _FillFormPageState extends State<FillFormPage> {
       ),
       title: Text(
         RichTextView.stripHtml(_formData?.title ?? 'Memuat Form...'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Color(0xFF374151),
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
       ),
-      centerTitle: true,
+      centerTitle: false,
       actions: [
+        if (_timeLeft > Duration.zero)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _timeLeft < const Duration(minutes: 1)
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF059669),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.timer_outlined,
+                    size: 15,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatCountdown(_timeLeft),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         IconButton(
           tooltip: 'Zoom (${(_zoom * 100).round()}%)',
           icon: const Icon(Icons.zoom_in, color: Color(0xFF374151)),

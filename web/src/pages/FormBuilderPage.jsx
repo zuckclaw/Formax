@@ -531,15 +531,30 @@ export default function FormBuilderPage() {
         // Ini fix bug "hapus soal lalu Simpan Draf malah nambah": sebelumnya loop per-question
         // hanya update/create (q.id && _saved) tanpa delete orphan, dan skip q.id && !_saved.
         // Backend forms.py:211 akan delete orphan atomik. Jika sudah ada submission, backend 409 (sengaja).
+        const cleanMediaPayload = (html) => {
+          if (!html || typeof html !== 'string') return html || '';
+          return html.replace(/<img([^>]*)\s+data-original-src="([^"]+)"([^>]*)>/gi, (match, p1, orig, p2) => {
+            let rest = `${p1} ${p2}`
+              .replace(/\s*data-ngrok-fixed="[^"]*"/gi, '')
+              .replace(/\s*data-blob-url="[^"]*"/gi, '')
+              .replace(/\s*data-original-src="[^"]*"/gi, '')
+              .trim();
+            if (!/src=/i.test(rest) || /src=["']blob:/i.test(rest)) {
+              rest = rest.replace(/src=["'][^"']*["']/gi, '').trim();
+            }
+            return `<img src="${orig}" ${rest} />`.replace(/\s{2,}/g, ' ');
+          });
+        };
+
         const questionsPayload = questions.map((q, idx) => ({
           type: q.type,
-          label: q.label,
+          label: cleanMediaPayload(q.label),
           placeholder: q.placeholder || '',
           is_required: q.is_required,
           order_index: idx,
           settings: q.settings || {},
           options: (q.options || []).map((o, oidx) => ({
-            label: o.label,
+            label: cleanMediaPayload(o.label),
             value: o.value || '',
             order_index: oidx,
             is_correct: !!o.is_correct,

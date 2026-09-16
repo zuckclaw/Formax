@@ -804,7 +804,7 @@ extension _FillFormAnswerInputs on _FillFormPageState {
             );
       if (token != null) request.headers['Authorization'] = 'Bearer $token';
 
-      final streamed = await request.send();
+      final streamed = await ApiService.client.send(request);
       final response = await http.Response.fromStream(streamed);
       if (!mounted) return;
 

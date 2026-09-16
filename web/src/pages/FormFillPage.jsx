@@ -170,52 +170,101 @@ function useVideoEmbedFix(containerRef, html) {
   })
 }
 
-// Hook untuk fix audio ngrok di dalam container dangerouslySetInnerHTML
 // Hook untuk fix media (audio & image) ngrok di dalam container dangerouslySetInnerHTML
+// Cache global in-memory agar gambar/audio yang sudah di-fetch tidak pernah di-fetch ulang (bebas flicker/reset)
+const _ngrokMediaBlobCache = new Map();
+
+function fixNgrokMediaInContainer(el) {
+  if (!el || !el.querySelectorAll) return;
+  const mediaElements = el.querySelectorAll('audio, img');
+  mediaElements.forEach((item) => {
+    let src = item.getAttribute('src') || item.getAttribute('data-original-src') || '';
+    if (!src) return;
+    if (src.startsWith('blob:') && item.getAttribute('data-original-src')) {
+      src = item.getAttribute('data-original-src');
+    }
+    if (src.startsWith('data:') || (src.startsWith('blob:') && !item.getAttribute('data-original-src'))) {
+      return;
+    }
+
+    const isNgrok = src.includes('ngrok-free.dev') || src.includes('ngrok-free.app');
+    if (!isNgrok) {
+      if (item.getAttribute('data-original-src') && !item.getAttribute('src')) {
+        item.src = src;
+      }
+      return;
+    }
+
+    // Cek apakah sudah ada blob di cache
+    if (_ngrokMediaBlobCache.has(src)) {
+      const cached = _ngrokMediaBlobCache.get(src);
+      if (typeof cached === 'string') {
+        if (item.src !== cached) {
+          item.src = cached;
+          if (item.tagName === 'AUDIO') item.load();
+        }
+        item.style.opacity = '1';
+        item.dataset.blobUrl = cached;
+        item.dataset.ngrokFixed = '1';
+        return;
+      }
+    }
+
+    if (item.dataset.ngrokLoading) return;
+    item.dataset.ngrokLoading = '1';
+    item.dataset.originalSrc = src;
+    item.style.opacity = '0.6';
+
+    apiFetch(src)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        if (blob.type && (blob.type.startsWith('text/html') || blob.type.startsWith('text/plain'))) {
+          throw new Error('Ngrok warning HTML/text');
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        _ngrokMediaBlobCache.set(src, blobUrl);
+        item.src = blobUrl;
+        if (item.tagName === 'AUDIO') item.load();
+        item.style.opacity = '1';
+        item.dataset.blobUrl = blobUrl;
+        item.dataset.ngrokFixed = '1';
+        delete item.dataset.ngrokLoading;
+      })
+      .catch((err) => {
+        console.error('[NgrokMediaFix] gagal load:', src, err);
+        item.style.opacity = '1';
+        delete item.dataset.ngrokLoading;
+      });
+  });
+}
+
 function useNgrokMediaFix(containerRef, html) {
+  // 1) saat html berubah + MutationObserver untuk mengantisipasi reset DOM dangerouslySetInnerHTML saat re-render
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !html) return;
-    const mediaElements = el.querySelectorAll('audio[src*="ngrok-free"], img[src*="ngrok-free"]');
-    if (mediaElements.length === 0) return;
-    const controllers = [];
-    mediaElements.forEach((item) => {
-      const src = item.getAttribute('src');
-      if (!src || src.startsWith('data:') || src.startsWith('blob:') || item.dataset.ngrokFixed) return;
-      item.dataset.ngrokFixed = '1';
-      item.dataset.originalSrc = src;
-      const controller = new AbortController();
-      controllers.push(controller);
-      item.style.opacity = '0.6';
-      apiFetch(src, { signal: controller.signal })
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.blob();
-        })
-        .then((blob) => {
-          if (blob.type && blob.type.startsWith('text/html')) throw new Error('Ngrok HTML');
-          const blobUrl = URL.createObjectURL(blob);
-          item.src = blobUrl;
-          if (item.tagName === 'AUDIO') item.load();
-          item.style.opacity = '1';
-          item.dataset.blobUrl = blobUrl;
-        })
-        .catch((err) => {
-          if (err.name === 'AbortError') return;
-          console.error('[NgrokMediaFix] gagal:', src, err);
-          item.style.opacity = '1';
-        });
-    });
+    const runFix = () => { try { fixNgrokMediaInContainer(el); } catch {} };
+    runFix();
+    const t = setTimeout(runFix, 10);
+    const t2 = setTimeout(runFix, 60);
+    const mo = new MutationObserver(runFix);
+    mo.observe(el, { childList: true, subtree: true });
     return () => {
-      controllers.forEach((c) => c.abort());
-      if (el) {
-        el.querySelectorAll('[data-blob-url]').forEach((a) => {
-          const u = a.dataset.blobUrl;
-          if (u) URL.revokeObjectURL(u);
-        });
-      }
+      clearTimeout(t);
+      clearTimeout(t2);
+      mo.disconnect();
     };
   }, [html]);
+
+  // 2) jalankan juga setiap render induk untuk re-apply cache ke DOM yang baru di-mount/reset
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !html) return;
+    try { fixNgrokMediaInContainer(el); } catch {}
+  });
 }
 
 // Buang semua markup HTML jadi teks polos. Dipakai untuk konten responden
@@ -1266,7 +1315,7 @@ export default function FormFillPage() {
                 <div key={a.question_id} className="result-answer-item">
                   <div className="result-answer-header">
                     <span className="result-q-number">{idx + 1}.</span>
-                    <div className="result-q-label" dangerouslySetInnerHTML={richHtml(a.label)} />
+                    <QuestionLabelWithAudio html={a.label} />
                     {a.is_correct !== null && a.is_correct !== undefined && (
                       <span className={`result-badge ${a.is_correct ? 'correct' : 'wrong'}`}>
                         {a.is_correct ? 'Benar' : 'Salah'}
@@ -1277,7 +1326,7 @@ export default function FormFillPage() {
                     <div>
                       <span className="result-label">Jawaban Anda:</span>
                       {a.user_answer ? (
-                        <span className={`result-answer-text ql-editor ${a.is_correct === false ? 'wrong' : ''}`} dangerouslySetInnerHTML={richHtml(a.user_answer)} />
+                        <ResultAnswerText html={a.user_answer} className={a.is_correct === false ? 'wrong' : ''} />
                       ) : (
                         <span className="result-answer-text">(tidak dijawab)</span>
                       )}
@@ -1285,7 +1334,7 @@ export default function FormFillPage() {
                     {a.correct_answer && (
                       <div>
                         <span className="result-label">Jawaban Benar:</span>
-                        <span className="result-answer-text correct ql-editor" dangerouslySetInnerHTML={richHtml(a.correct_answer)} />
+                        <ResultAnswerText html={a.correct_answer} className="correct" />
                       </div>
                     )}
                   </div>
@@ -1888,5 +1937,12 @@ function OptionLabelWithVideo({ html }) {
   const ref = useRef(null);
   useVideoEmbedFix(ref, html);
   useNgrokMediaFix(ref, html);
-  return <span ref={ref} className="option-label-text ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
+  return <div ref={ref} className="option-label-text ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
+}
+
+function ResultAnswerText({ html, className = '' }) {
+  const ref = useRef(null);
+  useVideoEmbedFix(ref, html);
+  useNgrokMediaFix(ref, html);
+  return <div ref={ref} className={`result-answer-text ql-editor ${className}`} dangerouslySetInnerHTML={richHtml(html)} />;
 }

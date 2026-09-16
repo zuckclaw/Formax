@@ -12,7 +12,7 @@ extension _HomeDashboard on _HomePageState {
   Widget _buildDashboardTab() {
     return RefreshIndicator(
       onRefresh: () async {
-        _refreshDashboardNow();
+        await _refreshDashboardNow();
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),

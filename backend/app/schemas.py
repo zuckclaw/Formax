@@ -195,6 +195,7 @@ class PublicQuestionOut(BaseModel):
 
 class PublicFormOut(BaseModel):
     id: uuid.UUID
+    owner_id: Optional[uuid.UUID] = None
     title: str
     description: Optional[str]
     banner_url: Optional[str]

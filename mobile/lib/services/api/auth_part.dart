@@ -15,9 +15,9 @@ Future<Map<String, dynamic>> _authLogin(
   bool rememberMe = true,
 }) async {
   try {
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/auth/login'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiService.defaultHeaders(),
       body: jsonEncode({'email': email, 'password': password}),
     ).timeout(const Duration(seconds: 15));
 
@@ -42,9 +42,9 @@ Future<Map<String, dynamic>> _authLogin(
 // Fungsi Request OTP
 Future<Map<String, dynamic>> _authSendOtp(String email) async {
   try {
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/auth/send-otp'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiService.defaultHeaders(),
       body: jsonEncode({'email': email}),
     ).timeout(const Duration(seconds: 15));
 
@@ -66,9 +66,9 @@ Future<Map<String, dynamic>> _authSendOtp(String email) async {
 
 Future<Map<String, dynamic>> _authRequestPasswordReset(String email) async {
   try {
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/auth/forgot-password'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiService.defaultHeaders(),
       body: jsonEncode({'email': email}),
     ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
@@ -93,9 +93,9 @@ Future<Map<String, dynamic>> _authResetPassword(
   String newPassword,
 ) async {
   try {
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/auth/reset-password'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiService.defaultHeaders(),
       body: jsonEncode({
         'email': email,
         'otp': otp,
@@ -124,9 +124,9 @@ Future<Map<String, dynamic>> _authVerifyPasswordResetOtp(
   String otp,
 ) async {
   try {
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/auth/verify-reset-otp'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiService.defaultHeaders(),
       body: jsonEncode({'email': email, 'otp': otp}),
     ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
@@ -152,9 +152,9 @@ Future<Map<String, dynamic>> _authRegister(
   String otp,
 ) async {
   try {
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/auth/signup'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiService.defaultHeaders(),
       body: jsonEncode({
         'full_name': fullName,
         'email': email,
@@ -190,12 +190,9 @@ Future<Map<String, dynamic>> _authGetMe() async {
       return {'success': false, 'message': 'No token found'};
     }
 
-    final response = await http.get(
+    final response = await ApiService.client.get(
       Uri.parse('${ApiService.baseUrl}/auth/me'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
@@ -211,3 +208,4 @@ Future<Map<String, dynamic>> _authGetMe() async {
     return {'success': false, 'message': ApiService._friendlyException(e)};
   }
 }
+

@@ -75,6 +75,8 @@ class FormSettingsTab extends StatelessWidget {
   final String durationUnit;
   final ValueChanged<String> onDurationUnitChanged;
   final Future<void> Function({required bool start}) onPickTimerDate;
+  final void Function({required bool start})? onClearTimerDate;
+  final ValueChanged<Duration>? onSetQuickDuration;
   final String Function(DateTime?) formatTimerDate;
   final VoidCallback onSaveSettings;
 
@@ -130,6 +132,8 @@ class FormSettingsTab extends StatelessWidget {
     required this.durationUnit,
     required this.onDurationUnitChanged,
     required this.onPickTimerDate,
+    this.onClearTimerDate,
+    this.onSetQuickDuration,
     required this.formatTimerDate,
     required this.onSaveSettings,
   });

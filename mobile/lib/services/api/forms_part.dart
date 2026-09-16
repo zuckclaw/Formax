@@ -19,13 +19,10 @@ Future<Map<String, dynamic>> _formCreate(
       return {'success': false, 'message': 'No token found'};
     }
 
-    final response = await http
+    final response = await ApiService.client
         .post(
           Uri.parse('${ApiService.baseUrl}/forms'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 15));
@@ -62,13 +59,10 @@ Future<Map<String, dynamic>> _formUpdate(
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .patch(
           Uri.parse('${ApiService.baseUrl}/forms/$formId'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 15));
@@ -99,13 +93,10 @@ Future<Map<String, dynamic>> _formGet(String formId) async {
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .get(
           Uri.parse('${ApiService.baseUrl}/forms/$formId'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
     final parsed = ApiService._safeJson(response.body);
@@ -142,13 +133,10 @@ Future<Map<String, dynamic>> _formDelete(String formId) async {
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .delete(
           Uri.parse('${ApiService.baseUrl}/forms/$formId'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
     final data = ApiService._safeJson(response.body);
@@ -167,13 +155,10 @@ Future<Map<String, dynamic>> _formPublish(String formId) async {
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .post(
           Uri.parse('${ApiService.baseUrl}/forms/$formId/publish'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
     final data = ApiService._safeJson(response.body);
@@ -191,13 +176,10 @@ Future<Map<String, dynamic>> _formRegenToken(String formId) async {
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .post(
           Uri.parse('${ApiService.baseUrl}/forms/$formId/regenerate-join-token'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
     final data = ApiService._safeJson(response.body);
@@ -219,12 +201,9 @@ Future<Map<String, dynamic>> _formQr(String formId) async {
       return {'success': false, 'message': 'No token found'};
     }
 
-    final response = await http.post(
+    final response = await ApiService.client.post(
       Uri.parse('${ApiService.baseUrl}/forms/$formId/generate-qr'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);
@@ -250,12 +229,9 @@ Future<Map<String, dynamic>> _formGetMine() async {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
 
-    final response = await http.get(
+    final response = await ApiService.client.get(
       Uri.parse('${ApiService.baseUrl}/forms'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
@@ -296,12 +272,9 @@ Future<Map<String, dynamic>> _formValidateLink(String link) async {
     final token = await ApiService.getToken();
 
     // Gunakan endpoint get_form_by_slug yang sudah ada di backend
-    final response = await http.get(
+    final response = await ApiService.client.get(
       Uri.parse('${ApiService.baseUrl}/forms/public/$slug'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     final data = ApiService._safeJson(response.body);

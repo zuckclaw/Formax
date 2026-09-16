@@ -25,13 +25,10 @@ Future<Map<String, dynamic>> _tplCreate(
       };
     }
 
-    final response = await http
+    final response = await ApiService.client
         .post(
           Uri.parse('${ApiService.baseUrl}/templates'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 15));
@@ -69,13 +66,10 @@ Future<Map<String, dynamic>> _tplUpdate(
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .patch(
           Uri.parse('${ApiService.baseUrl}/templates/$id'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 15));
@@ -94,13 +88,10 @@ Future<Map<String, dynamic>> _tplGet(String id) async {
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .get(
           Uri.parse('${ApiService.baseUrl}/templates/$id'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
@@ -126,13 +117,10 @@ Future<Map<String, dynamic>> _tplGetMine() async {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
 
-    final response = await http
+    final response = await ApiService.client
         .get(
           Uri.parse('${ApiService.baseUrl}/templates/mine'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
 
@@ -174,13 +162,10 @@ Future<Map<String, dynamic>> _tplDelete(String templateId) async {
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .delete(
           Uri.parse('${ApiService.baseUrl}/templates/$templateId'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: ApiService.defaultHeaders(token: token),
         )
         .timeout(const Duration(seconds: 10));
     final data = ApiService._safeJson(response.body);
