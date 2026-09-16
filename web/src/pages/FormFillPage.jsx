@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPublicFormBySlug, joinForm, saveAnswer, submitFinal, getSubmissionResult, flagCheated } from '../api/submissions';
 import { uploadFile } from '../api/uploads';
@@ -159,15 +159,6 @@ function useVideoEmbedFix(containerRef, html) {
     mo.observe(el, { childList: true, subtree: true })
     return () => { clearTimeout(t); clearTimeout(t2); cancelAnimationFrame(raf); mo.disconnect() }
   }, [html])
-
-  // kedua: jalan setiap render induk (mis. pilih opsi, ubah zoom) walau html string sama
-  // React bikin {__html} object baru tiap render jadi innerHTML ke-reset jadi placeholder -> perlu re-enhance
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el || !html) return
-    const id = setTimeout(() => { try { enhanceVideoContainers(el) } catch {} }, 0)
-    return () => clearTimeout(id)
-  })
 }
 
 // Hook untuk fix media (audio & image) ngrok di dalam container dangerouslySetInnerHTML
@@ -258,13 +249,6 @@ function useNgrokMediaFix(containerRef, html) {
       mo.disconnect();
     };
   }, [html]);
-
-  // 2) jalankan juga setiap render induk untuk re-apply cache ke DOM yang baru di-mount/reset
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || !html) return;
-    try { fixNgrokMediaInContainer(el); } catch {}
-  });
 }
 
 // Buang semua markup HTML jadi teks polos. Dipakai untuk konten responden
@@ -1919,30 +1903,34 @@ export default function FormFillPage() {
   );
 }
 
-function FormDescriptionWithAudio({ html }) {
+const FormDescriptionWithAudio = memo(function FormDescriptionWithAudio({ html }) {
   const ref = useRef(null);
   useNgrokMediaFix(ref, html);
   useVideoEmbedFix(ref, html);
-  return <div ref={ref} className="form-description ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
-}
+  const innerHtml = useMemo(() => richHtml(html), [html]);
+  return <div ref={ref} className="form-description ql-editor" dangerouslySetInnerHTML={innerHtml} />;
+});
 
-function QuestionLabelWithAudio({ html }) {
+const QuestionLabelWithAudio = memo(function QuestionLabelWithAudio({ html }) {
   const ref = useRef(null);
   useNgrokMediaFix(ref, html);
   useVideoEmbedFix(ref, html);
-  return <div ref={ref} className="question-label-content ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
-}
+  const innerHtml = useMemo(() => richHtml(html), [html]);
+  return <div ref={ref} className="question-label-content ql-editor" dangerouslySetInnerHTML={innerHtml} />;
+});
 
-function OptionLabelWithVideo({ html }) {
+const OptionLabelWithVideo = memo(function OptionLabelWithVideo({ html }) {
   const ref = useRef(null);
   useVideoEmbedFix(ref, html);
   useNgrokMediaFix(ref, html);
-  return <div ref={ref} className="option-label-text ql-editor" dangerouslySetInnerHTML={richHtml(html)} />;
-}
+  const innerHtml = useMemo(() => richHtml(html), [html]);
+  return <div ref={ref} className="option-label-text ql-editor" dangerouslySetInnerHTML={innerHtml} />;
+});
 
-function ResultAnswerText({ html, className = '' }) {
+const ResultAnswerText = memo(function ResultAnswerText({ html, className = '' }) {
   const ref = useRef(null);
   useVideoEmbedFix(ref, html);
   useNgrokMediaFix(ref, html);
-  return <div ref={ref} className={`result-answer-text ql-editor ${className}`} dangerouslySetInnerHTML={richHtml(html)} />;
-}
+  const innerHtml = useMemo(() => richHtml(html), [html]);
+  return <div ref={ref} className={`result-answer-text ql-editor ${className}`} dangerouslySetInnerHTML={innerHtml} />;
+});
