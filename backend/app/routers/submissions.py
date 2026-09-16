@@ -37,16 +37,13 @@ _GRACE = timedelta(seconds=60)
 def _resolve_identity(current_user, respondent_key):
     """Return (user_id, respondent_key) untuk identitas responden.
 
-    Login -> user_id; anonim -> respondent_key. Wajib minimal salah satu.
+    Wajib login (current_user). Anonymous join sudah tidak diizinkan.
     """
     if current_user is not None:
         return str(current_user.id), None
-    key = (respondent_key or "").strip()
-    if key:
-        return None, key
     raise HTTPException(
         status_code=401,
-        detail="Harus login atau menyertakan identitas responden (X-Respondent-Key)",
+        detail="Silakan login terlebih dahulu untuk mengisi form",
     )
 
 
@@ -153,12 +150,12 @@ def join_form(
     slug: str,
     payload: schemas.JoinFormRequest,
     db: Session = Depends(get_db),
-    current_user: Optional[models.User] = Depends(get_optional_user),
+    current_user: models.User = Depends(get_current_user),
     respondent_key: Optional[str] = Depends(get_respondent_key),
 ):
     """
     Dipanggil pas user klik 'Mulai Isi Form' / 'Mulai Ujian'.
-    - Responden boleh login ATAU anonim (X-Respondent-Key).
+    - Responden WAJIB login (current_user).
     - Kalau form.join_token diset, user WAJIB kirim token yang cocok (fitur ujian bareng).
     - Kalau ada start_date/end_date, dicek apakah sekarang ada di dalam window itu.
     - Logika submission mengikuti setting form.max_submissions:

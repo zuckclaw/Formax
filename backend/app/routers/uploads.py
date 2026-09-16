@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from .. import models
-from ..deps import get_optional_user, get_respondent_key
+from ..deps import get_current_user
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -67,17 +67,14 @@ def _check_magic(ext: str, content: bytes) -> bool:
 async def upload_file(
     request: Request,
     file: UploadFile = File(...),
-    current_user: Optional[models.User] = Depends(get_optional_user),
-    respondent_key: Optional[str] = Depends(get_respondent_key),
+    current_user: models.User = Depends(get_current_user),
 ):
     """
     Dipakai buat field tipe file_upload. Client upload file ke sini DULU,
     dapat balik file_url, baru URL itu yang dikirim ke PUT /submissions/{id}/answers.
 
-    Identitas boleh login (Bearer) ATAU anonim (X-Respondent-Key) — mirip alur isi form.
+    Wajib login (Bearer token).
     """
-    if current_user is None and not respondent_key:
-        raise HTTPException(status_code=401, detail="Identitas diperlukan untuk upload file")
 
     ext = (os.path.splitext(file.filename or "")[1] or "").lower()
     if ext not in ALLOWED_EXTENSIONS:

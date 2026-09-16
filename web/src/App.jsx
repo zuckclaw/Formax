@@ -27,9 +27,14 @@ function PrivateRoute({ children }) {
 
 function PublicRoute({ children }) {
   const token = getValidToken();
+  const location = useLocation();
   // Jika sudah punya sesi valid (remember maupun session), jangan tampilkan /auth lagi.
   if (token) {
-    return <Navigate to="/dashboard" replace />;
+    const params = new URLSearchParams(location.search);
+    const redirectPath = params.get('redirect');
+    const target = redirectPath ? decodeURIComponent(redirectPath) : '/dashboard';
+    const safeTarget = target.startsWith('/') && !target.startsWith('//') ? target : '/dashboard';
+    return <Navigate to={safeTarget} replace />;
   }
   return children;
 }
@@ -43,16 +48,19 @@ function AuthExpiredListener() {
       const now = Date.now();
       if (now - lastNavRef.current < 2000) return;
       const path = globalThis.location?.pathname || location.pathname;
+      const search = globalThis.location?.search || location.search || '';
       const publicPaths = ['/', '/tentang', '/cara-pakai', '/auth'];
-      const isPublicFill = path.startsWith('/f/') || path.startsWith('/forms/public/');
-      if (publicPaths.includes(path) || isPublicFill) return;
+      if (publicPaths.includes(path)) return;
       if (path.startsWith('/auth')) return;
       lastNavRef.current = now;
-      navigate('/auth?expired=1', { replace: true });
+      const fullPath = path + search;
+      const safe = fullPath.startsWith('/') && !fullPath.startsWith('//') ? fullPath : '/dashboard';
+      const redirectUrl = encodeURIComponent(safe);
+      navigate(`/auth?expired=1&redirect=${redirectUrl}`, { replace: true });
     };
     globalThis.addEventListener('auth:expired', onExpired);
     return () => globalThis.removeEventListener('auth:expired', onExpired);
-  }, [navigate]);
+  }, [navigate, location]);
   return null;
 }
 
@@ -105,10 +113,23 @@ function App() {
             </PrivateRoute>
           }
         />
-        {/* Form Filler Routes — publik, boleh anonim (Google-Forms style).
-            Proteksi login (jika form butuh login) ditangani di dalam FormFillPage. */}
-        <Route path="/f/:slug" element={<FormFillPage />} />
-        <Route path="/forms/public/:slug" element={<FormFillPage />} />
+        {/* Form Filler Routes — wajib login terlebih dahulu sebelum mengisi */}
+        <Route
+          path="/f/:slug"
+          element={
+            <PrivateRoute>
+              <FormFillPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/forms/public/:slug"
+          element={
+            <PrivateRoute>
+              <FormFillPage />
+            </PrivateRoute>
+          }
+        />
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

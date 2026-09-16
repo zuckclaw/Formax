@@ -20,7 +20,7 @@ const TentangPage = () => {
     { title: 'Cerdas (AI-Powered)', desc: 'Pengemampuan AI untuk membuat kuis, survei, dan soal ujian otomatis dengan cepat.' },
     { title: 'Sederhana', desc: 'Antarmuka bersih dan langkah yang jelas, fokus pada isi bukan pengaturan rumit.' },
     { title: 'Andal & Terstruktur', desc: 'Penyimpanan terstruktur dengan autentikasi aman dan ekspor data yang akurat.' },
-    { title: 'Inklusif', desc: 'Dapat diisi dengan atau tanpa akun, mendukung pengisian anonim via identitas browser.' },
+    { title: 'Aman & Terverifikasi', desc: 'Pengisian form terintegrasi dengan akun pengguna terverifikasi demi validitas data.' },
   ]
 
   const team = [

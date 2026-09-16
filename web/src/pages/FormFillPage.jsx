@@ -390,10 +390,17 @@ export default function FormFillPage() {
   // Helper untuk ambil token fresh (biar tidak stale closure)
   const getToken = () => getValidToken();
 
-  // 1. Initial Load — publik ala Google Forms: boleh anonim via X-Respondent-Key.
-  //    Jangan paksa login di sini; andalkan joinForm + getAuthHeaders(token) yang
-  //    sudah support token null. Guard login hanya untuk aksi owner di Dashboard.
+  // 1. Initial Load — wajib login terlebih dahulu sebelum bisa mengisi / bergabung ke form.
   useEffect(() => {
+    const curToken = getToken();
+    if (!curToken) {
+      const raw = window.location.pathname + window.location.search;
+      const safe = raw.startsWith('/') && !raw.startsWith('//') ? raw : `/f/${slug}`;
+      const redirectUrl = encodeURIComponent(safe);
+      navigate(`/auth?redirect=${redirectUrl}`, { replace: true });
+      return;
+    }
+
     const loadForm = async () => {
       try {
         setLoading(true);
@@ -456,6 +463,14 @@ export default function FormFillPage() {
             setAnswers(initialAnswers);
           }
         } catch (err) {
+          // If unauthenticated / session expired, redirect to auth with return url
+          if (err.message && /login|auth|unauthorized|kadaluarsa|tidak valid/i.test(err.message)) {
+            const raw = window.location.pathname + window.location.search;
+            const safe = raw.startsWith('/') && !raw.startsWith('//') ? raw : `/f/${slug}`;
+            const redirectUrl = encodeURIComponent(safe);
+            navigate(`/auth?redirect=${redirectUrl}`, { replace: true });
+            return;
+          }
           // If error mentions token required, show join token modal
           if (formData.join_token || (err.message && err.message.toLowerCase().includes('token'))) {
             setShowJoinModal(true);
@@ -466,6 +481,13 @@ export default function FormFillPage() {
           joiningRef.current = false;
         }
       } catch (err) {
+        if (err.message && /login|auth|unauthorized|kadaluarsa|tidak valid/i.test(err.message)) {
+          const raw = window.location.pathname + window.location.search;
+          const safe = raw.startsWith('/') && !raw.startsWith('//') ? raw : `/f/${slug}`;
+          const redirectUrl = encodeURIComponent(safe);
+          navigate(`/auth?redirect=${redirectUrl}`, { replace: true });
+          return;
+        }
         setErrorMsg(err.message || 'Form tidak ditemukan atau belum dipublikasikan');
       } finally {
         setLoading(false);
@@ -800,7 +822,7 @@ export default function FormFillPage() {
                 )}
               </div>
               <div className="profile-popover-info">
-                <p className="profile-popover-name">{userProfile?.full_name || 'Pengguna'}</p>
+                <p className="profile-popover-name">{userProfile?.full_name || 'Pengguna Terdaftar'}</p>
                 <p className="profile-popover-email">{userProfile?.email || ''}</p>
               </div>
             </div>

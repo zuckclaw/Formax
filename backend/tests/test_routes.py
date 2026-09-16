@@ -47,6 +47,11 @@ class RouteRegistrationTests(unittest.TestCase):
 
         self.assertIn("/forms/{form_id}/regenerate-join-token", paths)
 
+    def test_join_form_route_is_registered(self):
+        paths = {route.path for route in app.routes if hasattr(route, "path")}
+
+        self.assertIn("/forms/public/{slug}/join", paths)
+
     def test_export_includes_only_submitted_answers_and_score(self):
         engine = create_engine("sqlite://")
         SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -167,6 +172,12 @@ class AuthSecurityTests(unittest.TestCase):
             _is_revoked(broken_db, "jti")
 
         self.assertEqual(raised.exception.status_code, 503)
+
+    def test_resolve_identity_requires_login(self):
+        from app.routers.submissions import _resolve_identity
+        with self.assertRaises(HTTPException) as ctx:
+            _resolve_identity(current_user=None, respondent_key="some-key")
+        self.assertEqual(ctx.exception.status_code, 401)
 
 
 if __name__ == "__main__":
