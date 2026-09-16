@@ -205,7 +205,21 @@ class QuillHtml {
           final formula = data['formula']?.toString() ?? '';
           if (formula.isNotEmpty) {
             final safeFormula = escAttr(formula);
-            inline.write('<span class="ql-formula" data-value="$safeFormula">$safeFormula</span>');
+            final isDisplay = attrs['display'] == true || attrs['block'] == 'displayMath';
+            if (isDisplay) {
+              inline.write('<div class="math-display-block" data-latex="$safeFormula">$safeFormula</div>');
+            } else {
+              inline.write('<span class="ql-formula" data-value="$safeFormula">$safeFormula</span>');
+            }
+          }
+          continue;
+        }
+
+        if (data.containsKey('displayMath')) {
+          final formula = data['displayMath']?.toString() ?? '';
+          if (formula.isNotEmpty) {
+            final safeFormula = escAttr(formula);
+            inline.write('<div class="math-display-block" data-latex="$safeFormula">$safeFormula</div>');
           }
           continue;
         }
@@ -375,6 +389,7 @@ class QuillHtml {
   /// Normalizes an HTML string for display in Flutter:
   /// 1. Converts 8-digit ARGB colors to 6-digit hex
   /// 2. Resolves relative image sources (`src="/static/..."`) to backend URLs
+  /// 3. Normalizes video-embed divs to dedicated `<video-embed>` tags for flutter_html
   static String normalizeHtmlForDisplay(String? html) {
     if (html == null || html.trim().isEmpty) return '';
     var result = normalizeHtmlColors(html);
@@ -386,6 +401,22 @@ class QuillHtml {
         final resolved = resolveImageUrl(path);
         return '<img ${prefix}src="$resolved"';
       },
+    );
+    result = result.replaceAllMapped(
+      RegExp(
+        r'''<div\s+([^>]*?class=["'][^"']*video-embed[^"']*["'][^>]*)>(.*?)</div>''',
+        caseSensitive: false,
+        dotAll: true,
+      ),
+      (m) => '<video-embed ${m[1]}>${m[2]}</video-embed>',
+    );
+    result = result.replaceAllMapped(
+      RegExp(
+        r'''<div\s+([^>]*?class=["'][^"']*math-display-block[^"']*["'][^>]*)>(.*?)</div>''',
+        caseSensitive: false,
+        dotAll: true,
+      ),
+      (m) => '<math-display ${m[1]}>${m[2]}</math-display>',
     );
     return result;
   }

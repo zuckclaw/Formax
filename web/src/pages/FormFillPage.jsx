@@ -610,7 +610,7 @@ export default function FormFillPage() {
       doneRef.current = true;
       setShowSubmitModal(false);
       setValidationErrors(new Set());
-      try { localStorage.removeItem(`bm:${slug}`); } catch { }
+      try { localStorage.removeItem(`bm:${slug}`); } catch { /* non-critical */ }
       setBookmarked(new Set());
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => { });
@@ -711,7 +711,7 @@ export default function FormFillPage() {
       setIsSubmitted(true);
       setIsAutoSubmitted(true);
       setShowSubmitModal(false);
-      try { localStorage.removeItem(`bm:${slug}`); } catch { }
+      try { localStorage.removeItem(`bm:${slug}`); } catch { /* non-critical */ }
       setBookmarked(new Set());
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => { });
@@ -780,9 +780,9 @@ export default function FormFillPage() {
         enhanceVideoContainers(root)
         // also enhance result / success containers if present
         document.querySelectorAll('.result-card, .success-card, .form-header-details').forEach((el) => {
-          try { enhanceVideoContainers(el) } catch {}
+          try { enhanceVideoContainers(el) } catch { /* non-critical */ }
         })
-      } catch {}
+      } catch { /* non-critical */ }
     }, 80)
     return () => clearTimeout(t)
   }, [form, currentPage, showResult])
@@ -884,8 +884,9 @@ export default function FormFillPage() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(`bm:${slug}`);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBookmarked(new Set(JSON.parse(raw || '[]')));
-    } catch { setBookmarked(new Set()); }
+    } catch { /* eslint-disable-next-line react-hooks/set-state-in-effect */ setBookmarked(new Set()); }
   }, [slug]);
 
   const toggleBookmark = useCallback((qId) => {
@@ -893,7 +894,7 @@ export default function FormFillPage() {
       const next = new Set(prev);
       if (next.has(qId)) next.delete(qId);
       else next.add(qId);
-      try { localStorage.setItem(`bm:${slug}`, JSON.stringify([...next])); } catch { }
+      try { localStorage.setItem(`bm:${slug}`, JSON.stringify([...next])); } catch { /* non-critical */ }
       return next;
     });
   }, [slug]);

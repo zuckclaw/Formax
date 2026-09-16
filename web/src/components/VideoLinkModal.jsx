@@ -8,6 +8,7 @@ export default function VideoLinkModal({ isOpen, onClose, onInsert, initialUrl =
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUrl(initialUrl)
       setTimeout(() => inputRef.current?.focus(), 60)
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, signup, sendOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp, resetPassword } from '../api/auth';
-import { setAuth, getValidToken } from '../utils/authStorage';
+import { setAuth } from '../utils/authStorage';
 import { containsEmoji, removeEmojis } from '../utils/emojiFilter';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';

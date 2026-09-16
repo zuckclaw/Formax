@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../../../models/question_model.dart';
 import '../../../widgets/ngrok_image.dart';
 import '../../../widgets/rich_text_field.dart';
@@ -248,9 +246,14 @@ class _QuestionEditorState extends State<QuestionEditor> {
             for (final url in urls)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: (kIsWeb || url.startsWith('http'))
-                    ? NgrokImage(url, fit: BoxFit.cover)
-                    : Image.file(File(url), fit: BoxFit.cover),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: NgrokImage(
+                    url,
+                    fit: BoxFit.cover,
+                    enablePreview: true,
+                  ),
+                ),
               ),
           ],
         ),
@@ -287,19 +290,13 @@ class _QuestionEditorState extends State<QuestionEditor> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: (kIsWeb || urls[i].startsWith('http'))
-                      ? NgrokImage(
-                          urls[i],
-                          height: 160,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.file(
-                          File(urls[i]),
-                          height: 160,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
+                  child: NgrokImage(
+                    urls[i],
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    enablePreview: true,
+                  ),
                 ),
                 IconButton(
                   tooltip: 'Hapus gambar',

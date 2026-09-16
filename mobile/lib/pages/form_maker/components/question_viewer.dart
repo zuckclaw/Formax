@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../../../models/question_model.dart';
 import '../../../widgets/ngrok_image.dart';
 import '../../../widgets/rich_text_view.dart';
@@ -88,13 +86,12 @@ class QuestionViewer extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: (kIsWeb || url.startsWith('http'))
-                    ? NgrokImage(url, width: double.infinity, fit: BoxFit.cover)
-                    : Image.file(
-                        File(url),
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                child: NgrokImage(
+                  url,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  enablePreview: true,
+                ),
               ),
             ),
           _buildBodyByType(context, isDark),
@@ -315,9 +312,8 @@ class QuestionViewer extends StatelessWidget {
               for (final url in urls)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: (kIsWeb || url.startsWith('http'))
-                      ? NgrokImage(url, fit: BoxFit.cover)
-                      : Image.file(File(url), fit: BoxFit.cover),
+                  // NgrokImage handles http, https, data:, file paths — safe for all cases
+                  child: NgrokImage(url, fit: BoxFit.cover),
                 ),
             ],
           ),

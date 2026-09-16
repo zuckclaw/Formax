@@ -168,9 +168,11 @@ export default function DashboardPage() {
   // FIX: auto-load template langsung tanpa F5 — handle pending + autoOpen + back reload
   useEffect(() => {
     if (location.state?.activeNav) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveNav(location.state.activeNav);
       window.history.replaceState({}, document.title);
     } else if (location.state?.autoOpenTemplate || location.state?.reloadTemplates) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveNav('template');
       window.history.replaceState({}, document.title);
     }

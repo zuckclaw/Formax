@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from './ThemeToggle';
@@ -6,7 +5,7 @@ import { getValidToken } from '../utils/authStorage';
 
 export default function LandingNav({ active = 'beranda' }) {
   const navigate = useNavigate()
-  const handleAuthClick = (e, path = '/auth') => {
+  const handleAuthClick = (e, _path = '/auth') => {
     const token = getValidToken()
     const isRemembered = localStorage.getItem('auth_remember') === 'true'
     if (token && isRemembered) {

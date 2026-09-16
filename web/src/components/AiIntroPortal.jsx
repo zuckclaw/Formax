@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import logoForm4x from '../assets/logo_form4x.png';
 
 export default function AiIntroPortal({ onComplete }) {

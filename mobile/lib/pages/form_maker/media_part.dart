@@ -30,54 +30,139 @@ extension _FormMakerMedia on _FormMakerPageState {
     });
   }
 
-  void _pickImage() async {
-    final picker = ImagePicker();
-    // Kompres gambar saat diambil agar ukuran file kecil. Foto kamera full-res
-    // (bisa 4-12 MB) gagal diupload lewat tunnel ngrok HTTPS dengan error
-    // "HTTPS request failed, statusCode: 0" (koneksi putus saat tubuh request besar).
-    // Pola ini sama dengan profil (avatar) & isi form (file upload) yang sudah bekerja.
-    try {
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 85,
+  Future<String?> _showImageSourcePicker({required String title}) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF4F46E5)),
+                  title: const Text('Galeri Foto'),
+                  onTap: () => Navigator.pop(ctx, 'gallery'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF4F46E5)),
+                  title: const Text('Kamera'),
+                  onTap: () => Navigator.pop(ctx, 'camera'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.link_outlined, color: Color(0xFF4F46E5)),
+                  title: const Text('Link Gambar (URL)'),
+                  onTap: () => Navigator.pop(ctx, 'url'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (source == null || !mounted) return null;
+
+    if (source == 'url') {
+      final ctrl = TextEditingController();
+      return showDialog<String>(
+        context: context,
+        builder: (dCtx) => AlertDialog(
+          title: const Text('Masukkan Link Gambar'),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(
+              hintText: 'https://example.com/gambar.png',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.url,
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dCtx),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final url = ctrl.text.trim();
+                Navigator.pop(dCtx, url.isNotEmpty ? url : null);
+              },
+              child: const Text('Gunakan Gambar'),
+            ),
+          ],
+        ),
       );
-      if (!mounted) return;
-      if (pickedFile != null) {
-        final activePageId =
-            _builderState.activePageId ?? _builderState.pages.first.id;
+    }
 
-        // Upload the image to the backend first
-        final uploadResult = await ApiService.uploadFile(pickedFile);
-        if (!mounted) return;
-        if (uploadResult['success'] == true) {
-          final fileUrl = uploadResult['file_url'] as String?;
-          if (fileUrl == null || fileUrl.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Upload berhasil tapi URL kosong')),
-            );
-            return;
-          }
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (pickedFile == null || !mounted) return null;
 
-          // Perilaku seperti Google Form: jika ada pertanyaan yang sedang dipilih,
-          // gambar ditempel ke pertanyaan itu (bukan membuat pertanyaan baru).
-          final attached = _builderState.attachImageToActiveQuestion(fileUrl);
-          if (!attached) {
-            _builderState.addQuestion(
-              activePageId,
-              QuestionType.image,
-              imageUrl: fileUrl,
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Gagal unggah gambar: ${uploadResult['message']}'),
-              ),
-            );
-          }
-        }
+    final uploadResult = await ApiService.uploadFile(pickedFile);
+    if (!mounted) return null;
+    if (uploadResult['success'] == true && uploadResult['file_url'] != null) {
+      return uploadResult['file_url'] as String;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal upload gambar: ${uploadResult['message'] ?? 'Error'}'),
+        ),
+      );
+      return null;
+    }
+  }
+
+  void _pickImage() async {
+    try {
+      final fileUrl = await _showImageSourcePicker(title: 'Tambah Gambar Soal');
+      if (fileUrl == null || !mounted) return;
+
+      final activePageId =
+          _builderState.activePageId ?? _builderState.pages.first.id;
+
+      final attached = _builderState.attachImageToActiveQuestion(fileUrl);
+      if (!attached) {
+        _builderState.addQuestion(
+          activePageId,
+          QuestionType.image,
+          imageUrl: fileUrl,
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -89,54 +174,19 @@ extension _FormMakerMedia on _FormMakerPageState {
 
   /// Pilih & tempelkan gambar ke pertanyaan tertentu (perilaku Google Form,
   /// tombol gambar di toolbar pertanyaan aktif). Tidak membuat pertanyaan baru.
-  /// Gambar kedua dst. menumpuk di bawah gambar pertama â€” teks pertanyaan
+  /// Gambar kedua dst. menumpuk di bawah gambar pertama — teks pertanyaan
   /// (label) tidak pernah diubah.
   Future<void> _pickImageForQuestion(QuestionData q) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      imageQuality: 85,
-    );
-    if (pickedFile == null) return;
-    final uploadResult = await ApiService.uploadFile(pickedFile);
-    if (!mounted) return;
-    if (uploadResult['success'] == true) {
-      final fileUrl = uploadResult['file_url'] as String;
-      q.addAttachedImage(fileUrl);
-      _builderState.triggerUpdate();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal unggah gambar: ${uploadResult['message']}'),
-        ),
-      );
-    }
+    final fileUrl = await _showImageSourcePicker(title: 'Tempel Gambar ke Pertanyaan');
+    if (fileUrl == null || !mounted) return;
+    q.addAttachedImage(fileUrl);
+    _builderState.triggerUpdate();
   }
 
   Future<void> _pickBanner() async {
-    final picker = ImagePicker();
-    // Kompres banner sama seperti _pickImage agar upload via ngrok tidak putus
-    // dengan error "HTTPS request failed, statusCode: 0".
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      imageQuality: 85,
-    );
-    if (pickedFile == null) return;
-    final uploadResult = await ApiService.uploadFile(pickedFile);
-    if (!mounted) return;
-    if (uploadResult['success'] == true) {
-      final fileUrl = uploadResult['file_url'] as String;
-      _applyBannerUrl(fileUrl);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal unggah banner: ${uploadResult['message']}'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    }
+    final fileUrl = await _showImageSourcePicker(title: 'Unggah Banner Formulir');
+    if (fileUrl == null || !mounted) return;
+    _applyBannerUrl(fileUrl);
   }
 
   void _applyRequiredToAll() {

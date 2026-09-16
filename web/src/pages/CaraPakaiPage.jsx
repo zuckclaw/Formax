@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import '../styles/landing.css'
-import logoForm4x from '../assets/logo_form4x.png';
-import ThemeToggle from '../components/ThemeToggle';
+
 import InteractiveCubeBackground from '../components/InteractiveCubeBackground';
 import LandingNav from '../components/LandingNav';
 
