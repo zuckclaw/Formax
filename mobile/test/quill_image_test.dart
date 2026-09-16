@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:form4x/utils/quill_html.dart';
 import 'package:form4x/widgets/rich_text_field.dart';
-import 'package:form4x/widgets/rich_text_view.dart';
 
 void main() {
   test('QuillHtml converts BlockEmbed.image to <img> tag and back', () {
@@ -57,17 +56,66 @@ void main() {
     expect(find.byIcon(Icons.image_outlined), findsOneWidget);
   });
 
-  testWidgets('RichTextView renders HTML properly', (
+  test('QuillHtml.resolveImageUrl resolves relative backend paths', () {
+    expect(
+      QuillHtml.resolveImageUrl('/static/uploads/foto.png'),
+      contains('/static/uploads/foto.png'),
+    );
+    expect(
+      QuillHtml.resolveImageUrl('/static/uploads/foto.png').startsWith('http'),
+      isTrue,
+    );
+    expect(
+      QuillHtml.resolveImageUrl('https://example.com/foto.jpg'),
+      'https://example.com/foto.jpg',
+    );
+    expect(
+      QuillHtml.resolveImageUrl('data:image/png;base64,AAAA'),
+      'data:image/png;base64,AAAA',
+    );
+  });
+
+  test('QuillHtml.normalizeHtmlForDisplay rewrites relative img tags and video embeds', () {
+    const raw =
+        '<p>Foto: <img src="/static/uploads/banner.jpg" /></p>'
+        '<div class="video-embed" data-video="https://youtube.com/watch?v=123">▶ Video</div>';
+
+    final normalized = QuillHtml.normalizeHtmlForDisplay(raw);
+    expect(normalized, contains('src="http'));
+    expect(normalized, contains('/static/uploads/banner.jpg'));
+    expect(normalized, contains('<video-embed'));
+  });
+
+  testWidgets('RichTextField option variant renders compact controls', (
     WidgetTester tester,
   ) async {
-    const html = '<p>Sebelum</p><p>Sesudah</p>';
+    String currentHtml = '<p>Opsi 1</p>';
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: RichTextView(html: html)),
+      MaterialApp(
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          FlutterQuillLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('id'), Locale('en')],
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: RichTextField(
+              initialHtml: currentHtml,
+              variant: RichTextVariant.option,
+              onChanged: (html) {
+                currentHtml = html;
+              },
+            ),
+          ),
+        ),
       ),
     );
 
-    expect(find.byType(RichTextView), findsOneWidget);
+    expect(find.byType(RichTextField), findsOneWidget);
+    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+    expect(find.text('𝑓𝑥'), findsOneWidget);
   });
 }

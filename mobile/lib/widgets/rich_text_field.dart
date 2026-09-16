@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
@@ -129,10 +128,14 @@ class _RichTextFieldState extends State<RichTextField> {
     'Lato': 'lato',
     'Nunito': 'nunito',
     'Raleway': 'raleway',
+    'Source Code Pro': 'source-code-pro',
+    'Fira Code': 'fira-code',
+    'JetBrains Mono': 'jetbrains-mono',
     'Arial': 'arial',
     'Georgia': 'georgia',
     'Times New Roman': 'times-new-roman',
     'Courier New': 'courier-new',
+    'Comic Sans': 'comic-sans',
   };
 
   static const Map<String, String> _fontSizeItems = {
@@ -315,7 +318,7 @@ class _RichTextFieldState extends State<RichTextField> {
     );
   }
 
-  void _insertFormula(String formula) {
+  void _insertFormula(String formula, {bool isDisplay = false}) {
     if (!mounted) return;
     int index = _controller.selection.baseOffset;
     if (index < 0) {
@@ -323,11 +326,20 @@ class _RichTextFieldState extends State<RichTextField> {
       if (index < 0) index = 0;
     }
 
-    _controller.replaceText(index, 0, BlockEmbed.custom(CustomBlockEmbed('formula', formula)), null);
-    _controller.updateSelection(
-      TextSelection.collapsed(offset: index + 1),
-      ChangeSource.local,
-    );
+    final blotType = isDisplay ? 'displayMath' : 'formula';
+    _controller.replaceText(index, 0, BlockEmbed.custom(CustomBlockEmbed(blotType, formula)), null);
+    if (isDisplay) {
+      _controller.replaceText(index + 1, 0, '\n', null);
+      _controller.updateSelection(
+        TextSelection.collapsed(offset: index + 2),
+        ChangeSource.local,
+      );
+    } else {
+      _controller.updateSelection(
+        TextSelection.collapsed(offset: index + 1),
+        ChangeSource.local,
+      );
+    }
   }
 
   // ── Image Picker & Uploader ────────────────────────────────────────────────
@@ -652,76 +664,305 @@ class _RichTextFieldState extends State<RichTextField> {
     );
   }
 
-  // ── Math / Formula Dialog (Symbols & LaTeX) ────────────────────────────────
+  // ── Math Presets Matching Web MathPicker ──────────────────────────────────
+  static const List<Map<String, dynamic>> _mathCategories = [
+    {
+      'category': 'Umum',
+      'items': [
+        {'label': 'Pecahan', 'latex': r'\frac{a}{b}', 'symbol': 'a/b'},
+        {'label': 'Pecahan bertingkat', 'latex': r'\frac{\frac{a}{b}}{c}', 'symbol': '(a/b)/c'},
+        {'label': 'Akar kuadrat', 'latex': r'\sqrt{x}', 'symbol': '√x'},
+        {'label': 'Akar-n', 'latex': r'\sqrt[n]{x}', 'symbol': 'ⁿ√x'},
+        {'label': 'Pangkat', 'latex': r'x^{n}', 'symbol': 'xⁿ'},
+        {'label': 'Subscript', 'latex': r'x_{i}', 'symbol': 'xᵢ'},
+        {'label': 'Pangkat + Sub', 'latex': r'x_{i}^{n}', 'symbol': 'xᵢⁿ'},
+        {'label': 'Plus-minus', 'latex': r'\pm', 'symbol': '±'},
+        {'label': 'Kali silang', 'latex': r'\times', 'symbol': '×'},
+        {'label': 'Bagi', 'latex': r'\div', 'symbol': '÷'},
+        {'label': 'Titik tengah', 'latex': r'\cdot', 'symbol': '·'},
+      ],
+    },
+    {
+      'category': 'Operasi Besar',
+      'items': [
+        {'label': 'Sigma (∑)', 'latex': r'\sum_{i=1}^{n} x_i', 'symbol': '∑'},
+        {'label': 'Produk (∏)', 'latex': r'\prod_{i=1}^{n} x_i', 'symbol': '∏'},
+        {'label': 'Integral (∫)', 'latex': r'\int_{a}^{b} f(x)\,dx', 'symbol': '∫'},
+        {'label': 'Integral lipat', 'latex': r'\iint_{D} f(x,y)\,dx\,dy', 'symbol': '∬'},
+        {'label': 'Limit (lim)', 'latex': r'\lim_{x \to \infty} f(x)', 'symbol': 'lim'},
+        {'label': 'Turunan', 'latex': r'\frac{dy}{dx}', 'symbol': 'dy/dx'},
+        {'label': 'Union (∪)', 'latex': r'A \cup B', 'symbol': '∪'},
+        {'label': 'Irisan (∩)', 'latex': r'A \cap B', 'symbol': '∩'},
+      ],
+    },
+    {
+      'category': 'Relasi & Logika',
+      'items': [
+        {'label': 'Sama dengan', 'latex': '=', 'symbol': '='},
+        {'label': 'Tidak sama', 'latex': r'\neq', 'symbol': '≠'},
+        {'label': 'Kurang-lebih', 'latex': r'\approx', 'symbol': '≈'},
+        {'label': 'Identik', 'latex': r'\equiv', 'symbol': '≡'},
+        {'label': 'Sebanding', 'latex': r'\propto', 'symbol': '∝'},
+        {'label': 'Lebih kecil', 'latex': '<', 'symbol': '<'},
+        {'label': 'Lebih besar', 'latex': '>', 'symbol': '>'},
+        {'label': '≤', 'latex': r'\leq', 'symbol': '≤'},
+        {'label': '≥', 'latex': r'\geq', 'symbol': '≥'},
+        {'label': 'Implikasi (⇒)', 'latex': r'\Rightarrow', 'symbol': '⇒'},
+        {'label': 'Ekuivalen (⇔)', 'latex': r'\Leftrightarrow', 'symbol': '⇔'},
+        {'label': 'Elemen (∈)', 'latex': r'\in', 'symbol': '∈'},
+        {'label': 'Bukan elemen (∉)', 'latex': r'\notin', 'symbol': '∉'},
+        {'label': 'Subset (⊂)', 'latex': r'\subset', 'symbol': '⊂'},
+        {'label': 'Untuk semua (∀)', 'latex': r'\forall', 'symbol': '∀'},
+        {'label': 'Terdapat (∃)', 'latex': r'\exists', 'symbol': '∃'},
+      ],
+    },
+    {
+      'category': 'Fungsi & Trigonometri',
+      'items': [
+        {'label': 'Sinus', 'latex': r'\sin x', 'symbol': 'sin'},
+        {'label': 'Cosinus', 'latex': r'\cos x', 'symbol': 'cos'},
+        {'label': 'Tangen', 'latex': r'\tan x', 'symbol': 'tan'},
+        {'label': 'Logaritma', 'latex': r'\log_{a} b', 'symbol': 'log'},
+        {'label': 'Ln', 'latex': r'\ln x', 'symbol': 'ln'},
+        {'label': 'Exp', 'latex': r'e^{x}', 'symbol': 'eˣ'},
+        {'label': 'Min', 'latex': r'\min(a,b)', 'symbol': 'min'},
+        {'label': 'Max', 'latex': r'\max(a,b)', 'symbol': 'max'},
+      ],
+    },
+    {
+      'category': 'Huruf Yunani',
+      'items': [
+        {'label': 'Alpha', 'latex': r'\alpha', 'symbol': 'α'},
+        {'label': 'Beta', 'latex': r'\beta', 'symbol': 'β'},
+        {'label': 'Gamma', 'latex': r'\gamma', 'symbol': 'γ'},
+        {'label': 'Delta', 'latex': r'\delta', 'symbol': 'δ'},
+        {'label': 'Epsilon', 'latex': r'\epsilon', 'symbol': 'ε'},
+        {'label': 'Theta', 'latex': r'\theta', 'symbol': 'θ'},
+        {'label': 'Lambda', 'latex': r'\lambda', 'symbol': 'λ'},
+        {'label': 'Mu', 'latex': r'\mu', 'symbol': 'μ'},
+        {'label': 'Pi', 'latex': r'\pi', 'symbol': 'π'},
+        {'label': 'Sigma', 'latex': r'\sigma', 'symbol': 'σ'},
+        {'label': 'Sigma besar', 'latex': r'\Sigma', 'symbol': 'Σ'},
+        {'label': 'Omega', 'latex': r'\omega', 'symbol': 'ω'},
+        {'label': 'Omega besar', 'latex': r'\Omega', 'symbol': 'Ω'},
+        {'label': 'Phi', 'latex': r'\phi', 'symbol': 'φ'},
+        {'label': 'Psi', 'latex': r'\psi', 'symbol': 'ψ'},
+      ],
+    },
+    {
+      'category': 'Matriks & Vektor',
+      'items': [
+        {'label': 'Matriks 2×2', 'latex': r'\begin{pmatrix} a & b \\ c & d \end{pmatrix}', 'symbol': '[2×2]'},
+        {'label': 'Determinan', 'latex': r'\begin{vmatrix} a & b \\ c & d \end{vmatrix}', 'symbol': '|2×2|'},
+        {'label': 'Vektor', 'latex': r'\vec{a}', 'symbol': 'a⃗'},
+        {'label': 'Vektor tebal', 'latex': r'\mathbf{a}', 'symbol': '𝐚'},
+        {'label': 'Norma', 'latex': r'\| \vec{a} \|', 'symbol': '‖a‖'},
+        {'label': 'Transpos', 'latex': r'A^{T}', 'symbol': 'Aᵀ'},
+        {'label': 'Sistem persamaan', 'latex': r'\begin{cases} x + y = 1 \\ x - y = 2 \end{cases}', 'symbol': '{..}'},
+        {'label': 'Barisan', 'latex': r'a_n = a_{n-1} + d', 'symbol': 'aₙ'},
+      ],
+    },
+    {
+      'category': 'Simbol Lain',
+      'items': [
+        {'label': 'Tak hingga', 'latex': r'\infty', 'symbol': '∞'},
+        {'label': 'Derajat', 'latex': r'90^{\circ}', 'symbol': '°'},
+        {'label': 'Persen', 'latex': r'100\%', 'symbol': '%'},
+        {'label': 'Akar pecahan', 'latex': r'\sqrt{\frac{a}{b}}', 'symbol': '√(a/b)'},
+        {'label': 'Kombinasi', 'latex': r'\binom{n}{k}', 'symbol': '(n k)'},
+        {'label': 'Floor', 'latex': r'\lfloor x \rfloor', 'symbol': '⌊x⌋'},
+        {'label': 'Ceil', 'latex': r'\lceil x \rceil', 'symbol': '⌈x⌉'},
+        {'label': 'Panah kanan', 'latex': r'\rightarrow', 'symbol': '→'},
+        {'label': 'Panah dua arah', 'latex': r'\leftrightarrow', 'symbol': '↔'},
+      ],
+    },
+  ];
+
+  // ── Math / Formula Dialog (Symbols & LaTeX with Category Tabs & Display Mode) ──
   void _showMathFormulaDialog() {
-    final controller = TextEditingController();
-    const symbols = [
-      '²', '³', '√', 'π', '∑', '∫', '±', '×', '÷',
-      '∞', '≤', '≥', '≠', 'α', 'β', 'θ', 'λ', 'μ',
-      'x/y', 'x_n', 'x^n',
-    ];
+    final controller = TextEditingController(text: r'\frac{a}{b}');
+    int selectedCategoryIndex = 0;
+    bool isDisplayMode = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final currentItems = (_mathCategories[selectedCategoryIndex]['items'] as List)
+              .cast<Map<String, dynamic>>();
+
           return AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             title: const Row(
               children: [
-                Text('𝑓𝑥', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
+                Text(
+                  '𝑓𝑥',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Color(0xFF4F46E5),
+                  ),
+                ),
                 SizedBox(width: 8),
                 Text('Sisipkan Rumus Matematika'),
               ],
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Simbol cepat:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: symbols.map((sym) {
-                      return InkWell(
-                        onTap: () {
-                          final cur = controller.text;
-                          controller.text = '$cur$sym';
-                          controller.selection = TextSelection.collapsed(offset: controller.text.length);
-                          setDlgState(() {});
-                        },
-                        borderRadius: BorderRadius.circular(6),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Text(sym, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Teks Rumus / Notasi:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Mis. E = mc² atau \\sqrt{x}',
-                      border: OutlineInputBorder(),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category selector chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(_mathCategories.length, (idx) {
+                          final catName = _mathCategories[idx]['category'] as String;
+                          final isSel = idx == selectedCategoryIndex;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6.0),
+                            child: ChoiceChip(
+                              label: Text(catName, style: const TextStyle(fontSize: 12)),
+                              selected: isSel,
+                              selectedColor: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                              labelStyle: TextStyle(
+                                color: isSel
+                                    ? const Color(0xFF4F46E5)
+                                    : (isDark ? const Color(0xFF94A3B8) : Colors.black87),
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              ),
+                              onSelected: (_) {
+                                setDlgState(() => selectedCategoryIndex = idx);
+                              },
+                            ),
+                          );
+                        }),
+                      ),
                     ),
-                    autofocus: true,
-                  ),
-                ],
+                    const SizedBox(height: 12),
+
+                    // Preset buttons
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 140),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: currentItems.map((item) {
+                            final label = item['label'] as String;
+                            final latex = item['latex'] as String;
+                            final symbol = item['symbol'] as String? ?? label;
+
+                            return Tooltip(
+                              message: '$label: $latex',
+                              child: InkWell(
+                                onTap: () {
+                                  controller.text = latex;
+                                  controller.selection = TextSelection.collapsed(
+                                    offset: controller.text.length,
+                                  );
+                                  setDlgState(() {});
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF1E293B)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? const Color(0xFF334155)
+                                          : const Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        symbol,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: Color(0xFF4F46E5),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        label,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Custom LaTeX textfield
+                    const Text(
+                      'Teks Rumus / Notasi LaTeX:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        hintText: r'Mis. \frac{a}{b} atau E = mc^2',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      onChanged: (_) => setDlgState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Display mode toggle (Block vs Inline)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Mode Display (Blok Tengah)',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        isDisplayMode
+                            ? 'Rumus tampil sebagai baris tersendiri di tengah (block)'
+                            : 'Rumus menyatu dengan aliran teks biasa (inline)',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      value: isDisplayMode,
+                      activeTrackColor: const Color(0xFF4F46E5),
+                      onChanged: (val) {
+                        setDlgState(() => isDisplayMode = val);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -733,7 +974,7 @@ class _RichTextFieldState extends State<RichTextField> {
                 onPressed: () {
                   final formula = controller.text.trim();
                   if (formula.isNotEmpty) {
-                    _insertFormula(formula);
+                    _insertFormula(formula, isDisplay: isDisplayMode);
                   }
                   Navigator.pop(ctx);
                 },
@@ -985,56 +1226,10 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
     final imageSource = QuillHtml.resolveImageUrl(rawSource);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    Widget imageWidget;
-    if (imageSource.startsWith('http://') ||
-        imageSource.startsWith('https://')) {
-      imageWidget = NgrokImage(
-        imageSource,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.broken_image, color: Colors.red, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Gagal memuat gambar ($imageSource)',
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    } else if (imageSource.startsWith('data:image')) {
-      try {
-        final base64Data = imageSource.split(',').last;
-        final bytes = base64Decode(base64Data);
-        imageWidget = Image.memory(bytes, fit: BoxFit.contain);
-      } catch (_) {
-        imageWidget = const Icon(Icons.broken_image, color: Colors.red);
-      }
-    } else if (File(imageSource).existsSync()) {
-      imageWidget = Image.file(File(imageSource), fit: BoxFit.contain);
-    } else {
-      imageWidget = NgrokImage(
-        imageSource,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.broken_image, color: Colors.red),
-      );
-    }
+    final imageWidget = NgrokImage(
+      imageSource,
+      fit: BoxFit.contain,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -1147,11 +1342,7 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
               maxScale: 4.0,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: imageSource.startsWith('data:image')
-                    ? Image.memory(base64Decode(imageSource.split(',').last))
-                    : File(imageSource).existsSync()
-                    ? Image.file(File(imageSource))
-                    : NgrokImage(imageSource),
+                child: NgrokImage(imageSource, fit: BoxFit.contain),
               ),
             ),
             IconButton(
@@ -1277,6 +1468,59 @@ class _QuillEditorCustomEmbedBuilder extends EmbedBuilder {
             InkWell(
               onTap: deleteMe,
               child: const Icon(Icons.close, size: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (type == 'displayMath') {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                '𝑓𝑥',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4F46E5),
+                ),
+              ),
+            ),
+            Flexible(
+              child: Text(
+                data,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: deleteMe,
+              child: const Icon(Icons.close, size: 14, color: Colors.grey),
             ),
           ],
         ),

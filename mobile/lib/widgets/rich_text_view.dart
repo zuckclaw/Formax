@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,50 +33,6 @@ class RichTextView extends StatelessWidget {
         .trim();
   }
 
-  void _showFullImage(BuildContext context, String rawSrc) {
-    final resolvedSrc = QuillHtml.resolveImageUrl(rawSrc);
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          alignment: Alignment.topRight,
-          children: [
-            InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: resolvedSrc.startsWith('data:image')
-                      ? Image.memory(base64Decode(resolvedSrc.split(',').last))
-                      : File(resolvedSrc).existsSync()
-                      ? Image.file(File(resolvedSrc))
-                      : NgrokImage(resolvedSrc, fit: BoxFit.contain),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 24),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final content = html?.trim() ?? '';
@@ -101,70 +55,24 @@ class RichTextView extends StatelessWidget {
               if (rawSrc.isEmpty) return const SizedBox.shrink();
               final src = QuillHtml.resolveImageUrl(rawSrc);
 
-              Widget imgWidget;
-              if (src.startsWith('data:image')) {
-                try {
-                  final bytes = base64Decode(src.split(',').last);
-                  imgWidget = Image.memory(bytes, fit: BoxFit.contain);
-                } catch (_) {
-                  imgWidget = const Icon(Icons.broken_image, color: Colors.red);
-                }
-              } else if (File(src).existsSync()) {
-                imgWidget = Image.file(File(src), fit: BoxFit.contain);
-              } else {
-                imgWidget = NgrokImage(
-                  src,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.red.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.broken_image, color: Colors.red, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Gagal memuat gambar',
-                              style: TextStyle(
-                                color: Colors.red.shade700,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              }
-
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6.0),
-                child: GestureDetector(
-                  onTap: () => _showFullImage(context, src),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 360),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isDark
-                              ? const Color(0xFF334155)
-                              : const Color(0xFFE2E8F0),
-                        ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
-                      child: imgWidget,
+                    ),
+                    child: NgrokImage(
+                      src,
+                      fit: BoxFit.contain,
+                      enablePreview: true,
                     ),
                   ),
                 ),
@@ -174,15 +82,13 @@ class RichTextView extends StatelessWidget {
 
           // ── 2. Custom Video Embed Renderer ───────────────────
           TagExtension(
-            tagsToExtend: {'div'},
+            tagsToExtend: {'video-embed'},
             builder: (ctx) {
-              final isVideo =
-                  ctx.element?.classes.contains('video-embed') ?? false;
               final videoUrl =
                   ctx.attributes['data-video'] ??
                   ctx.attributes['data-embed'] ??
                   '';
-              if (!isVideo && videoUrl.isEmpty) {
+              if (videoUrl.isEmpty) {
                 return const SizedBox.shrink();
               }
 
@@ -314,40 +220,69 @@ class RichTextView extends StatelessWidget {
             },
           ),
 
-          // ── 4. Math / Formula Indicator ──────────────────────
+          // ── 4. Custom Display Math Formula Renderer ────────
           TagExtension(
-            tagsToExtend: {'span'},
+            tagsToExtend: {'math-display'},
             builder: (ctx) {
-              final isFormula =
-                  ctx.element?.classes.contains('ql-formula') ?? false;
-              final formula =
-                  ctx.attributes['data-value'] ?? ctx.element?.text ?? '';
-              if (!isFormula || formula.isEmpty) {
-                return const SizedBox.shrink();
-              }
+              final latex = ctx.attributes['data-latex'] ?? ctx.element?.text ?? '';
+              if (latex.trim().isEmpty) return const SizedBox.shrink();
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                margin: const EdgeInsets.symmetric(horizontal: 2),
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  formula,
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: (ts?.fontSize ?? 14) * 0.95,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                   ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '𝑓𝑥',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4F46E5),
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        latex.trim(),
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
           ),
         ],
         style: {
+          '.ql-formula': Style(
+            fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.bold,
+            backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            padding: HtmlPaddings.symmetric(horizontal: 4, vertical: 2),
+            color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+          ),
           'body': Style(
             margin: Margins.zero,
             padding: HtmlPaddings.zero,

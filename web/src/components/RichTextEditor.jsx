@@ -338,7 +338,7 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
     quill.setSelection(index + 1, 0, 'user')
     quill.focus()
     setTimeout(() => {
-      try { enhanceVideoContainers(quill.root) } catch {}
+      try { enhanceVideoContainers(quill.root) } catch { /* non-critical */ }
     }, 50)
   }, [])
 
@@ -476,7 +476,7 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
               break
             }
           }
-        } catch {}
+        } catch { /* non-critical paste URL detection */ }
       }, 40)
     }
     root.addEventListener('paste', handlePaste)

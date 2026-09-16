@@ -13,7 +13,9 @@ export default function NgrokImage({ src, alt, className, style, onError }) {
 
   useEffect(() => {
     if (!cleanSrc || !isNgrok) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBlobUrl(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFailed(false);
       return;
     }

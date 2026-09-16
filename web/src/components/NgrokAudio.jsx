@@ -15,7 +15,9 @@ export default function NgrokAudio({ src, style, controls = true, preload = 'met
 
   useEffect(() => {
     if (!cleanSrc || !shouldFetch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBlobUrl(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFailed(false);
       return;
     }
