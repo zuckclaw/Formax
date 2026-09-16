@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import RichTextEditor from '../components/RichTextEditor';
 import { getMe, logout } from '../api/auth';
@@ -16,10 +16,14 @@ import {
 import { downloadTemplateDocx, previewDocxImport, confirmDocxImport } from '../api/docx';
 import { apiFetch, API_BASE_URL } from '../api/config';
 import { getValidToken } from '../utils/authStorage';
+import 'highlight.js/styles/atom-one-dark.min.css';
 import '../styles/form-builder.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
 import NgrokImage from '../components/NgrokImage';
+import { safeHtml } from '../utils/safeHtml';
+import { prepareMathHtml } from '../utils/mathRender';
+import { enhanceCodeBlocks } from '../utils/codeCopy';
 
 const QUESTION_TYPES = [
   { value: 'text', label: 'Teks' },
@@ -64,8 +68,22 @@ function generateSlug(title) {
 }
 
 /* ========== PREVIEW PANEL COMPONENT ========== */
+function usePreviewCodeCopy(ref) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const run = () => { try { enhanceCodeBlocks(el); } catch {} };
+    run();
+    const t = setTimeout(run, 50);
+    const mo = new MutationObserver(run);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => { clearTimeout(t); mo.disconnect(); };
+  });
+}
 function PreviewPanel({ formData, questions, onClose }) {
   const [previewAnswers, setPreviewAnswers] = useState({});
+  const previewRef = useRef(null);
+  usePreviewCodeCopy(previewRef);
 
   // Sort & split into sections (reuse same logic as builder)
   const sortedQuestions = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -127,7 +145,7 @@ function PreviewPanel({ formData, questions, onClose }) {
         </div>
 
         {/* Preview Content — scrollable */}
-        <div className="fb-preview-content">
+        <div className="fb-preview-content" ref={previewRef}>
           {/* Banner */}
           {formData.banner_url && (
             <div className="prev-banner-wrap">
@@ -141,7 +159,7 @@ function PreviewPanel({ formData, questions, onClose }) {
             {formData.description && (
               <div
                 className="prev-form-desc ql-editor"
-                dangerouslySetInnerHTML={{ __html: formData.description }}
+                dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(formData.description)) }}
               />
             )}
           </div>
@@ -176,8 +194,8 @@ function PreviewPanel({ formData, questions, onClose }) {
                       <div className="prev-q-header">
                         <span className="prev-q-number">{displayNum}.</span>
                         <span
-                          className="prev-q-label"
-                          dangerouslySetInnerHTML={{ __html: q.label }}
+                          className="prev-q-label ql-editor"
+                          dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label)) }}
                         />
                         {q.is_required && <span className="prev-q-required">*</span>}
                       </div>
@@ -207,8 +225,8 @@ function PreviewPanel({ formData, questions, onClose }) {
                                   {isSelected && <div className="prev-radio-dot" />}
                                 </div>
                                 <span
-                                  className="prev-opt-label"
-                                  dangerouslySetInnerHTML={{ __html: opt.label }}
+                                  className="prev-opt-label ql-editor"
+                                  dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(opt.label)) }}
                                 />
                                 <input
                                   type="radio"
@@ -242,8 +260,8 @@ function PreviewPanel({ formData, questions, onClose }) {
                                   )}
                                 </div>
                                 <span
-                                  className="prev-opt-label"
-                                  dangerouslySetInnerHTML={{ __html: opt.label }}
+                                  className="prev-opt-label ql-editor"
+                                  dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(opt.label)) }}
                                 />
                                 <input
                                   type="checkbox"

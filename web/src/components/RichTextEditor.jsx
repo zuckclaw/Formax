@@ -274,13 +274,14 @@ const QUESTION_MODULES = {
   },
 }
 
-// Option toolbar for answer choices
+// Option toolbar for answer choices — now supports code-block with syntax highlight
 const OPTION_MODULES = {
   toolbar: {
     container: [
       [{ size: Size.whitelist }],
       ['bold', 'italic', 'underline', 'strike'],
       [{ color: [] }],
+      ['code-block', 'blockquote'],
       ['image'],
       ['formula', 'math'],
       ['clean'],
@@ -289,6 +290,7 @@ const OPTION_MODULES = {
       image: handleImageUpload,
     },
   },
+  syntax: { hljs },
   imageResize: {
     modules: ['Resize', 'DisplaySize'],
     minWidth: 20,

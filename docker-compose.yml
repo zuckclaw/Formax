@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./web
+    env_file:
+      - ./web/.env
+    ports:
+      - "8001:80"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/formmaker
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_uploads:/app/static/uploads
+      - backend_qrcodes:/app/static/qrcodes
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: formmaker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d formmaker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # backend-sqlite:
+  #   profiles: ["sqlite"]
+  #   build:
+  #     context: ./backend
+  #   env_file:
+  #     - ./backend/.env
+  #   environment:
+  #     DATABASE_URL: sqlite:////app/data/formmaker.db
+  #   ports:
+  #     - "8001:8000"
+  #   volumes:
+  #     - sqlite_data:/app/data
+  #     - backend_uploads:/app/static/uploads
+  #     - backend_qrcodes:/app/static/qrcodes
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  sqlite_data:
+  backend_uploads:
+  backend_qrcodes:

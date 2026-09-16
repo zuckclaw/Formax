@@ -87,14 +87,23 @@ export function prepareMathHtml(html) {
       return html
     }
   }
-  // tag-aware split: hanya proses chunk text, bukan tag
+  // tag-aware split: hanya proses chunk text, bukan tag — skip di dalam <pre>/<code>
   const parts = html.split(/(<[^>]+>)/g)
   let changed = false
+  let insidePre = 0
+  let insideCode = 0
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i]
-    if (!p || p.startsWith('<')) continue
-    // skip jika di dalam <code> / <pre> -> cek context sederhana: lihat part sebelum yang mengandung <code
-    // untuk ringan, cukup skip jika text mengandung \ dan enrich berhasil
+    if (!p) continue
+    if (p.startsWith('<')) {
+      const lower = p.toLowerCase()
+      if (/^<pre(\s|>)/.test(lower)) insidePre++
+      else if (/^<\/pre\s*>/.test(lower)) insidePre = Math.max(0, insidePre - 1)
+      else if (/^<code(\s|>)/.test(lower)) insideCode++
+      else if (/^<\/code\s*>/.test(lower)) insideCode = Math.max(0, insideCode - 1)
+      continue
+    }
+    if (insidePre > 0 || insideCode > 0) continue
     const enriched = enrichTextChunk(p)
     if (enriched !== null) {
       parts[i] = enriched

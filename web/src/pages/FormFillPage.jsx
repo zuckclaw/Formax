@@ -10,10 +10,12 @@ import { apiFetch } from '../api/config';
 import logoForm4x from '../assets/logo_form4x.png';
 import 'react-quill-new/dist/quill.snow.css';
 import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/atom-one-dark.min.css';
 import '../styles/form-fill.css';
 import '../styles/video-embed.css';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
+import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { getValidToken } from '../utils/authStorage';
 import { parseServerTime } from '../utils/date';
 import { enhanceVideoContainers } from '../utils/videoEmbed';
@@ -150,7 +152,10 @@ function useVideoEmbedFix(containerRef, html) {
   useEffect(() => {
     const el = containerRef.current
     if (!el || !html) return
-    const doEnhance = () => { try { enhanceVideoContainers(el) } catch (e) { console.error('[VideoFix] gagal', e) } }
+    const doEnhance = () => {
+      try { enhanceVideoContainers(el) } catch (e) { console.error('[VideoFix] gagal', e) }
+      try { enhanceCodeBlocks(el) } catch {}
+    }
     doEnhance()
     const t = setTimeout(doEnhance, 0)
     const t2 = setTimeout(doEnhance, 60)
@@ -237,7 +242,10 @@ function useNgrokMediaFix(containerRef, html) {
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !html) return;
-    const runFix = () => { try { fixNgrokMediaInContainer(el); } catch {} };
+    const runFix = () => {
+      try { fixNgrokMediaInContainer(el); } catch {}
+      try { enhanceCodeBlocks(el); } catch {}
+    };
     runFix();
     const t = setTimeout(runFix, 10);
     const t2 = setTimeout(runFix, 60);

@@ -9,7 +9,7 @@ export function safeHtml(dirty) {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
       'span', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote',
-      'a', 'sub', 'sup', 'font', 'div', 'pre', 'img', 'hr',
+      'a', 'sub', 'sup', 'font', 'div', 'pre', 'code', 'img', 'hr',
       'audio', 'video', 'source',
       'math', 'semantics', 'annotation', 'mrow', 'mfrac', 'mn', 'mo', 'mi',
       'msup', 'msub', 'msubsup', 'munder', 'mover', 'munderover',
@@ -19,8 +19,8 @@ export function safeHtml(dirty) {
       'href', 'title', 'target', 'rel', 'class', 'style',
       'src', 'alt', 'width', 'height', 'controls', 'preload', 'type',
       'start', 'color', 'face', 'size', 'xmlns', 'encoding',
-      'data-value', 'data-latex', 'aria-hidden',
-      'data-video', 'data-embed', 'data-type', 'data-original-src', 'data-rendered', 'data-ngrok-fixed',
+      'data-value', 'data-latex', 'aria-hidden', 'spellcheck',
+      'data-video', 'data-embed', 'data-type', 'data-original-src', 'data-rendered', 'data-ngrok-fixed', 'data-language',
     ],
     ALLOW_DATA_ATTR: false,
     // Tolak javascript:/data:text/html di href/src agar avatar/banner/file_url jahat tidak lolos.
