@@ -1608,6 +1608,36 @@ pre.hljs, div.ql-code-block.hljs { background: #282c34 !important; }
   color: #fff;
 }
 
+/* ===== Hapus Kunci Jawaban buttons ===== */
+.fb-clear-keys-inline-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border: 1px solid #fcd34d; border-radius: 8px;
+  background: #fffbeb; color: #92400e; font-family: 'Inter',sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.fb-clear-keys-inline-btn:hover { background: #fef3c7; border-color: #f59e0b; color: #78350f; }
+
+.fb-bulk-clear-keys-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border: 1px solid #fcd34d; border-radius: 8px;
+  background: #fffbeb; color: #92400e; font-family: 'Inter',sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.fb-bulk-clear-keys-btn:hover:not(:disabled) { background: #fef3c7; border-color: #f59e0b; }
+.fb-bulk-clear-keys-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.fb-clear-keys-global-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border: 1px solid #fcd34d; border-radius: 8px;
+  background: #fffbeb; color: #92400e; font-family: 'Inter',sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.fb-clear-keys-global-btn:hover:not(:disabled) { background: #fef3c7; border-color: #fbbf24; }
+.fb-clear-keys-global-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.fb-question-footer { gap: 8px; }
+.fb-question-footer .fb-clear-keys-inline-btn { margin-right: auto; }
+
 .fb-modal-btn.primary:hover {
   background: #2563eb;
 }

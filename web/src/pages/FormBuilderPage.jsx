@@ -374,6 +374,9 @@ export default function FormBuilderPage() {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confirmSingleIdx, setConfirmSingleIdx] = useState(null);
+  // Hapus kunci jawaban state
+  const [showClearKeysConfirm, setShowClearKeysConfirm] = useState(false);
+  const [clearKeysTarget, setClearKeysTarget] = useState(null); // {mode:'single'|'selected'|'all', qIdx?:number}
 
   // Import DOCX state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1046,6 +1049,61 @@ export default function FormBuilderPage() {
     );
   };
 
+  // ===== HAPUS KUNCI JAWABAN (per-soal / bulk / semua) =====
+  const countQuestionsWithKeys = (list = questions) =>
+    list.filter((q) => supportsCorrectAnswer(q.type) && (q.options || []).some((o) => o.is_correct)).length;
+
+  const requestClearKeys = (mode, qIdx = null) => {
+    let affected = 0;
+    if (mode === 'single' && qIdx !== null) {
+      const q = questions[qIdx];
+      if (!q || !supportsCorrectAnswer(q.type)) return;
+      affected = (q.options || []).filter((o) => o.is_correct).length > 0 ? 1 : 0;
+      if (affected === 0) { showToast('Soal ini tidak punya kunci jawaban', 'info'); return; }
+    } else if (mode === 'selected') {
+      affected = questions.filter((q) => bulkSelected.has(getQKey(q)) && supportsCorrectAnswer(q.type) && (q.options || []).some((o)=>o.is_correct)).length;
+      if (affected === 0) { showToast('Soal terpilih tidak ada yang punya kunci jawaban', 'info'); return; }
+    } else if (mode === 'all') {
+      affected = countQuestionsWithKeys();
+      if (affected === 0) { showToast('Tidak ada soal dengan kunci jawaban', 'info'); return; }
+    }
+    setClearKeysTarget({ mode, qIdx, affected });
+    setShowClearKeysConfirm(true);
+  };
+
+  const executeClearKeys = () => {
+    if (!clearKeysTarget) return;
+    const { mode, qIdx } = clearKeysTarget;
+    let cleared = 0;
+    if (mode === 'single' && qIdx !== null) {
+      setQuestions((prev) => prev.map((q, i) => {
+        if (i !== qIdx) return q;
+        if (!supportsCorrectAnswer(q.type) || !(q.options||[]).some(o=>o.is_correct)) return q;
+        cleared = 1;
+        return { ...q, _saved:false, options: q.options.map((o)=>({...o, is_correct:false, _saved:false})) };
+      }));
+      // need sync count after setQuestions — use affected from target
+      setTimeout(()=>showToast(`Kunci jawaban dihapus — jangan lupa klik Simpan`, 'success'), 10);
+    } else if (mode === 'selected') {
+      const toClearKeys = new Set(questions.filter((q)=>bulkSelected.has(getQKey(q)) && supportsCorrectAnswer(q.type) && (q.options||[]).some(o=>o.is_correct)).map(getQKey));
+      cleared = toClearKeys.size;
+      setQuestions((prev)=> prev.map((q)=>{
+        if(!toClearKeys.has(getQKey(q))) return q;
+        return { ...q, _saved:false, options: q.options.map((o)=>({...o, is_correct:false, _saved:false})) };
+      }));
+      setTimeout(()=>showToast(`${cleared} soal terpilih kunci dihapus — jangan lupa klik Simpan`, 'success'), 10);
+    } else if (mode === 'all') {
+      cleared = countQuestionsWithKeys();
+      setQuestions((prev)=> prev.map((q)=>{
+        if(!supportsCorrectAnswer(q.type) || !(q.options||[]).some(o=>o.is_correct)) return q;
+        return { ...q, _saved:false, options: q.options.map((o)=>({...o, is_correct:false, _saved:false})) };
+      }));
+      setTimeout(()=>showToast(`${cleared} soal kunci dihapus — jangan lupa klik Simpan`, 'success'), 10);
+    }
+    setShowClearKeysConfirm(false);
+    setClearKeysTarget(null);
+  };
+
   const getPublicLink = () => {
     return `${window.location.origin}/f/${formData.slug}`;
   };
@@ -1558,6 +1616,17 @@ export default function FormBuilderPage() {
                         </span>
                         <div className="fb-bulk-actions">
                           <button
+                            className="fb-bulk-clear-keys-btn"
+                            onClick={() => requestClearKeys('selected')}
+                            disabled={questions.filter((q)=>bulkSelected.has(getQKey(q)) && supportsCorrectAnswer(q.type) && (q.options||[]).some(o=>o.is_correct)).length===0}
+                            title="Hapus kunci jawaban dari soal terpilih"
+                          >
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <circle cx="12" cy="12" r="10" /><path d="M9 9l6 6M15 9l-6 6" />
+                            </svg>
+                            Hapus kunci ({questions.filter((q)=>bulkSelected.has(getQKey(q)) && supportsCorrectAnswer(q.type) && (q.options||[]).some(o=>o.is_correct)).length})
+                          </button>
+                          <button
                             className="fb-bulk-delete-btn"
                             onClick={handleBulkDelete}
                             disabled={bulkSelected.size === 0}
@@ -1804,6 +1873,13 @@ export default function FormBuilderPage() {
 
                       {/* Footer actions */}
                       <div className="fb-question-footer">
+                        {supportsCorrectAnswer(q.type) && (q.options||[]).some((o)=>o.is_correct) && (
+                          <button className="fb-clear-keys-inline-btn" onClick={(e)=>{ e.stopPropagation(); requestClearKeys('single', qIdx); }} title="Hapus kunci jawaban soal ini">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M9 9l6 6M15 9l-6 6" /></svg>
+                            Hapus kunci
+                          </button>
+                        )}
+                        <span style={{flex:1}} />
                         {/* Duplicate */}
                         <button className="fb-q-action-btn" onClick={() => duplicateQuestion(qIdx)} title="Duplikat">
                           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2084,6 +2160,27 @@ export default function FormBuilderPage() {
                     aria-label="Toggle semua wajib diisi"
                     title={questions.length === 0 ? 'Tambah soal dulu' : allRequired ? 'Jadikan semua tidak wajib' : 'Jadikan semua wajib'}
                   />
+                </div>
+
+                {/* Hapus Kunci Jawaban — global */}
+                <div className="fb-setting-row">
+                  <div>
+                    <p className="fb-setting-row-label">Hapus Kunci Jawaban</p>
+                    <p className="fb-setting-row-desc">
+                      {countQuestionsWithKeys() === 0
+                        ? 'Tidak ada soal dengan kunci jawaban'
+                        : `${countQuestionsWithKeys()} soal punya kunci jawaban • Hapus semua sekaligus (perlu Simpan)`}
+                    </p>
+                  </div>
+                  <button
+                    className="fb-clear-keys-global-btn"
+                    onClick={() => requestClearKeys('all')}
+                    disabled={countQuestionsWithKeys() === 0}
+                    title={countQuestionsWithKeys() === 0 ? 'Tidak ada kunci' : `Hapus ${countQuestionsWithKeys()} kunci`}
+                  >
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M9 9l6 6M15 9l-6 6" /></svg>
+                    Hapus semua kunci
+                  </button>
                 </div>
 
                 {/* Date Range */}
@@ -2622,6 +2719,37 @@ export default function FormBuilderPage() {
               <button className="fb-confirm-btn danger" onClick={executeSingleDelete}>
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                 Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hapus Kunci Jawaban — Confirm Modal */}
+      {showClearKeysConfirm && clearKeysTarget && (
+        <div className="fb-confirm-overlay" onClick={() => { setShowClearKeysConfirm(false); setClearKeysTarget(null); }}>
+          <div className="fb-confirm-card" onClick={(e) => e.stopPropagation()}>
+            <button className="fb-confirm-close" onClick={() => { setShowClearKeysConfirm(false); setClearKeysTarget(null); }} aria-label="Tutup">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+            <div className="fb-confirm-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><circle cx="12" cy="12" r="10" /><path d="M9 9l6 6M15 9l-6 6" /><path d="M12 8v-4M12 16h.01" /></svg>
+            </div>
+            <h3 className="fb-confirm-title">
+              {clearKeysTarget.mode==='single' ? 'Hapus Kunci Jawaban?' : clearKeysTarget.mode==='selected' ? `Hapus Kunci ${clearKeysTarget.affected} Soal Terpilih?` : `Hapus Semua Kunci Jawaban?`}
+            </h3>
+            <p className="fb-confirm-desc">
+              {clearKeysTarget.mode==='single'
+                ? <>Kunci jawaban pada soal ini akan dihapus. Soal tetap ada, hanya tanda benar yang hilang. Jangan lupa klik <strong>Simpan</strong> untuk menyimpan.</>
+                : clearKeysTarget.mode==='selected'
+                ? <>Kamu akan menghapus kunci jawaban dari <strong>{clearKeysTarget.affected} soal terpilih</strong>. Tidak bisa dibatalkan setelah Simpan.</>
+                : <>Kamu akan menghapus kunci jawaban dari <strong>{clearKeysTarget.affected} soal</strong> sekaligus. Semua soal pilihan akan jadi tanpa kunci. Jangan lupa klik <strong>Simpan</strong>.</>}
+            </p>
+            <div className="fb-confirm-actions">
+              <button className="fb-confirm-btn secondary" onClick={() => { setShowClearKeysConfirm(false); setClearKeysTarget(null); }}>Batal</button>
+              <button className="fb-confirm-btn primary" onClick={executeClearKeys} style={{ background:'#d97706', color:'white' }}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M9 9l6 6M15 9l-6 6" /></svg>
+                Ya, Hapus Kunci
               </button>
             </div>
           </div>
