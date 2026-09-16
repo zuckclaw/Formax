@@ -1007,22 +1007,24 @@ export default function FormBuilderPage() {
     );
   };
 
-  // Tandai SATU opsi sebagai jawaban benar (kunci jawaban). Klik lagi = hapus kunci.
+  // Tandai opsi sebagai kunci jawaban. Checkbox = multi (toggle independen, all-or-nothing), single_choice/dropdown = single.
   const markCorrectOption = (qIndex, oIndex) => {
     setQuestions((prev) =>
-      prev.map((q, i) =>
-        i === qIndex
-          ? {
-            ...q,
+      prev.map((q, i) => {
+        if (i !== qIndex) return q;
+        const isCheckbox = q.type === 'checkbox';
+        return {
+          ...q,
+          _saved: false,
+          options: q.options.map((o, j) => ({
+            ...o,
+            is_correct: isCheckbox
+              ? j === oIndex ? !o.is_correct : o.is_correct
+              : j === oIndex ? !o.is_correct : false,
             _saved: false,
-            options: q.options.map((o, j) => ({
-              ...o,
-              is_correct: j === oIndex ? !o.is_correct : false,
-              _saved: false,
-            })),
-          }
-          : q
-      )
+          })),
+        };
+      })
     );
   };
 
@@ -1236,7 +1238,7 @@ export default function FormBuilderPage() {
 
   const hasOptions = (type) => ['single_choice', 'checkbox', 'dropdown'].includes(type);
 
-  const supportsCorrectAnswer = (type) => ['single_choice', 'dropdown'].includes(type);
+  const supportsCorrectAnswer = (type) => ['single_choice', 'checkbox', 'dropdown'].includes(type);
 
   const isSection = (type) => type === 'page_break';
 

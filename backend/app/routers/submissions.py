@@ -543,16 +543,9 @@ def list_submissions_for_form(
 
 
 # ============================================================
-# HELPERS SKOR (sama dengan logika export.py)
+# HELPERS SKOR (all-or-nothing, sama dengan logika export.py)
+# checkbox: harus pilih semua benar & tidak ada yang salah baru benar
 # ============================================================
-def _correct_keys(question):
-    return {_strip_grid_row(o.label) for o in question.options if o.is_correct}
-
-
-def _is_graded(question):
-    return len(_correct_keys(question)) > 0
-
-
 def _strip_grid_row(value):
     """Grid jawaban mobile disimpan 'NamaBaris => Opsi'; buang prefix baris utk tampil/skor."""
     if isinstance(value, str) and " => " in value:
@@ -560,25 +553,74 @@ def _strip_grid_row(value):
     return value
 
 
+def _strip_html(value):
+    """Hilangkan tag HTML & nbsp untuk perbandingan label jawaban (robust vs RichTextEditor)."""
+    import re as _re
+    import html as _html
+    if value is None:
+        return ""
+    s = str(value)
+    s = _re.sub(r"<[^>]+>", " ", s)
+    s = _html.unescape(s)
+    s = s.replace("\xa0", " ")
+    s = _re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _normalize_label(value):
+    """Normalisasi label opsi/jawaban: strip grid row + strip html + trim."""
+    return _strip_html(_strip_grid_row(value))
+
+
+def _correct_keys(question):
+    # is_other tidak dihitung sebagai kunci (dianggap salah kalau dipilih, sesuai req user)
+    return {_normalize_label(o.label) for o in question.options if o.is_correct and not getattr(o, "is_other", False)}
+
+
+def _is_graded(question):
+    return len(_correct_keys(question)) > 0
+
+
+def _selected_set(ans):
+    """Ambil set jawaban ternormalisasi dari ans. Prioritas answer_options, fallback split answer_text."""
+    if ans is None:
+        return set()
+    if ans.answer_options and isinstance(ans.answer_options, list):
+        items = [str(x) for x in ans.answer_options if str(x).strip() != ""]
+        if items:
+            return {_normalize_label(x) for x in items if _normalize_label(x) != ""}
+    if ans.answer_text and str(ans.answer_text).strip():
+        txt = str(ans.answer_text).strip()
+        # legacy / fallback: "A, B, C" -> split koma
+        if "," in txt:
+            parts = [p.strip() for p in txt.split(",")]
+            return {_normalize_label(p) for p in parts if p and _normalize_label(p) != ""}
+        norm = _normalize_label(txt)
+        return {norm} if norm else set()
+    return set()
+
+
 def _user_answer_str(ans):
     if not ans:
         return ""
+    # Prioritas answer_options (checkbox multi) agar tampil konsisten
+    if ans.answer_options and isinstance(ans.answer_options, list) and any(str(x).strip() for x in ans.answer_options):
+        return ", ".join(_strip_grid_row(x) for x in ans.answer_options if str(x).strip())
     if ans.answer_text:
         return _strip_grid_row(ans.answer_text)
-    if ans.answer_options:
-        return ", ".join(_strip_grid_row(x) for x in ans.answer_options)
     if ans.file_url:
         return ans.file_url
     return ""
 
 
 def _is_answer_correct(question, ans):
+    """All-or-nothing: benar hanya jika set jawaban == set kunci (urutan tidak peduli)."""
     keys = _correct_keys(question)
     if not keys:
         return None
     if ans is None:
         return False
-    selected = {_strip_grid_row(x) for x in ans.answer_options} if ans.answer_options else ({ans.answer_text} if ans.answer_text else set())
+    selected = _selected_set(ans)
     return keys == selected
 
 

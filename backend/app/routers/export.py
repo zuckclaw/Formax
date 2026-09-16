@@ -111,19 +111,36 @@ def _duration_str(sub):
     return f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
 
 
-def _correct_keys(question):
-    return {_strip_grid_row(o.label) for o in question.options if o.is_correct}
-
-
-def _is_graded(question):
-    return len(_correct_keys(question)) > 0
-
-
 def _strip_grid_row(value):
     """Grid jawaban mobile disimpan 'NamaBaris => Opsi'; buang prefix baris utk tampil/skor."""
     if isinstance(value, str) and " => " in value:
         return value.split(" => ", 1)[1]
     return value
+
+
+def _strip_html(value):
+    import re as _re
+    import html as _html
+    if value is None:
+        return ""
+    s = str(value)
+    s = _re.sub(r"<[^>]+>", " ", s)
+    s = _html.unescape(s)
+    s = s.replace("\xa0", " ")
+    s = _re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _normalize_label(value):
+    return _strip_html(_strip_grid_row(value))
+
+
+def _correct_keys(question):
+    return {_normalize_label(o.label) for o in question.options if o.is_correct and not getattr(o, "is_other", False)}
+
+
+def _is_graded(question):
+    return len(_correct_keys(question)) > 0
 
 
 def _safe_cell(value):
@@ -136,28 +153,42 @@ def _safe_cell(value):
     return s
 
 
-def _user_selected(ans):
+def _selected_set(ans):
     if not ans:
-        return []
-    if ans.answer_options:
-        return [_strip_grid_row(x) for x in ans.answer_options]
-    if ans.answer_text:
-        return [_strip_grid_row(ans.answer_text)]
-    return []
+        return set()
+    if ans.answer_options and isinstance(ans.answer_options, list):
+        items = [str(x) for x in ans.answer_options if str(x).strip() != ""]
+        if items:
+            return {_normalize_label(x) for x in items if _normalize_label(x) != ""}
+    if ans.answer_text and str(ans.answer_text).strip():
+        txt = str(ans.answer_text).strip()
+        if "," in txt:
+            parts = [p.strip() for p in txt.split(",")]
+            return {_normalize_label(p) for p in parts if p and _normalize_label(p) != ""}
+        norm = _normalize_label(txt)
+        return {norm} if norm else set()
+    return set()
+
+
+def _user_selected(ans):
+    # untuk Analisis Jawaban: list ternormalisasi
+    return list(_selected_set(ans))
 
 
 def _is_correct(question, ans):
     keys = _correct_keys(question)
-    return len(keys) > 0 and keys == set(_user_selected(ans))
+    if not keys:
+        return False
+    return keys == _selected_set(ans)
 
 
 def _answer_value(ans):
     if not ans:
         return ""
+    if ans.answer_options and isinstance(ans.answer_options, list) and any(str(x).strip() for x in ans.answer_options):
+        return ", ".join(_strip_grid_row(x) for x in ans.answer_options if str(x).strip())
     if ans.answer_text:
         return _strip_grid_row(ans.answer_text)
-    if ans.answer_options:
-        return ", ".join(_strip_grid_row(x) for x in ans.answer_options)
     if ans.file_url:
         return ans.file_url
     return ""
@@ -307,9 +338,10 @@ def export_submissions_to_excel(
 
             for opt in q.options:
                 count = 0
+                norm_opt = _normalize_label(opt.label)
                 for sub in submissions:
                     ans = {a.question_id: a for a in sub.answers}.get(q.id)
-                    if ans and opt.label in _user_selected(ans):
+                    if ans and norm_opt in _selected_set(ans):
                         count += 1
                 percent = round((count / answered) * 100) if answered else 0
                 keterangan = "✓ Kunci" if opt.is_correct else ""
