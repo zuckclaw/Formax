@@ -252,6 +252,148 @@
   flex-direction: column;
 }
 
+/* Guide Button & Panel */
+.claude-guide-wrapper {
+  position: relative;
+}
+
+.claude-guide-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.claude-guide-btn:hover,
+.claude-guide-btn.active {
+  color: var(--c-brand);
+  border-color: var(--c-brand);
+  background: rgba(9, 98, 197, 0.06);
+}
+
+.claude-guide-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 380px;
+  max-height: 480px;
+  overflow-y: auto;
+  background: var(--c-bg-card);
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  z-index: 200;
+  animation: guideSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 20px 22px 18px;
+}
+
+[data-theme="dark"] .claude-guide-panel {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes guideSlideIn {
+  0% { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.claude-guide-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.claude-guide-panel-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-text-main);
+  letter-spacing: -0.2px;
+}
+
+.claude-guide-panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--c-text-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.claude-guide-panel-close:hover {
+  background: var(--c-bg-subtle);
+  color: var(--c-text-main);
+}
+
+.claude-guide-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.claude-guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.claude-guide-step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--c-brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.claude-guide-step-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.claude-guide-step-title {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--c-text-main);
+  margin-bottom: 3px;
+}
+
+.claude-guide-step-desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--c-text-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 500px) {
+  .claude-guide-panel {
+    width: calc(100vw - 32px);
+    right: -8px;
+  }
+}
+
 /* Toast */
 .claude-toast {
   position: fixed;

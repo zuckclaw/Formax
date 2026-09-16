@@ -12,6 +12,34 @@ import 'katex/dist/katex.min.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import '../styles/ai-builder.css';
 
+const GUIDE_STEPS = [
+  {
+    icon: '1',
+    title: 'Tulis Instruksi',
+    desc: 'Ketikkan deskripsi form yang Anda inginkan di kotak input. Contoh: "Buatkan kuis Matematika SMA 5 soal pilihan ganda tentang aljabar."',
+  },
+  {
+    icon: '2',
+    title: 'Pilih Template (Opsional)',
+    desc: 'Klik salah satu template bubble di atas kotak input untuk mengisi instruksi secara otomatis.',
+  },
+  {
+    icon: '3',
+    title: 'Atur Opsi',
+    desc: 'Tentukan jumlah soal, aktifkan kunci jawaban, atau bagi ke dalam sesi menggunakan toolbar di bawah kotak input.',
+  },
+  {
+    icon: '4',
+    title: 'Sisipkan Dokumen (Opsional)',
+    desc: 'Lampirkan file .docx, .txt, atau .csv agar AI membaca isi dokumen sebagai konteks tambahan.',
+  },
+  {
+    icon: '5',
+    title: 'Generate & Simpan',
+    desc: 'Klik "Buat Form" atau tekan Ctrl+Enter. Review hasilnya, lalu klik "Simpan & Buka di Editor" untuk mulai mengedit.',
+  },
+];
+
 const QUESTION_TYPE_LABELS = {
   text: 'Teks Singkat',
   paragraph: 'Paragraf',
@@ -94,6 +122,8 @@ export default function AiFormBuilderPage() {
   const [toast, setToast] = useState(null);
   const [showPortal, setShowPortal] = useState(true);
   const [showTitleField, setShowTitleField] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const guideRef = useRef(null);
 
   // File Attachment State
   const [attachedFile, setAttachedFile] = useState(null); // { name, size, text, charCount }
@@ -106,6 +136,24 @@ export default function AiFormBuilderPage() {
       textareaRef.current.style.height = `${Math.min(260, Math.max(80, textareaRef.current.scrollHeight))}px`;
     }
   }, [prompt]);
+
+  useEffect(() => {
+    if (!showGuide) return;
+    const handleClickOutside = (e) => {
+      if (guideRef.current && !guideRef.current.contains(e.target)) {
+        setShowGuide(false);
+      }
+    };
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setShowGuide(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [showGuide]);
 
   const showToast = useCallback((msg, type = 'info') => {
     setToast({ msg, type });
@@ -353,6 +401,41 @@ export default function AiFormBuilderPage() {
               <span>Buat Baru</span>
             </button>
           )}
+          <div className="claude-guide-wrapper" ref={guideRef}>
+            <button
+              className={`claude-guide-btn ${showGuide ? 'active' : ''}`}
+              onClick={() => setShowGuide((v) => !v)}
+              title="Petunjuk Penggunaan"
+              aria-label="Petunjuk Penggunaan"
+            >
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            {showGuide && (
+              <div className="claude-guide-panel">
+                <div className="claude-guide-panel-header">
+                  <h3 className="claude-guide-panel-title">Cara Menggunakan Formax AI</h3>
+                  <button className="claude-guide-panel-close" onClick={() => setShowGuide(false)} aria-label="Tutup">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <ol className="claude-guide-steps">
+                  {GUIDE_STEPS.map((step, i) => (
+                    <li key={i} className="claude-guide-step">
+                      <span className="claude-guide-step-num">{step.icon}</span>
+                      <div className="claude-guide-step-body">
+                        <strong className="claude-guide-step-title">{step.title}</strong>
+                        <p className="claude-guide-step-desc">{step.desc}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
           <ThemeToggle />
         </div>
       </header>
