@@ -78,12 +78,21 @@ class _FillFormPageState extends State<FillFormPage> {
   bool _isOwnerPreview = false;
 
   /// True jika user login saat ini adalah pemilik [formData].
-  /// Gagal mengambil profil → false (fail-open ke alur normal).
+  /// Menggunakan ekstraksi JWT lokal terlebih dahulu (0 ms, hemat bandwidth),
+  /// fallback ke ApiService.getMe() jika token tidak dapat di-parse.
   Future<bool> _isOwnerOf(FormData formData, String? token) async {
     try {
       if (token == null) return false;
       final ownerId = formData.ownerId;
       if (ownerId == null || ownerId.isEmpty) return false;
+
+      // 1. Ekstrak user id lokal dari token (instan, tanpa round-trip jaringan)
+      final localUserId = ApiService.getUserIdFromToken(token);
+      if (localUserId != null && localUserId.isNotEmpty) {
+        return localUserId == ownerId;
+      }
+
+      // 2. Fallback jika parsing lokal gagal
       final me = await ApiService.getMe();
       if (me['success'] != true || me['data'] is! Map) return false;
       final myId = (me['data'] as Map)['id']?.toString();
@@ -249,14 +258,13 @@ class _FillFormPageState extends State<FillFormPage> {
       final respondentKey = await ApiService.getRespondentKey();
 
       // 1. Fetch form data by slug (publik — boleh tanpa login)
-      final formResponse = await http.get(
+      final formResponse = await ApiService.client.get(
         Uri.parse('${ApiService.baseUrl}/forms/public/${widget.slug}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
+      ).timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
       if (formResponse.statusCode != 200) {
@@ -312,15 +320,14 @@ class _FillFormPageState extends State<FillFormPage> {
       }
 
       final respondentKey = await ApiService.getRespondentKey();
-      final response = await http.post(
+      final response = await ApiService.client.post(
         Uri.parse('${ApiService.baseUrl}/forms/public/${widget.slug}/join'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
         body: jsonEncode(body),
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -375,20 +382,19 @@ class _FillFormPageState extends State<FillFormPage> {
 
     try {
       final respondentKey = await ApiService.getRespondentKey();
-      final response = await http.put(
+      final response = await ApiService.client.put(
         Uri.parse('${ApiService.baseUrl}/submissions/$_submissionId/answers'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
         body: jsonEncode({
           'question_id': questionId,
           'answer_text': answer['answer_text'],
           'answer_options': answer['answer_options'],
           'file_url': answer['file_url'],
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (_) {
       // Auto-save gagal silent — user tetap bisa lanjut isi
@@ -427,14 +433,13 @@ class _FillFormPageState extends State<FillFormPage> {
       final token = await ApiService.getToken();
       final respondentKey = await ApiService.getRespondentKey();
 
-      final response = await http.post(
+      final response = await ApiService.client.post(
         Uri.parse('${ApiService.baseUrl}/submissions/$_submissionId/submit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Respondent-Key': respondentKey,
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+        headers: ApiService.defaultHeaders(
+          token: token,
+          respondentKey: respondentKey,
+        ),
+      ).timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
       if (response.statusCode == 200) {

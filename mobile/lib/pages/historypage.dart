@@ -39,14 +39,17 @@ class _HistoryPageState extends State<HistoryPage> {
     throw Exception(res['message'] ?? 'Gagal memuat data');
   }
 
-  void _refresh() {
+  Future<void> _refresh() async {
     setState(() => _formsFuture = _fetchForms());
+    try {
+      await _formsFuture;
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      onRefresh: () async => _refresh(),
+      onRefresh: _refresh,
       child: FutureBuilder<List<FormModel>>(
         future: _formsFuture,
         builder: (context, snapshot) {

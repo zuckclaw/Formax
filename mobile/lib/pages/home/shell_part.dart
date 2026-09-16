@@ -68,20 +68,16 @@ extension _HomeShell on _HomePageState {
       );
     }
 
-    switch (_selectedIndex) {
-      case 0:
-        return _buildDashboardTab();
-      case 1:
-        return _buildTemplateTab();
-      case 2:
-        return const DraftPage();
-      case 3:
-        return const ActivityPage();
-      case 4:
-        return const HistoryPage();
-      default:
-        return const SizedBox.shrink();
-    }
+    return IndexedStack(
+      index: _selectedIndex.clamp(0, 4),
+      children: [
+        _buildDashboardTab(),
+        _buildTemplateTab(),
+        const DraftPage(),
+        const ActivityPage(),
+        const HistoryPage(),
+      ],
+    );
   }
 
   Widget _buildEndDrawer() {

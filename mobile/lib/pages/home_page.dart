@@ -68,16 +68,55 @@ class _HomePageState extends State<HomePage> {
     _searchController.addListener(_onSearchChanged);
   }
 
-  void _refreshDashboard() {
-    _recentFormsFuture = _fetchRecentForms();
-    _draftFormsFuture = _fetchDraftForms();
+  Future<void> _refreshDashboard() async {
+    final recentCompleter = Completer<List<FormModel>>();
+    final draftCompleter = Completer<List<FormModel>>();
+
+    _recentFormsFuture = recentCompleter.future;
+    _draftFormsFuture = draftCompleter.future;
+
+    try {
+      final res = await ApiService.getMyForms();
+      if (res['success'] == true && res['data'] is List) {
+        final rawList = res['data'] as List;
+        final allForms = rawList
+            .whereType<Map>()
+            .map((e) => FormModel.fromJson(e))
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        final recents = allForms.take(10).toList();
+        final drafts = allForms.where((f) => f.status == 'draft').toList();
+
+        recentCompleter.complete(recents);
+        draftCompleter.complete(drafts);
+      } else {
+        recentCompleter.complete([]);
+        draftCompleter.complete([]);
+      }
+    } catch (e) {
+      recentCompleter.complete([]);
+      draftCompleter.complete([]);
+    }
   }
 
   // Helper navigasi/refresh untuk extension display (home/dashboard_part.dart
   // & home/template_part.dart): setState HANYA di member State.
-  // Isi = pindahan verbatim tiap situs setState display.
-  void _refreshDashboardNow() {
-    setState(_refreshDashboard);
+  Future<void> _refreshDashboardNow() async {
+    // Panggil _refreshDashboard() terlebih dulu agar futures baru langsung
+    // ditugaskan sebelum setState memicu rebuild (bukan fire-and-forget di dalam
+    // setState closure yang tidak bisa di-await dari luar).
+    final refreshFuture = _refreshDashboard();
+    // setState setelah futures ter-assign agar FutureBuilder langsung mendapat
+    // referensi baru dan menampilkan loading indicator.
+    if (mounted) {
+      setState(() {});
+    }
+    // Tunggu sampai data benar-benar selesai dimuat sebelum menutup
+    // animasi RefreshIndicator.
+    try {
+      await refreshFuture;
+    } catch (_) {}
   }
 
   // "Lihat semua" → tab History (index 4 = HistoryPage di _buildBody).
@@ -88,8 +127,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Helper tab untuk extension template (home/template_part.dart):
-  // setState HANYA di member State. Isi = pindahan verbatim.
-  // index 0 = Dashboard, 1 = Template (lihat _buildBody).
   void _goToDashboardTab() {
     setState(() {
       _selectedIndex = 0;
@@ -103,36 +140,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Helper bottom-nav untuk extension shell (home/shell_part.dart):
-  // setState HANYA di member State. Isi = pindahan verbatim.
   void _selectNavTab(int index) {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  Future<List<FormModel>> _fetchRecentForms() async {
-    final res = await ApiService.getMyForms();
-    if (res['success'] == true) {
-      final rawList = res['data'];
-      if (rawList is! List) return [];
-      var forms = rawList.map((e) => FormModel.fromJson(e as Map)).toList();
-      forms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      if (forms.length > 10) forms = forms.sublist(0, 10);
-      return forms;
-    }
-    return [];
-  }
-
-  Future<List<FormModel>> _fetchDraftForms() async {
-    final res = await ApiService.getDraftForms();
-    if (res['success'] == true) {
-      final rawList = res['data'];
-      if (rawList is! List) return [];
-      final drafts = rawList.map((e) => FormModel.fromJson(e as Map)).toList();
-      drafts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return drafts;
-    }
-    return [];
   }
 
   Future<void> _openDraftEditor(String formId) async {
@@ -264,6 +275,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocus.dispose();
     _debounce?.cancel();

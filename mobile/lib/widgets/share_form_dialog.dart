@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../services/api_service.dart';
 import 'ngrok_image.dart';
 
 class ShareFormDialog extends StatefulWidget {
@@ -53,7 +53,7 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
     try {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/${widget.fileName ?? 'qrcode-form.png'}');
-      final res = await http.get(
+      final res = await ApiService.client.get(
         Uri.parse(widget.qrUrl),
         headers: const {'ngrok-skip-browser-warning': 'true'},
       ).timeout(const Duration(seconds: 15));

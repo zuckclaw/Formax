@@ -14,12 +14,9 @@ Future<Map<String, dynamic>> _miscFormSubs(String formId) async {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
 
-    final response = await http.get(
+    final response = await ApiService.client.get(
       Uri.parse('${ApiService.baseUrl}/forms/$formId/submissions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
@@ -43,12 +40,9 @@ Future<Map<String, dynamic>> _miscMySubs() async {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
 
-    final response = await http.get(
+    final response = await ApiService.client.get(
       Uri.parse('${ApiService.baseUrl}/submissions/me'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
@@ -73,13 +67,12 @@ Future<Map<String, dynamic>> _miscSubResult(
   try {
     final token = await ApiService.getToken();
     final respondentKey = await ApiService.getRespondentKey();
-    final response = await http.get(
+    final response = await ApiService.client.get(
       Uri.parse('${ApiService.baseUrl}/submissions/$submissionId/result'),
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Respondent-Key': respondentKey,
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(
+        token: token,
+        respondentKey: respondentKey,
+      ),
     ).timeout(const Duration(seconds: 15));
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200) {
@@ -107,12 +100,9 @@ Future<Map<String, dynamic>> _miscSearch(String query) async {
       '${ApiService.baseUrl}/search',
     ).replace(queryParameters: query.isNotEmpty ? {'q': query} : null);
 
-    final response = await http.get(
+    final response = await ApiService.client.get(
       uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
     ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
@@ -137,12 +127,9 @@ Future<Map<String, dynamic>> _miscUpdateProfile(
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
 
-    final response = await http.put(
+    final response = await ApiService.client.put(
       Uri.parse('${ApiService.baseUrl}/auth/me'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: ApiService.defaultHeaders(token: token),
       body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 15));
 
@@ -170,10 +157,13 @@ Future<Map<String, dynamic>> _miscExport(
   try {
     final token = await ApiService.getToken();
     if (token == null) return {'success': false, 'message': 'No token found'};
-    final response = await http
+    final response = await ApiService.client
         .get(
           Uri.parse('${ApiService.baseUrl}/forms/$formId/export'),
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {
+            'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true',
+          },
         )
         .timeout(const Duration(seconds: 30));
     if (response.statusCode == 200) {
