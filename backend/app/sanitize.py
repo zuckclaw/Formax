@@ -97,7 +97,32 @@ class _Sanitizer(HTMLParser):
     def _attrs(self, tag, attrs):
         rendered = []
         allowed = _ALLOWED_ATTRS.get(tag)
-        for key, value in attrs:
+
+        # Khusus img & audio: jika src hilang/bertipe blob tapi ada data-original-src yang aman,
+        # pulihkan src menggunakan data-original-src agar gambar/audio tidak rusak.
+        attr_items = list(attrs)
+        if tag in ("img", "audio"):
+            attr_dict = {k.lower(): ("" if v is None else str(v)) for k, v in attr_items}
+            src_val = attr_dict.get("src", "").strip()
+            orig_val = attr_dict.get("data-original-src", "").strip()
+            if orig_val and (not src_val or not _is_safe_url(src_val) or src_val.startswith("blob:")):
+                if _is_safe_url(orig_val):
+                    new_items = []
+                    has_src = False
+                    for k, v in attr_items:
+                        kl = k.lower()
+                        if kl == "src":
+                            new_items.append(("src", orig_val))
+                            has_src = True
+                        elif kl not in ("data-blob-url", "data-ngrok-fixed", "data-original-src"):
+                            new_items.append((k, v))
+                    if not has_src:
+                        new_items.insert(0, ("src", orig_val))
+                    attr_items = new_items
+            else:
+                attr_items = [(k, v) for k, v in attr_items if k.lower() not in ("data-blob-url", "data-ngrok-fixed", "data-original-src")]
+
+        for key, value in attr_items:
             kl = key.lower()
             if kl.startswith("on"):
                 continue

@@ -516,13 +516,39 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
     }
   }, [value])
 
+  // Callback onChange dengan pembersihan blob URL ngrok preview
+  const handleEditorChange = (content, delta, source, editor) => {
+    let clean = content
+    if (clean && typeof clean === 'string') {
+      // Jika terdapat data-original-src atau blob:, pulihkan src asli
+      if (clean.includes('data-original-src') || clean.includes('blob:')) {
+        const root = editor?.root || quillRef.current?.getEditor()?.root
+        if (root) {
+          root.querySelectorAll('[data-original-src]').forEach((el) => {
+            const orig = el.getAttribute('data-original-src')
+            const blob = el.getAttribute('data-blob-url') || el.src
+            if (orig && blob && clean.includes(blob)) {
+              clean = clean.split(blob).join(orig)
+            }
+          })
+        }
+        // Bersihkan atribut sementara agar tidak mencemari database
+        clean = clean
+          .replace(/\s*data-ngrok-fixed="[^"]*"/gi, '')
+          .replace(/\s*data-blob-url="[^"]*"/gi, '')
+          .replace(/\s*data-original-src="[^"]*"/gi, '')
+      }
+    }
+    if (onChange) onChange(clean)
+  }
+
   return (
     <>
       <ReactQuill
         ref={quillRef}
         theme="snow"
         value={value}
-        onChange={onChange}
+        onChange={handleEditorChange}
         placeholder={placeholder}
         modules={modules}
         formats={FORMATS}

@@ -20,6 +20,7 @@ export function safeHtml(dirty) {
       'src', 'alt', 'width', 'height', 'controls', 'preload', 'type',
       'start', 'color', 'face', 'size', 'xmlns', 'encoding',
       'data-value', 'data-latex', 'aria-hidden',
+      'data-video', 'data-embed', 'data-type', 'data-original-src', 'data-rendered', 'data-ngrok-fixed',
     ],
     ALLOW_DATA_ATTR: false,
     // Tolak javascript:/data:text/html di href/src agar avatar/banner/file_url jahat tidak lolos.

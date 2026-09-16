@@ -5,33 +5,67 @@
 export function parseVideoUrl(raw) {
   if (!raw || typeof raw !== 'string') return null
   let url = raw.trim()
-  if (!url) return null
-  // normalisasi tanpa spasi
-  // YouTube patterns: https://www.youtube.com/watch?v=ID, youtu.be/ID, shorts/ID, embed/ID
-  const ytRegex = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,11})/
-  const ytMatch = url.match(ytRegex)
-  if (ytMatch) {
-    const id = ytMatch[1]
-    return { type: 'youtube', id, embedUrl: `https://www.youtube.com/embed/${id}`, original: url }
+  if (!url || url === 'undefined' || url === 'null') return null
+
+  // Normalisasi skema jika user paste tanpa protocol (mis. www.youtube.com atau youtu.be)
+  if (/^(www\.|youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com|drive\.google\.com)/i.test(url)) {
+    url = `https://${url}`
   }
-  // Vimeo: https://vimeo.com/123456789 atau player.vimeo.com/video/123
-  const vimeoRegex = /(?:vimeo\.com\/(?:video\/)?)(\d{6,})/
+
+  // 1) YouTube parser (menangani watch?v=, watch?feature=...&v=, youtu.be/, shorts/, embed/, live/, dll)
+  try {
+    const u = new URL(url)
+    const host = u.hostname.toLowerCase().replace(/^www\./, '')
+    if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com' || host === 'youtu.be') {
+      let id = null
+      if (host === 'youtu.be') {
+        id = u.pathname.replace(/^\/+/, '').split('/')[0].split('?')[0]
+      } else {
+        id = u.searchParams.get('v')
+        if (!id) {
+          const pathMatch = u.pathname.match(/\/(?:embed|shorts|live|v)\/([a-zA-Z0-9_-]{6,15})/i)
+          if (pathMatch) id = pathMatch[1]
+        }
+      }
+      if (id && id !== 'undefined' && id !== 'null') {
+        // preserve start time jika ada (t=30s atau t=30)
+        let t = u.searchParams.get('t') || u.searchParams.get('start')
+        let embedUrl = `https://www.youtube.com/embed/${id}`
+        if (t) {
+          const sec = parseInt(t, 10)
+          if (!isNaN(sec) && sec > 0) embedUrl += `?start=${sec}`
+        }
+        return { type: 'youtube', id, embedUrl, original: url }
+      }
+    }
+  } catch {
+    // Fallback regex jika URL tidak bisa di-parse lewat constructor URL
+    const ytRegex = /(?:youtube\.com\/(?:watch\?.*?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,15})/i
+    const ytMatch = url.match(ytRegex)
+    if (ytMatch && ytMatch[1] && ytMatch[1] !== 'undefined') {
+      const id = ytMatch[1]
+      return { type: 'youtube', id, embedUrl: `https://www.youtube.com/embed/${id}`, original: url }
+    }
+  }
+
+  // 2) Vimeo: https://vimeo.com/123456789 atau player.vimeo.com/video/123
+  const vimeoRegex = /(?:vimeo\.com\/(?:video\/)?)(\d{6,})/i
   const vm = url.match(vimeoRegex)
-  if (vm) {
+  if (vm && vm[1]) {
     const id = vm[1]
     return { type: 'vimeo', id, embedUrl: `https://player.vimeo.com/video/${id}`, original: url }
   }
-  // Google Drive: https://drive.google.com/file/d/FILEID/view atau open?id=FILEID atau drive.google.com/file/d/FILEID/preview
-  const driveIdMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/)
-  if (driveIdMatch) {
+
+  // 3) Google Drive: drive.google.com/file/d/FILEID/view atau open?id=FILEID atau file/d/FILEID/preview
+  const driveIdMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]{10,})/i)
+  if (driveIdMatch && driveIdMatch[1]) {
     const id = driveIdMatch[1]
-    // preview endpoint works for embed
     return { type: 'drive', id, embedUrl: `https://drive.google.com/file/d/${id}/preview`, original: url }
   }
-  // Direct video file: .mp4 .webm .ogg .mov (case insensitive, allow querystring)
+
+  // 4) Direct video file: .mp4 .webm .ogg .mov (case insensitive, allow querystring)
   const isDirect = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)
   if (isDirect) {
-    // also allow blob/data? but only https http prefix filtered elsewhere
     if (/^https?:\/\//i.test(url) || url.startsWith('/') || url.startsWith('data:video/')) {
       return { type: 'mp4', id: url, embedUrl: url, original: url }
     }
@@ -66,16 +100,30 @@ function escapeAttr(s) {
 export function enhanceVideoContainers(root) {
   if (!root || !root.querySelectorAll) return
   // 1) Render stored placeholders - idempotent, handle React innerHTML reset (re-render) yang balikin placeholder
-  const placeholders = root.querySelectorAll('div.video-embed[data-video]')
+  const placeholders = root.querySelectorAll('div.video-embed')
   placeholders.forEach((el) => {
     // skip jika sudah ada iframe/video inner yang valid (sudah ter-render dan belum di-reset)
     if (el.querySelector('.video-embed-inner iframe, .video-embed-inner video')) return
-    const raw = el.getAttribute('data-video') || el.dataset.video
+    let raw = el.getAttribute('data-video') || el.dataset?.video || el.getAttribute('data-embed')
+    if (!raw || raw === 'undefined' || raw === 'null') {
+      // Fallback: cari URL dari anchor atau text di dalam placeholder jika data-video sempat terbuang
+      const childLink = el.querySelector('a[href]')
+      if (childLink) {
+        raw = childLink.getAttribute('href')
+      } else {
+        const txt = el.textContent || ''
+        const urlMatch = txt.match(/https?:\/\/[^\s<"]+/)
+        if (urlMatch) raw = urlMatch[0]
+      }
+    }
     const parsed = parseVideoUrl(raw)
-    if (!parsed) {
+    if (!parsed || !parsed.embedUrl) {
       el.setAttribute('data-rendered', '1')
       return
     }
+    el.setAttribute('data-video', parsed.original)
+    el.setAttribute('data-embed', parsed.embedUrl)
+    el.setAttribute('data-type', parsed.type)
     el.setAttribute('data-rendered', '1')
     // clear placeholder span & render responsive wrapper
     el.innerHTML = ''
