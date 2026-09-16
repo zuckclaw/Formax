@@ -43,3 +43,6 @@ backend/static/uploads/docx_*.jpg
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+node_modules/
+dist/
