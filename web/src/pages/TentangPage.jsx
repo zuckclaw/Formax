@@ -46,7 +46,7 @@ const TentangPage = () => {
             Form4x membantu pendidik, organisasi, dan tim menyusun formulir, kuis, serta survei yang terstruktur dengan alur yang konsisten — dari pembuatan hingga analisis hasil.
           </p>
           <div className="tp-hero-actions">
-            <Link to="/auth" className="tp-btn-cta">Mulai Membuat Form</Link>
+            <Link to="/auth?mode=register" className="tp-btn-cta">Mulai Membuat Form</Link>
             <Link to="/cara-pakai" className="tp-btn-ghost">Pelajari Cara Pakai</Link>
           </div>
           <div className="tp-hero-stats">
@@ -158,7 +158,7 @@ const TentangPage = () => {
         <div className="tp-cta-inner">
           <h2 className="tp-cta-title">Siap Membuat Formulir Pertama Anda?</h2>
           <p className="tp-cta-sub">Mulai dari template atau impor Word, bagikan dalam hitungan menit.</p>
-          <Link to="/auth" className="tp-btn-cta">Buat Form Sekarang</Link>
+          <Link to="/auth?mode=register" className="tp-btn-cta">Buat Form Sekarang</Link>
         </div>
       </section>
 

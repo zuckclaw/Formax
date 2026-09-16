@@ -19,15 +19,6 @@ function FeatureCard({ icon, title, desc }) {
 
 /* ─── Main HomePage ─── */
 const HomePage = () => {
-  const navigate = useNavigate()
-  const handleCtaClick = (e) => {
-    const token = getValidToken()
-    const isRemembered = localStorage.getItem('auth_remember') === 'true'
-    if (token && isRemembered) {
-      e.preventDefault()
-      navigate('/dashboard')
-    }
-  }
   const features = [
     {
       icon: (
@@ -105,7 +96,7 @@ const HomePage = () => {
             sinkronisasi otomatis ke spreadsheet.
           </p>
           <div className="hp-hero-actions">
-            <Link to="/auth" id="btn-daftar-gratis" className="hp-btn-primary" onClick={handleCtaClick}>
+            <Link to="/auth?mode=register" id="btn-daftar-gratis" className="hp-btn-primary">
               Daftar Gratis
             </Link>
             <Link to="/tentang" className="hp-btn-outline">
@@ -206,7 +197,7 @@ const HomePage = () => {
           <p className="hp-cta-sub">
             Bergabunglah sekarang dan rasakan kemudahan membuat form & ujian interaktif secara gratis.
           </p>
-          <Link to="/auth" id="btn-cta-daftar" className="hp-btn-cta" onClick={handleCtaClick}>
+          <Link to="/auth?mode=register" id="btn-cta-daftar" className="hp-btn-cta">
             Daftar Sekarang - Gratis
           </Link>
         </div>
@@ -224,7 +215,8 @@ const HomePage = () => {
               <Link to="/">Beranda</Link>
               <Link to="/tentang">Tentang</Link>
               <Link to="/cara-pakai">Cara Pakai</Link>
-              <Link to="/auth">Login</Link>
+              <Link to="/auth?mode=login">Login</Link>
+              <Link to="/auth?mode=register">Daftar</Link>
             </div>
           </div>
           <div className="hp-footer-divider" />

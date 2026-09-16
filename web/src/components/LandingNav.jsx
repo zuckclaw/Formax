@@ -1,19 +1,9 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from './ThemeToggle';
-import { getValidToken } from '../utils/authStorage';
 
 export default function LandingNav({ active = 'beranda' }) {
-  const navigate = useNavigate()
-  const handleAuthClick = (e, path = '/auth') => {
-    const token = getValidToken()
-    const isRemembered = localStorage.getItem('auth_remember') === 'true'
-    if (token && isRemembered) {
-      e.preventDefault()
-      navigate('/dashboard')
-    }
-  }
   return (
     <header className="hp-header">
       <div className="hp-header-inner">
@@ -45,8 +35,8 @@ export default function LandingNav({ active = 'beranda' }) {
 
         <div className="hp-header-actions">
           <ThemeToggle />
-          <Link to="/auth" className="hp-btn-login" onClick={handleAuthClick}>Login</Link>
-          <Link to="/auth" className="hp-btn-register" onClick={handleAuthClick}>Daftar</Link>
+          <Link to="/auth?mode=login" className="hp-btn-login">Login</Link>
+          <Link to="/auth?mode=register" className="hp-btn-register">Daftar</Link>
         </div>
       </div>
     </header>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { login, signup, sendOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp, resetPassword } from '../api/auth';
 import { setAuth, getValidToken } from '../utils/authStorage';
 import { containsEmoji, removeEmojis } from '../utils/emojiFilter';
@@ -9,6 +9,7 @@ import '../styles/auth.css';
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tab, setTab] = useState('login'); // 'login', 'register', or 'forgot'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,9 +44,19 @@ export default function AuthPage() {
     confirm_password: '',
   });
 
-  // Auto-redirect sudah ditangani PublicRoute — tidak perlu duplikat navigate di sini
-  // (mencegah double Navigate yang memicu "Too many calls to History APIs")
-  // Jika butuh, PublicRoute di App.jsx akan redirect /auth -> /dashboard otomatis.
+  // Set active tab based on URL parameter (mode=register, mode=login, etc.)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode') || params.get('tab');
+    if (mode === 'register' || mode === 'signup') {
+      setTab('register');
+    } else if (mode === 'login') {
+      setTab('login');
+    } else if (mode === 'forgot') {
+      setTab('forgot');
+      setForgotStep(1);
+    }
+  }, [location.search]);
 
   // Timer effect
   useEffect(() => {

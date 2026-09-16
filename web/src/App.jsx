@@ -72,7 +72,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/tentang" element={<TentangPage />} />
         <Route path="/cara-pakai" element={<CaraPakaiPage />} />
-        <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route
           path="/profile"
           element={

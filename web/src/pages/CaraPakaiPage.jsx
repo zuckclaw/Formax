@@ -76,7 +76,7 @@ const CaraPakaiPage = () => {
             Panduan singkat untuk mulai membuat, membagikan, dan memantau form
             Anda — semua langsung dari browser.
           </p>
-          <Link to="/auth" className="cp-btn-primary">
+          <Link to="/auth?mode=register" className="cp-btn-primary">
             Mulai Sekarang
           </Link>
         </div>
