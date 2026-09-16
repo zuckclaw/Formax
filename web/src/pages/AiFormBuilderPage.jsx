@@ -372,18 +372,31 @@ export default function AiFormBuilderPage() {
              ======================================================================= */
           <div className="claude-hero-section">
             <div className="claude-hero-header">
-              <div className="claude-hero-icon-pill">
-                <span className="claude-sparkle">✨</span>
-                <span>Form Generator Cerdas</span>
-              </div>
               <h1 className="claude-hero-title">Formulir apa yang ingin Anda buat hari ini?</h1>
               <p className="claude-hero-desc">
                 Ketik instruksi, pilih templat instan, atau sisipkan dokumen untuk membuat ujian, kuis, atau kuesioner otomatis.
               </p>
             </div>
 
-            {/* THE CLAUDE OMNIBOX */}
-            <div className={`claude-omnibox-card ${error ? 'has-error' : ''}`}>
+            <div className="claude-bottom-input-zone">
+              {/* PRESET PROMPTS / TEMPLATE BUBBLES DI ATAS KOTAK INPUT */}
+              <div className="claude-template-bubbles">
+                {PRESET_PROMPTS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="claude-template-bubble"
+                    onClick={() => handleApplyPreset(preset)}
+                    title={preset.title}
+                  >
+                    <span className="claude-bubble-icon">{preset.icon}</span>
+                    <span className="claude-bubble-label">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* THE CLAUDE OMNIBOX */}
+              <div className={`claude-omnibox-card ${error ? 'has-error' : ''}`}>
               {/* Optional Form Title & Description Expander */}
               {showTitleField && (
                 <div className="claude-custom-meta">
@@ -558,28 +571,8 @@ export default function AiFormBuilderPage() {
                 </div>
               </div>
             </div>
-
-            {/* PRESET PROMPTS / SUGGESTION CARDS */}
-            <div className="claude-suggestions-container">
-              <div className="claude-suggestions-label">Atau mulai dengan template cepat:</div>
-              <div className="claude-suggestions-grid">
-                {PRESET_PROMPTS.map((preset, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    className="claude-suggestion-card"
-                    onClick={() => handleApplyPreset(preset)}
-                  >
-                    <div className="claude-sugg-top">
-                      <span className="claude-sugg-icon">{preset.icon}</span>
-                      <span className="claude-sugg-label">{preset.label}</span>
-                    </div>
-                    <p className="claude-sugg-desc">{preset.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
+        </div>
         ) : (
           /* =======================================================================
              VIEW 2: GENERATED RESULT WORKSPACE (Artifacts View)
