@@ -142,10 +142,11 @@ class _FillFormPageState extends State<FillFormPage> {
   // ── Countdown helper ──────────────────────────────────────
   DateTime? _parseEndDate(String? s) {
     if (s == null || s.isEmpty) return null;
-    final dt = DateTime.tryParse(s);
+    final normalized = s.trim().replaceFirst(' ', 'T');
+    final dt = DateTime.tryParse(normalized);
     if (dt == null) return null;
-    // Naik ISO tanpa info zona (mis. dari mobile) dianggap waktu lokal.
-    if (!s.contains('Z') && !s.contains('+')) return dt;
+    // Naik ISO tanpa info zona (mis. dari mobile/web) dianggap waktu lokal.
+    if (!normalized.contains('Z') && !normalized.contains('+')) return dt;
     return dt.toLocal();
   }
 
@@ -650,14 +651,56 @@ class _FillFormPageState extends State<FillFormPage> {
       ),
       title: Text(
         RichTextView.stripHtml(_formData?.title ?? 'Memuat Form...'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Color(0xFF374151),
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
       ),
-      centerTitle: true,
+      centerTitle: false,
       actions: [
+        if (_timeLeft > Duration.zero)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _timeLeft < const Duration(minutes: 1)
+                    ? const Color(0xFFDC2626)
+                    : const Color(0xFF059669),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.timer_outlined,
+                    size: 15,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatCountdown(_timeLeft),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         IconButton(
           tooltip: 'Zoom (${(_zoom * 100).round()}%)',
           icon: const Icon(Icons.zoom_in, color: Color(0xFF374151)),

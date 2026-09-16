@@ -16,6 +16,9 @@ extension _SettingsTimer on FormSettingsTab {
     Color textColor,
     Color subTextColor,
   ) {
+    final hasTimer = endDate != null;
+    final hasStart = startDate != null;
+
     return Card(
       elevation: 1,
       color: cardColor,
@@ -35,7 +38,7 @@ extension _SettingsTimer on FormSettingsTab {
                         : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.av_timer, color: primaryColor),
+                  child: Icon(Icons.timer_outlined, color: primaryColor),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -43,7 +46,7 @@ extension _SettingsTimer on FormSettingsTab {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Form Timer',
+                        'Jadwal & Timer Formulir',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -52,7 +55,7 @@ extension _SettingsTimer on FormSettingsTab {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Manage constraints and timing for this form',
+                        'Atur batas waktu pengerjaan dan jadwal buka/tutup form',
                         style: TextStyle(fontSize: 12, color: subTextColor),
                       ),
                     ],
@@ -62,191 +65,210 @@ extension _SettingsTimer on FormSettingsTab {
             ),
             const SizedBox(height: 16),
             Divider(color: isDark ? const Color(0xFF334155) : null),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Enable Timer',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Turn off timer constraints',
-                        style: TextStyle(fontSize: 12, color: subTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: enableTimer,
-                  onChanged: onEnableTimerChanged,
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: primaryColor,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Timer Mode',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+
+            // Status Badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
+                color: hasTimer
+                    ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF475569) : Colors.black12,
+                  color: hasTimer
+                      ? (isDark ? const Color(0xFF059669) : const Color(0xFFA7F3D0))
+                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
-                borderRadius: BorderRadius.circular(6),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: timerMode,
-                  isExpanded: true,
-                  items:
-                      [
-                        'Start when respondent opens the form',
-                        'Start at a specific date and time',
-                      ].map((e) {
-                        return DropdownMenuItem(
-                          value: e,
-                          child: Text(
-                            e,
-                            style: TextStyle(fontSize: 14, color: textColor),
-                          ),
-                        );
-                      }).toList(),
-                  dropdownColor: isDark ? const Color(0xFF1E293B) : null,
-                  icon: Icon(Icons.arrow_drop_down, color: textColor),
-                  onChanged: (v) {
-                    if (v != null) onTimerModeChanged(v);
-                  },
-                ),
+              child: Row(
+                children: [
+                  Icon(
+                    hasTimer ? Icons.check_circle_outline : Icons.info_outline,
+                    size: 18,
+                    color: hasTimer
+                        ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                        : subTextColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hasTimer
+                          ? 'Timer Aktif — Selesai & auto-submit: ${formatTimerDate(endDate)}'
+                          : (hasStart
+                              ? 'Jadwal Mulai: Form dibuka pada ${formatTimerDate(startDate)}'
+                              : 'Timer Nonaktif — Form dapat diisi tanpa batas waktu'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: hasTimer
+                            ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                            : textColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
+
+            // Waktu Mulai (Opsional)
             Text(
-              'Duration',
+              'Waktu Mulai (Buka Form)',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: textColor,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Opsional. Jika diatur, responden baru bisa membuka form setelah waktu ini.',
+              style: TextStyle(fontSize: 11, color: subTextColor),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: durationCtrl,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(6),
-                        ),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? const Color(0xFF475569)
-                              : Colors.black12,
+                  child: OutlinedButton.icon(
+                    onPressed: () => onPickTimerDate(start: true),
+                    icon: const Icon(Icons.event_outlined, size: 18),
+                    label: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        hasStart ? formatTimerDate(startDate) : 'Pilih waktu mulai...',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: hasStart ? textColor : subTextColor,
                         ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF475569) : Colors.black12,
                       ),
-                      isDense: true,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 120,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF475569) : Colors.black12,
+                if (hasStart) ...[
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: 'Hapus waktu mulai',
+                    onPressed: () => onClearTimerDate?.call(start: true),
+                    color: Colors.red.shade400,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Waktu Selesai (Batas Waktu / Timer)
+            Text(
+              'Waktu Selesai (Batas Waktu & Timer)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Acuan batas waktu ujian & pemicu countdown timer responden (auto-submit).',
+              style: TextStyle(fontSize: 11, color: subTextColor),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onPickTimerDate(start: false),
+                    icon: Icon(
+                      Icons.timer_outlined,
+                      size: 18,
+                      color: hasTimer ? primaryColor : null,
                     ),
-                    borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(6),
+                    label: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        hasTimer ? formatTimerDate(endDate) : 'Pilih batas waktu selesai...',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: hasTimer ? FontWeight.w600 : FontWeight.normal,
+                          color: hasTimer ? textColor : subTextColor,
+                        ),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      side: BorderSide(
+                        color: hasTimer
+                            ? primaryColor
+                            : (isDark ? const Color(0xFF475569) : Colors.black12),
+                      ),
                     ),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: durationUnit,
-                      isExpanded: true,
-                      items:
-                          const [
-                            'detik',
-                            'menit',
-                            'jam',
-                            'hari',
-                            'bulan',
-                            'tahun',
-                          ].map((unit) {
-                            return DropdownMenuItem<String>(
-                              value: unit,
-                              child: Text(
-                                unit,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: textColor,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                      onChanged: (value) {
-                        if (value != null) onDurationUnitChanged(value);
-                      },
-                    ),
+                ),
+                if (hasTimer) ...[
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: 'Hapus batas waktu (nonaktifkan timer)',
+                    onPressed: () => onClearTimerDate?.call(start: false),
+                    color: Colors.red.shade400,
                   ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Tombol Cepat Batas Waktu
+            Text(
+              'Atur Cepat Batas Waktu (dari sekarang):',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: subTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  label: const Text('+15 mnt'),
+                  avatar: const Icon(Icons.add, size: 14),
+                  onPressed: () => onSetQuickDuration?.call(const Duration(minutes: 15)),
+                ),
+                ActionChip(
+                  label: const Text('+30 mnt'),
+                  avatar: const Icon(Icons.add, size: 14),
+                  onPressed: () => onSetQuickDuration?.call(const Duration(minutes: 30)),
+                ),
+                ActionChip(
+                  label: const Text('+1 jam'),
+                  avatar: const Icon(Icons.add, size: 14),
+                  onPressed: () => onSetQuickDuration?.call(const Duration(hours: 1)),
+                ),
+                ActionChip(
+                  label: const Text('+2 jam'),
+                  avatar: const Icon(Icons.add, size: 14),
+                  onPressed: () => onSetQuickDuration?.call(const Duration(hours: 2)),
+                ),
+                ActionChip(
+                  label: const Text('+1 hari'),
+                  avatar: const Icon(Icons.add, size: 14),
+                  onPressed: () => onSetQuickDuration?.call(const Duration(days: 1)),
                 ),
               ],
             ),
-            if (enableTimer &&
-                timerMode == 'Start at a specific date and time') ...[
-              const SizedBox(height: 20),
-              Text(
-                'Schedule',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => onPickTimerDate(start: true),
-                icon: const Icon(Icons.event_outlined, size: 18),
-                label: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Mulai: ${formatTimerDate(startDate)}'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => onPickTimerDate(start: false),
-                icon: const Icon(Icons.event_available_outlined, size: 18),
-                label: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Selesai: ${formatTimerDate(endDate)}'),
-                ),
-              ),
-            ],
             const SizedBox(height: 20),
+
+            // Info Card
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -267,7 +289,9 @@ extension _SettingsTimer on FormSettingsTab {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'The form will auto-submit and lock once the timer runs out. Respondents will see a countdown display at the top of the page.',
+                      'Sistem timer di Form4x terintegrasi dengan waktu Selesai (sama seperti web). '
+                      'Saat waktu Selesai diatur, responden akan melihat countdown timer di atas layar '
+                      'dan form akan otomatis dikumpulkan saat waktu habis.',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark
@@ -280,7 +304,7 @@ extension _SettingsTimer on FormSettingsTab {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: onSaveSettings,
               style: ElevatedButton.styleFrom(
@@ -293,7 +317,7 @@ extension _SettingsTimer on FormSettingsTab {
                 elevation: 0,
               ),
               child: const Text(
-                'Save Settings',
+                'Simpan Pengaturan',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ),

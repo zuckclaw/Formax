@@ -113,13 +113,21 @@ class _FormMakerPageState extends State<FormMakerPage>
   // Helper tanggal timer untuk extension settings
   // (form_maker/settings_part.dart): setState HANYA di member State.
   // Isi = pindahan verbatim dari _pickTimerDate.
-  void _applyTimerDate(bool start, DateTime value) {
+  void _applyTimerDate(bool start, DateTime? value) {
     setState(() {
       if (start) {
         _startDate = value;
       } else {
         _endDate = value;
       }
+    });
+  }
+
+  void _applyQuickDuration(Duration duration) {
+    setState(() {
+      final now = DateTime.now();
+      _startDate ??= now;
+      _endDate = now.add(duration);
     });
   }
 
@@ -298,6 +306,8 @@ class _FormMakerPageState extends State<FormMakerPage>
                         onDurationUnitChanged: (v) =>
                             setState(() => _durationUnit = v),
                         onPickTimerDate: _pickTimerDate,
+                        onClearTimerDate: _clearTimerDate,
+                        onSetQuickDuration: _applyQuickDuration,
                         formatTimerDate: _formatTimerDate,
                         onSaveSettings: () {
                           ScaffoldMessenger.of(context).showSnackBar(

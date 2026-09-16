@@ -24,9 +24,7 @@ extension _FormMakerSettings on _FormMakerPageState {
     _shuffleOptions = map['shuffle_options'] as bool? ?? false;
     _startDate = _parseDate(map['start_date']);
     _endDate = _parseDate(map['end_date']);
-    if (_startDate != null || _endDate != null) {
-      _timerMode = 'Start at a specific date and time';
-    }
+    _enableTimer = _endDate != null;
     final maxSub = map['max_submissions'];
     if (maxSub is int) {
       if (maxSub == 1) {
@@ -71,6 +69,10 @@ extension _FormMakerSettings on _FormMakerPageState {
     _applyTimerDate(start, value);
   }
 
+  void _clearTimerDate({required bool start}) {
+    _applyTimerDate(start, null);
+  }
+
   String _formatTimerDate(DateTime? value) {
     if (value == null) return 'Pilih tanggal dan waktu';
     final day = value.day.toString().padLeft(2, '0');
@@ -80,36 +82,14 @@ extension _FormMakerSettings on _FormMakerPageState {
     return '$day/$month/${value.year} $hour:$minute';
   }
 
-  int _getDurationValue() {
-    final raw = _durationCtrl.text.trim();
-    final parsed = int.tryParse(raw);
-    if (parsed != null) return parsed;
-    final numMatch = RegExp(r'\d+').firstMatch(raw);
-    final value = int.tryParse(numMatch?.group(0) ?? '1') ?? 1;
-    return value < 1 ? 1 : value;
-  }
 
-  Duration _getDurationValueAsDuration() {
-    final value = _getDurationValue();
-    switch (_durationUnit) {
-      case 'detik':
-        return Duration(seconds: value);
-      case 'menit':
-        return Duration(minutes: value);
-      case 'jam':
-        return Duration(hours: value);
-      case 'bulan':
-        return Duration(days: value * 30);
-      case 'tahun':
-        return Duration(days: value * 365);
-      case 'hari':
-      default:
-        return Duration(days: value);
+
+  String get _durationDisplayText {
+    if (_endDate != null) {
+      return 'aktif s/d ${_formatTimerDate(_endDate)}';
     }
+    return 'nonaktif';
   }
-
-  String get _durationDisplayText =>
-      '${_durationCtrl.text.trim()} $_durationUnit';
 
   String _networkHint(String msg) {
     return msg.contains('SocketException') ||
