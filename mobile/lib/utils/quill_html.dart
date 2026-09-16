@@ -1,5 +1,6 @@
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
+import '../services/api_service.dart';
 
 /// Self-contained bridge between HTML (used by the web app / backend, e.g.
 /// Quill's `<p>`, `<strong>`, `<em>`...) and a Quill [Document].
@@ -59,6 +60,9 @@ class QuillHtml {
       if (a['font'] != null) s.add('font-family: ${a['font']};');
       final lh = a['line-height'];
       if (lh != null) s.add('line-height: $lh;');
+      if (a['code'] == true) {
+        s.add('font-family: monospace; background-color: rgba(148, 163, 184, 0.15); padding: 2px 4px; border-radius: 4px;');
+      }
       return s.isEmpty ? '' : s.join(' ');
     }
 
@@ -155,20 +159,65 @@ class QuillHtml {
           .replaceAll('<', '&lt;')
           .replaceAll('>', '&gt;');
 
-      if (data is Map && data.containsKey('image')) {
-        final imgSrc = data['image']?.toString() ?? '';
-        if (imgSrc.isNotEmpty) {
-          final safeSrc = escAttr(imgSrc);
-          final style = inlineStyle(attrs);
-          final styleAttr = style.isNotEmpty
-              ? ' style="${escAttr(style)}"'
-              : ' style="max-width: 100%; height: auto; border-radius: 8px; margin: 4px 0;"';
-          inline.write('<img src="$safeSrc"$styleAttr />');
+      if (data is Map) {
+        if (data.containsKey('image')) {
+          final imgSrc = data['image']?.toString() ?? '';
+          if (imgSrc.isNotEmpty) {
+            final safeSrc = escAttr(imgSrc);
+            final style = inlineStyle(attrs);
+            final width = attrs['width']?.toString();
+            final widthAttr = (width != null && width.isNotEmpty)
+                ? ' width="${escAttr(width)}"'
+                : '';
+            final styleAttr = style.isNotEmpty
+                ? ' style="${escAttr(style)}"'
+                : ' style="max-width: 100%; height: auto; border-radius: 8px; margin: 4px 0;"';
+            inline.write('<img src="$safeSrc"$widthAttr$styleAttr />');
+          }
+          continue;
         }
-        continue;
+
+        if (data.containsKey('video')) {
+          final videoUrl = data['video']?.toString() ?? '';
+          if (videoUrl.isNotEmpty) {
+            final safeUrl = escAttr(videoUrl);
+            inline.write(
+              '<div class="video-embed" data-video="$safeUrl" data-embed="$safeUrl">'
+              '<a href="$safeUrl" target="_blank" rel="noopener noreferrer">&#9654; Video: $safeUrl</a>'
+              '</div>',
+            );
+          }
+          continue;
+        }
+
+        if (data.containsKey('audio')) {
+          final audioUrl = data['audio']?.toString() ?? '';
+          if (audioUrl.isNotEmpty) {
+            final safeUrl = escAttr(audioUrl);
+            inline.write(
+              '<audio controls src="$safeUrl" style="width:100%;margin:8px 0;border-radius:8px;"></audio>',
+            );
+          }
+          continue;
+        }
+
+        if (data.containsKey('formula')) {
+          final formula = data['formula']?.toString() ?? '';
+          if (formula.isNotEmpty) {
+            final safeFormula = escAttr(formula);
+            inline.write('<span class="ql-formula" data-value="$safeFormula">$safeFormula</span>');
+          }
+          continue;
+        }
       }
 
-      final text = _escape(data.toString());
+      var text = _escape(data.toString());
+      if (attrs['script'] == 'sub') {
+        text = '<sub>$text</sub>';
+      } else if (attrs['script'] == 'super') {
+        text = '<sup>$text</sup>';
+      }
+
       final link = attrs['link'] as String?;
       final style = inlineStyle(attrs);
 
@@ -304,5 +353,40 @@ class QuillHtml {
   }) {
     final plain = htmlToPlainText(html);
     return plain.isEmpty ? fallback : plain;
+  }
+
+  /// Resolves relative image URLs (e.g. `/static/uploads/...`) into absolute
+  /// URLs pointing to the backend, preserving absolute and data URLs.
+  static String resolveImageUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return '';
+    final s = url.trim();
+    if (s.startsWith('http://') ||
+        s.startsWith('https://') ||
+        s.startsWith('data:') ||
+        s.startsWith('blob:') ||
+        s.startsWith('file:')) {
+      return s;
+    }
+    final base = ApiService.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+    final cleanPath = s.startsWith('/') ? s : '/$s';
+    return '$base$cleanPath';
+  }
+
+  /// Normalizes an HTML string for display in Flutter:
+  /// 1. Converts 8-digit ARGB colors to 6-digit hex
+  /// 2. Resolves relative image sources (`src="/static/..."`) to backend URLs
+  static String normalizeHtmlForDisplay(String? html) {
+    if (html == null || html.trim().isEmpty) return '';
+    var result = normalizeHtmlColors(html);
+    result = result.replaceAllMapped(
+      RegExp(r'''<img\s+([^>]*?)src=["'](/[^"']+)["']''', caseSensitive: false),
+      (m) {
+        final prefix = m[1] ?? '';
+        final path = m[2] ?? '';
+        final resolved = resolveImageUrl(path);
+        return '<img ${prefix}src="$resolved"';
+      },
+    );
+    return result;
   }
 }
