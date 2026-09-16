@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import '../../../models/question_model.dart';
 import '../../../widgets/ngrok_image.dart';
 import '../../../widgets/rich_text_field.dart';
-import '../../../widgets/rich_text_view.dart';
 
 class QuestionEditor extends StatefulWidget {
   final QuestionData question;
@@ -86,6 +85,7 @@ class _QuestionEditorState extends State<QuestionEditor> {
                   RichTextField(
                     key: ValueKey('q_label_${widget.question.id}'),
                     initialHtml: widget.question.label,
+                    variant: RichTextVariant.compact,
                     onChanged: (html) {
                       widget.question.label = html;
                       widget.onChanged();
@@ -493,33 +493,17 @@ class _QuestionEditorState extends State<QuestionEditor> {
                             ),
                           ),
                         )
-                      : TextFormField(
+                      : RichTextField(
                           key: ValueKey('opt_${opt.id}'),
-                          initialValue: RichTextView.stripHtml(opt.label),
-                          onChanged: (value) {
-                            opt.label = value;
-                            widget.onChanged();
-                          },
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                          initialHtml: opt.label,
+                          variant: RichTextVariant.option,
+                          hintText: 'Opsi ${i + 1}',
                           minLines: 1,
                           maxLines: 2,
-                          decoration: InputDecoration(
-                            hintText: 'Opsi ${i + 1}',
-                            hintStyle: TextStyle(
-                              fontSize: 14,
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : Colors.black38,
-                            ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                            ),
-                          ),
+                          onChanged: (html) {
+                            opt.label = html;
+                            widget.onChanged();
+                          },
                         ),
                 ),
                 if (q.options.length > 1)

@@ -31,8 +31,8 @@ class NgrokImage extends StatelessWidget {
   /// Kembalikan [ImageProvider] (NetworkImage dengan header ngrok) untuk dipakai
   /// di [DecorationImage] / BoxDecoration.image atau [Image] provider.
   static ImageProvider provider(String imageUrl, {double scale = 1.0}) {
-    final isNgrok =
-        Uri.tryParse(imageUrl)?.host.endsWith('ngrok-free.dev') ?? false;
+    final host = Uri.tryParse(imageUrl)?.host.toLowerCase() ?? '';
+    final isNgrok = host.contains('ngrok');
     return NetworkImage(
       imageUrl,
       scale: scale,
@@ -42,8 +42,8 @@ class NgrokImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNgrok =
-        Uri.tryParse(imageUrl)?.host.endsWith('ngrok-free.dev') ?? false;
+    final host = Uri.tryParse(imageUrl)?.host.toLowerCase() ?? '';
+    final isNgrok = host.contains('ngrok');
     final headers = isNgrok ? const {_skipWarningHeader: 'true'} : null;
 
     return Image.network(

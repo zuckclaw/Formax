@@ -3,19 +3,27 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../services/api_service.dart';
 import '../utils/quill_html.dart';
+import 'ngrok_image.dart';
+
+/// Toolbar variants matching web:
+/// - [full]: For form description / header cards (all options)
+/// - [compact]: For question labels
+/// - [option]: For answer choice options (inline, slimmer)
+enum RichTextVariant {
+  full,
+  compact,
+  option,
+}
 
 /// A polished rich text editor backed by an HTML string, using flutter_quill.
 ///
 /// The [initialHtml] is parsed into a Quill document and [onChanged] emits the
 /// current content as HTML (so it round-trips with the web builder, which
 /// stores HTML).
-///
-/// Set [compact] to `true` for a slimmer toolbar that only exposes inline
-/// formatting (bold, italic, underline, strikethrough, link). This is useful
-/// for short fields such as option labels.
 class RichTextField extends StatefulWidget {
   final String initialHtml;
   final ValueChanged<String> onChanged;
@@ -23,8 +31,11 @@ class RichTextField extends StatefulWidget {
   final int? minLines;
   final int? maxLines;
 
-  /// When `true`, shows a compact toolbar with only inline-formatting buttons.
-  final bool compact;
+  /// The toolbar variant: full, compact, or option.
+  final RichTextVariant variant;
+
+  /// Backwards-compatible flag: if true, uses [RichTextVariant.compact].
+  final bool? compact;
 
   const RichTextField({
     super.key,
@@ -33,7 +44,8 @@ class RichTextField extends StatefulWidget {
     this.hintText,
     this.minLines = 2,
     this.maxLines,
-    this.compact = false,
+    this.variant = RichTextVariant.full,
+    this.compact,
   });
 
   @override
@@ -44,7 +56,13 @@ class _RichTextFieldState extends State<RichTextField> {
   late QuillController _controller;
   late final FocusNode _focusNode;
   late final ScrollController _scrollController;
-  bool _isUploadingImage = false;
+  bool _isUploading = false;
+  String _uploadProgressText = '';
+
+  RichTextVariant get _effectiveVariant {
+    if (widget.compact == true) return RichTextVariant.compact;
+    return widget.variant;
+  }
 
   @override
   void initState() {
@@ -55,11 +73,10 @@ class _RichTextFieldState extends State<RichTextField> {
       document: QuillHtml.documentFromHtml(widget.initialHtml),
       selection: const TextSelection.collapsed(offset: 0),
     );
-    // Trigger rebuild hanya untuk update border color saat focus berubah
     _focusNode.addListener(() {
       if (mounted) setState(() {});
     });
-    // Hanya satu listener untuk emit HTML agar tidak double emit
+
     void emitHtml() {
       final html = QuillHtml.documentToHtml(_controller.document);
       widget.onChanged(html);
@@ -72,7 +89,6 @@ class _RichTextFieldState extends State<RichTextField> {
   void didUpdateWidget(covariant RichTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialHtml != widget.initialHtml) {
-      // FIX Bug 8: bandingkan HTML penuh, bukan plain text — agar perubahan formatting terdeteksi
       final newHtml = (widget.initialHtml).trim();
       final oldHtml = QuillHtml.documentToHtml(_controller.document).trim();
       if (newHtml != oldHtml) {
@@ -103,76 +119,154 @@ class _RichTextFieldState extends State<RichTextField> {
     super.dispose();
   }
 
-  QuillSimpleToolbarConfig _buildToolbarConfig() {
-    if (widget.compact) {
-      return const QuillSimpleToolbarConfig(
-        showDividers: false,
-        showFontFamily: false,
-        showFontSize: false,
-        showBoldButton: true,
-        showItalicButton: true,
-        showUnderLineButton: true,
-        showStrikeThrough: false,
-        showColorButton: false,
-        showBackgroundColorButton: false,
-        showClearFormat: false,
-        showAlignmentButtons: false,
-        showLeftAlignment: false,
-        showCenterAlignment: false,
-        showRightAlignment: false,
-        showJustifyAlignment: false,
-        showHeaderStyle: false,
-        showListNumbers: false,
-        showListBullets: false,
-        showListCheck: false,
-        showQuote: false,
-        showLink: true,
-        showUndo: false,
-        showRedo: false,
-        showSearchButton: false,
-        showSubscript: false,
-        showSuperscript: false,
-        showCodeBlock: false,
-        showInlineCode: false,
-        showIndent: false,
-        showDirection: false,
-      );
-    }
+  // ── Fonts & Sizes Parity with Web ──────────────────────────────────────────
+  static const Map<String, String> _fontFamilyItems = {
+    'Inter': 'inter',
+    'Roboto': 'roboto',
+    'Poppins': 'poppins',
+    'Montserrat': 'montserrat',
+    'Open Sans': 'open-sans',
+    'Lato': 'lato',
+    'Nunito': 'nunito',
+    'Raleway': 'raleway',
+    'Arial': 'arial',
+    'Georgia': 'georgia',
+    'Times New Roman': 'times-new-roman',
+    'Courier New': 'courier-new',
+  };
 
-    return const QuillSimpleToolbarConfig(
-      showDividers: true,
-      showFontFamily: false,
-      showFontSize: true,
-      showBoldButton: true,
-      showItalicButton: true,
-      showUnderLineButton: true,
-      showStrikeThrough: true,
-      showColorButton: true,
-      showBackgroundColorButton: false,
-      showClearFormat: true,
-      showAlignmentButtons: false,
-      showLeftAlignment: true,
-      showCenterAlignment: true,
-      showRightAlignment: true,
-      showJustifyAlignment: false,
-      showHeaderStyle: true,
-      showListNumbers: true,
-      showListBullets: true,
-      showListCheck: false,
-      showQuote: false,
-      showLink: true,
-      showUndo: true,
-      showRedo: true,
-      showSearchButton: false,
-      showSubscript: false,
-      showSuperscript: false,
-      showCodeBlock: false,
-      showInlineCode: false,
-      showIndent: false,
-      showDirection: false,
-    );
+  static const Map<String, String> _fontSizeItems = {
+    '10': '10',
+    '12': '12',
+    '14': '14',
+    '16': '16',
+    '18': '18',
+    '20': '20',
+    '24': '24',
+    '28': '28',
+    '32': '32',
+    '36': '36',
+    '48': '48',
+  };
+
+  QuillSimpleToolbarConfig _buildToolbarConfig() {
+    switch (_effectiveVariant) {
+      case RichTextVariant.option:
+        return const QuillSimpleToolbarConfig(
+          showDividers: false,
+          showFontFamily: false,
+          showFontSize: true,
+          showBoldButton: true,
+          showItalicButton: true,
+          showUnderLineButton: true,
+          showStrikeThrough: true,
+          showColorButton: true,
+          showBackgroundColorButton: false,
+          showClearFormat: true,
+          showAlignmentButtons: false,
+          showLeftAlignment: false,
+          showCenterAlignment: false,
+          showRightAlignment: false,
+          showJustifyAlignment: false,
+          showHeaderStyle: false,
+          showListNumbers: false,
+          showListBullets: false,
+          showListCheck: false,
+          showQuote: false,
+          showLink: false,
+          showUndo: false,
+          showRedo: false,
+          showSearchButton: false,
+          showSubscript: false,
+          showSuperscript: false,
+          showCodeBlock: false,
+          showInlineCode: false,
+          showIndent: false,
+          showDirection: false,
+          buttonOptions: QuillSimpleToolbarButtonOptions(
+            fontSize: QuillToolbarFontSizeButtonOptions(items: _fontSizeItems),
+          ),
+        );
+
+      case RichTextVariant.compact:
+        return const QuillSimpleToolbarConfig(
+          showDividers: true,
+          showFontFamily: true,
+          showFontSize: true,
+          showBoldButton: true,
+          showItalicButton: true,
+          showUnderLineButton: true,
+          showStrikeThrough: true,
+          showColorButton: true,
+          showBackgroundColorButton: true,
+          showClearFormat: true,
+          showAlignmentButtons: false,
+          showLeftAlignment: true,
+          showCenterAlignment: true,
+          showRightAlignment: true,
+          showJustifyAlignment: true,
+          showHeaderStyle: false,
+          showListNumbers: true,
+          showListBullets: true,
+          showListCheck: false,
+          showQuote: true,
+          showLink: true,
+          showUndo: true,
+          showRedo: true,
+          showSearchButton: false,
+          showSubscript: false,
+          showSuperscript: false,
+          showCodeBlock: true,
+          showInlineCode: false,
+          showIndent: false,
+          showDirection: false,
+          buttonOptions: QuillSimpleToolbarButtonOptions(
+            fontFamily: QuillToolbarFontFamilyButtonOptions(items: _fontFamilyItems),
+            fontSize: QuillToolbarFontSizeButtonOptions(items: _fontSizeItems),
+          ),
+        );
+
+      case RichTextVariant.full:
+        return const QuillSimpleToolbarConfig(
+          showDividers: true,
+          showFontFamily: true,
+          showFontSize: true,
+          showBoldButton: true,
+          showItalicButton: true,
+          showUnderLineButton: true,
+          showStrikeThrough: true,
+          showColorButton: true,
+          showBackgroundColorButton: true,
+          showClearFormat: true,
+          showAlignmentButtons: false,
+          showLeftAlignment: true,
+          showCenterAlignment: true,
+          showRightAlignment: true,
+          showJustifyAlignment: true,
+          showHeaderStyle: true,
+          showListNumbers: true,
+          showListBullets: true,
+          showListCheck: false,
+          showQuote: true,
+          showLink: true,
+          showUndo: true,
+          showRedo: true,
+          showSearchButton: false,
+          showSubscript: false,
+          showSuperscript: false,
+          showCodeBlock: true,
+          showInlineCode: false,
+          showIndent: false,
+          showDirection: false,
+          buttonOptions: QuillSimpleToolbarButtonOptions(
+            fontFamily: QuillToolbarFontFamilyButtonOptions(items: _fontFamilyItems),
+            fontSize: QuillToolbarFontSizeButtonOptions(items: _fontSizeItems),
+          ),
+        );
+    }
   }
 
+  // ── Embed Inserters ────────────────────────────────────────────────────────
   void _insertImageSource(String imageUrl) {
     if (!mounted) return;
     int index = _controller.selection.baseOffset;
@@ -189,6 +283,54 @@ class _RichTextFieldState extends State<RichTextField> {
     );
   }
 
+  void _insertVideoEmbed(String videoUrl) {
+    if (!mounted) return;
+    int index = _controller.selection.baseOffset;
+    if (index < 0) {
+      index = _controller.document.length - 1;
+      if (index < 0) index = 0;
+    }
+
+    _controller.replaceText(index, 0, BlockEmbed.custom(CustomBlockEmbed('video', videoUrl)), null);
+    _controller.replaceText(index + 1, 0, '\n', null);
+    _controller.updateSelection(
+      TextSelection.collapsed(offset: index + 2),
+      ChangeSource.local,
+    );
+  }
+
+  void _insertAudioEmbed(String audioUrl) {
+    if (!mounted) return;
+    int index = _controller.selection.baseOffset;
+    if (index < 0) {
+      index = _controller.document.length - 1;
+      if (index < 0) index = 0;
+    }
+
+    _controller.replaceText(index, 0, BlockEmbed.custom(CustomBlockEmbed('audio', audioUrl)), null);
+    _controller.replaceText(index + 1, 0, '\n', null);
+    _controller.updateSelection(
+      TextSelection.collapsed(offset: index + 2),
+      ChangeSource.local,
+    );
+  }
+
+  void _insertFormula(String formula) {
+    if (!mounted) return;
+    int index = _controller.selection.baseOffset;
+    if (index < 0) {
+      index = _controller.document.length - 1;
+      if (index < 0) index = 0;
+    }
+
+    _controller.replaceText(index, 0, BlockEmbed.custom(CustomBlockEmbed('formula', formula)), null);
+    _controller.updateSelection(
+      TextSelection.collapsed(offset: index + 1),
+      ChangeSource.local,
+    );
+  }
+
+  // ── Image Picker & Uploader ────────────────────────────────────────────────
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
@@ -199,7 +341,10 @@ class _RichTextFieldState extends State<RichTextField> {
 
     if (pickedFile == null || !mounted) return;
 
-    setState(() => _isUploadingImage = true);
+    setState(() {
+      _isUploading = true;
+      _uploadProgressText = 'Mengunggah gambar...';
+    });
 
     try {
       final uploadResult = await ApiService.uploadFile(pickedFile);
@@ -221,9 +366,7 @@ class _RichTextFieldState extends State<RichTextField> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Gambar disisipkan secara lokal (tanpa koneksi server).',
-              ),
+              content: Text('Gambar disisipkan secara lokal.'),
               duration: Duration(seconds: 3),
             ),
           );
@@ -240,7 +383,7 @@ class _RichTextFieldState extends State<RichTextField> {
         } catch (_) {}
       }
     } finally {
-      if (mounted) setState(() => _isUploadingImage = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -344,6 +487,265 @@ class _RichTextFieldState extends State<RichTextField> {
     );
   }
 
+  // ── Video Link Dialog (YouTube / Vimeo / Drive / MP4) ──────────────────────
+  void _showVideoDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.smart_display_outlined, color: Color(0xFF2563EB)),
+            SizedBox(width: 8),
+            Text('Sisipkan Video'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Mendukung link YouTube, Vimeo, Google Drive, atau link langsung MP4:',
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'https://www.youtube.com/watch?v=...',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.link),
+              ),
+              keyboardType: TextInputType.url,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final url = controller.text.trim();
+              if (url.isNotEmpty) {
+                _insertVideoEmbed(url);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Sisipkan Video'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Audio Upload & Link Dialog ─────────────────────────────────────────────
+  Future<void> _pickAudioFile() async {
+    try {
+      final file = await FilePicker.pickFile();
+      if (file == null || !mounted) return;
+      final path = file.path;
+      if (path == null) return;
+
+      setState(() {
+        _isUploading = true;
+        _uploadProgressText = 'Mengunggah audio...';
+      });
+
+      final uploadResult = await ApiService.uploadFile(XFile(path));
+      if (!mounted) return;
+
+      if (uploadResult['success'] == true && uploadResult['file_url'] != null) {
+        _insertAudioEmbed(uploadResult['file_url'] as String);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Gagal upload audio: ${uploadResult['message'] ?? 'Error'}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[RichTextField] Gagal pick audio: $e');
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _showAudioDialog() {
+    final controller = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.audio_file_outlined, color: Color(0xFF4F46E5)),
+                title: const Text('Unggah Berkas Audio'),
+                subtitle: const Text('Pilih file MP3, WAV, M4A dari perangkat'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAudioFile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_outlined, color: Color(0xFF4F46E5)),
+                title: const Text('Link Audio (URL)'),
+                subtitle: const Text('Masukkan link audio eksternal langsung'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showDialog(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      title: const Text('Sisipkan Link Audio'),
+                      content: TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(
+                          hintText: 'https://example.com/audio.mp3',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.url,
+                        autofocus: true,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dCtx),
+                          child: const Text('Batal'),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            final url = controller.text.trim();
+                            if (url.isNotEmpty) _insertAudioEmbed(url);
+                            Navigator.pop(dCtx);
+                          },
+                          child: const Text('Sisipkan'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Math / Formula Dialog (Symbols & LaTeX) ────────────────────────────────
+  void _showMathFormulaDialog() {
+    final controller = TextEditingController();
+    const symbols = [
+      '²', '³', '√', 'π', '∑', '∫', '±', '×', '÷',
+      '∞', '≤', '≥', '≠', 'α', 'β', 'θ', 'λ', 'μ',
+      'x/y', 'x_n', 'x^n',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Text('𝑓𝑥', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
+                SizedBox(width: 8),
+                Text('Sisipkan Rumus Matematika'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Simbol cepat:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: symbols.map((sym) {
+                      return InkWell(
+                        onTap: () {
+                          final cur = controller.text;
+                          controller.text = '$cur$sym';
+                          controller.selection = TextSelection.collapsed(offset: controller.text.length);
+                          setDlgState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(sym, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Teks Rumus / Notasi:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Mis. E = mc² atau \\sqrt{x}',
+                      border: OutlineInputBorder(),
+                    ),
+                    autofocus: true,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final formula = controller.text.trim();
+                  if (formula.isNotEmpty) {
+                    _insertFormula(formula);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Sisipkan Rumus'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -367,6 +769,7 @@ class _RichTextFieldState extends State<RichTextField> {
     final isEmpty = _controller.document.toPlainText().trim().isEmpty;
     final minH = (widget.minLines ?? 1) * 22.0 + 16;
     final maxH = (widget.maxLines ?? 6) * 22.0 + 16;
+    final showMedia = _effectiveVariant != RichTextVariant.option;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -424,31 +827,69 @@ class _RichTextFieldState extends State<RichTextField> {
                               color: dividerColor,
                               margin: const EdgeInsets.symmetric(horizontal: 4),
                             ),
-                            if (_isUploadingImage)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                            if (_isUploading)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _uploadProgressText,
+                                      style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                    ),
+                                  ],
                                 ),
                               )
-                            else
+                            else ...[
+                              // 1. Image button
                               IconButton(
-                                icon: const Icon(
-                                  Icons.image_outlined,
-                                  size: 20,
-                                ),
-                                tooltip: 'Tambah Gambar',
+                                icon: const Icon(Icons.image_outlined, size: 20),
+                                tooltip: 'Sisipkan Gambar',
                                 onPressed: _onPickImagePressed,
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
-                                ),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               ),
+                              // 2. Video button (full & compact)
+                              if (showMedia)
+                                IconButton(
+                                  icon: const Icon(Icons.smart_display_outlined, size: 20),
+                                  tooltip: 'Sisipkan Video',
+                                  onPressed: _showVideoDialog,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                ),
+                              // 3. Audio button (full & compact)
+                              if (showMedia)
+                                IconButton(
+                                  icon: const Icon(Icons.audiotrack_outlined, size: 20),
+                                  tooltip: 'Sisipkan Audio',
+                                  onPressed: _showAudioDialog,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                ),
+                              // 4. Formula / Math button (all variants)
+                              IconButton(
+                                icon: const Text(
+                                  '𝑓𝑥',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                    letterSpacing: -0.5,
+                                    color: Color(0xFF4F46E5),
+                                  ),
+                                ),
+                                tooltip: 'Sisipkan Rumus Matematika',
+                                onPressed: _showMathFormulaDialog,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -497,6 +938,7 @@ class _RichTextFieldState extends State<RichTextField> {
                           autoFocus: false,
                           embedBuilders: [
                             _QuillEditorImageEmbedBuilder(_controller),
+                            _QuillEditorCustomEmbedBuilder(_controller),
                           ],
                           customStyles: DefaultStyles(
                             sizeSmall: const TextStyle(fontSize: 12),
@@ -528,6 +970,7 @@ class _RichTextFieldState extends State<RichTextField> {
   }
 }
 
+// ── Embed Builder for Images ──────────────────────────────────────────────────
 class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
   final QuillController controller;
 
@@ -538,29 +981,16 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
 
   @override
   Widget build(BuildContext context, EmbedContext embedContext) {
-    final String imageSource = embedContext.node.value.data as String;
+    final rawSource = embedContext.node.value.data as String;
+    final imageSource = QuillHtml.resolveImageUrl(rawSource);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget imageWidget;
     if (imageSource.startsWith('http://') ||
         imageSource.startsWith('https://')) {
-      imageWidget = Image.network(
+      imageWidget = NgrokImage(
         imageSource,
         fit: BoxFit.contain,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            height: 160,
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        },
         errorBuilder: (context, error, stackTrace) {
           return Container(
             padding: const EdgeInsets.all(12),
@@ -598,7 +1028,7 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
     } else if (File(imageSource).existsSync()) {
       imageWidget = Image.file(File(imageSource), fit: BoxFit.contain);
     } else {
-      imageWidget = Image.network(
+      imageWidget = NgrokImage(
         imageSource,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) =>
@@ -713,13 +1143,15 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
           alignment: Alignment.topRight,
           children: [
             InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: imageSource.startsWith('data:image')
                     ? Image.memory(base64Decode(imageSource.split(',').last))
                     : File(imageSource).existsSync()
                     ? Image.file(File(imageSource))
-                    : Image.network(imageSource),
+                    : NgrokImage(imageSource),
               ),
             ),
             IconButton(
@@ -730,5 +1162,127 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
         ),
       ),
     );
+  }
+}
+
+// ── Custom Embed Builder for Video, Audio, & Formula ─────────────────────────
+class _QuillEditorCustomEmbedBuilder extends EmbedBuilder {
+  final QuillController controller;
+
+  _QuillEditorCustomEmbedBuilder(this.controller);
+
+  @override
+  String get key => 'custom';
+
+  @override
+  Widget build(BuildContext context, EmbedContext embedContext) {
+    final customEmbed = embedContext.node.value as CustomBlockEmbed;
+    final type = customEmbed.type;
+    final data = customEmbed.data.toString();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    void deleteMe() {
+      try {
+        final offset = embedContext.node.offset;
+        controller.document.delete(offset, 1);
+      } catch (_) {}
+    }
+
+    if (type == 'video') {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF3B82F6)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.play_circle_fill, color: Color(0xFF2563EB), size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Video: $data',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+              onPressed: deleteMe,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (type == 'audio') {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.audiotrack, color: Color(0xFF4F46E5), size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Audio: ${data.split('/').last}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+              onPressed: deleteMe,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (type == 'formula') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              data,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+              ),
+            ),
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: deleteMe,
+              child: const Icon(Icons.close, size: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Text('[$type: $data]');
   }
 }
