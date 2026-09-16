@@ -198,6 +198,17 @@ def sanitize_html(value, max_len=100000):
     if value is None:
         return None
     s = str(value)
+
+    # Bersihkan sisa artefak bug math/video yang berisi 'undefined'
+    if "undefined" in s:
+        s = _re.sub(r'<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*data-latex="undefined"[^>]*>.*?</div>', '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*>\s*undefined\s*</div>', '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'<span[^>]*class="[^"]*ql-formula[^"]*"[^>]*data-value="undefined"[^>]*>.*?</span>', '', s, flags=_re.IGNORECASE)
+
+    # Bersihkan inner element sementara dari video-embed agar disimpan bersih
+    if "video-embed" in s:
+        s = _re.sub(r'\s*data-rendered="[^"]*"', '', s, flags=_re.IGNORECASE)
+
     if "<" not in s:
         return s if len(s) <= max_len else s[:max_len]
     parser = _Sanitizer()

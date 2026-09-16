@@ -53,21 +53,42 @@ Quill.register('modules/imageResize', ImageResize)
 // ── Custom Display Math Blot (block, centered) ───────────────────────────────
 const BlockEmbed2 = Quill.import('blots/block/embed')
 class DisplayMathBlot extends BlockEmbed2 {
-  static create({ latex, html }) {
+  static create(value) {
     const node = super.create()
+    let latex = ''
+    let html = ''
+    if (value && typeof value === 'object') {
+      latex = String(value.latex || '').trim()
+      html = value.html || ''
+    } else if (typeof value === 'string') {
+      latex = value.trim()
+    }
+    if (!latex || latex === 'undefined' || latex === 'null') {
+      node.style.display = 'none'
+      return node
+    }
+    if (!html) {
+      try {
+        html = katex.renderToString(latex, { throwOnError: false, displayMode: true, strict: false })
+      } catch {
+        html = escapeHtml(latex)
+      }
+    }
     node.setAttribute('data-latex', latex)
     node.classList.add('math-display-block')
-    // rendered html already safe (katex output)
+    node.setAttribute('contenteditable', 'false')
     node.innerHTML = html
     return node
   }
   static value(node) {
-    return node.getAttribute('data-latex') || ''
+    const l = node.getAttribute('data-latex') || ''
+    return (l === 'undefined' || l === 'null') ? '' : l
   }
 }
 DisplayMathBlot.blotName = 'displayMath'
 DisplayMathBlot.tagName = 'div'
-Quill.register(DisplayMathBlot)
+DisplayMathBlot.className = 'math-display-block'
+Quill.register(DisplayMathBlot, true)
 
 // ── Custom Image Blot ────────────────────────────────────────────────────────
 const ImageBlot = Quill.import('formats/image')
@@ -106,25 +127,30 @@ class VideoEmbedBlot extends BlockEmbed {
   static create(rawUrl) {
     const node = super.create()
     const url = String(rawUrl || '').trim()
+    if (!url || url === 'undefined' || url === 'null') {
+      node.style.display = 'none'
+      return node
+    }
     const parsed = parseVideoUrl(url)
     const embed = parsed ? parsed.embedUrl : url
-    const type = parsed ? parsed.type : 'unknown'
+    const type = parsed ? parsed.type : 'youtube'
     node.classList.add('video-embed')
     node.setAttribute('data-video', url)
     node.setAttribute('data-embed', embed)
     node.setAttribute('data-type', type)
     node.setAttribute('contenteditable', 'false')
-    // placeholder text inside for quill delta
-    node.innerHTML = `<span style="display:inline-block;padding:6px 10px;background:#eff6ff;border:1px dashed #93c5fd;border-radius:8px;color:#2563eb;font-size:12px;">&#9654; Video: ${escapeHtml(url.slice(0,60))}</span>`
+    node.innerHTML = `<span class="video-embed-chip">&#9654; Video: ${escapeHtml(url.slice(0, 60))}</span>`
     return node
   }
   static value(node) {
-    return node.getAttribute('data-video') || ''
+    const v = node.getAttribute('data-video') || ''
+    return (v === 'undefined' || v === 'null') ? '' : v
   }
 }
 VideoEmbedBlot.blotName = 'videoEmbed'
 VideoEmbedBlot.tagName = 'div'
-Quill.register(VideoEmbedBlot)
+VideoEmbedBlot.className = 'video-embed'
+Quill.register(VideoEmbedBlot, true)
 function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
@@ -425,52 +451,35 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
     })
   }, [])
 
-  // Auto-enhance video embeds inside editor (render div.video-embed → iframe/video)
-  // Juga handle paste bare URL → auto convert ke videoEmbed blot
+  // Paste handler: intercept text paste yang berisi link video → convert to videoEmbed blot
   useEffect(() => {
     const editor = quillRef.current?.getEditor()
     if (!editor) return
     const root = editor.root
-    // Enhance stored video placeholders
-    try { enhanceVideoContainers(root) } catch {}
-    // Paste handler: intercept text paste yang berisi link video → convert to embed
     const handlePaste = () => {
-      // delay to let quill insert text first
       setTimeout(() => {
         try {
-          // scan root text nodes for bare video URLs that slipped through as plain text/link
-          enhanceVideoContainers(root)
-          // Also convert bare text URLs that exist as text nodes inside root (e.g., "https://youtu.be/...")
-          // Find text containing video domain and convert via quill API? Simplistic: if plain text url detected without <a>, replace via DOM then sync to onChange via quill update
-          const html = root.innerHTML
-          if (/(youtube\.com|youtu\.be|vimeo\.com|drive\.google\.com)/i.test(html) && html.includes('http')) {
-            // enhance already converts anchors; for plain text we rely on DOM text scanning in enhanceVideoContainers fallback
-            // If still plain text remains, try to convert by checking root innerText
-            const text = root.innerText || ''
-            const urlRe = /https?:\/\/[^\s]+/gi
-            let m
-            while ((m = urlRe.exec(text)) !== null) {
-              const parsed = parseVideoUrl(m[0])
-              if (parsed) {
-                // trigger enhance again for any newly created anchors (quill may have auto-linked)
-                enhanceVideoContainers(root)
-                // Notify parent of HTML change (so saved value includes embed)
-                const newHtml = root.innerHTML
-                if (newHtml !== html && onChange) onChange(newHtml)
-                break
+          const text = root.innerText || ''
+          const urlRe = /https?:\/\/[^\s]+/gi
+          let m
+          while ((m = urlRe.exec(text)) !== null) {
+            const parsed = parseVideoUrl(m[0])
+            if (parsed) {
+              const html = root.innerHTML
+              // Jika bare URL ada di dalam teks tapi belum ada embed-nya
+              if (!html.includes(`data-video="${parsed.original}"`)) {
+                const range = quillRef.current?.getEditor()?.getSelection(true) || { index: 0, length: 0 }
+                quillRef.current?.getEditor()?.insertEmbed(range.index, 'videoEmbed', parsed.original, 'user')
               }
+              break
             }
           }
         } catch {}
-      }, 30)
+      }, 40)
     }
     root.addEventListener('paste', handlePaste)
-    // Also observe mutations to auto-enhance when value prop changes externally
-    const mo = new MutationObserver(() => { try { enhanceVideoContainers(root) } catch {} })
-    mo.observe(root, { childList: true, subtree: true })
     return () => {
       root.removeEventListener('paste', handlePaste)
-      mo.disconnect()
     }
   }, [value, onChange])
 
@@ -516,10 +525,17 @@ const RichTextEditor = ({ value, onChange, placeholder, className, variant = 'fu
     }
   }, [value])
 
-  // Callback onChange dengan pembersihan blob URL ngrok preview
+  // Callback onChange dengan pembersihan blob URL ngrok preview & artefak undefined
   const handleEditorChange = (content, delta, source, editor) => {
     let clean = content
     if (clean && typeof clean === 'string') {
+      // Bersihkan artefak math-display-block undefined jika ada
+      if (clean.includes('undefined')) {
+        clean = clean
+          .replace(/<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*data-latex="undefined"[^>]*>.*?<\/div>/gi, '')
+          .replace(/<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*>\s*undefined\s*<\/div>/gi, '')
+          .replace(/<span[^>]*class="[^"]*ql-formula[^"]*"[^>]*data-value="undefined"[^>]*>.*?<\/span>/gi, '')
+      }
       // Jika terdapat data-original-src atau blob:, pulihkan src asli
       if (clean.includes('data-original-src') || clean.includes('blob:')) {
         const root = editor?.root || quillRef.current?.getEditor()?.root

@@ -35,11 +35,29 @@
 }
 /* Quill editor placeholder styling */
 .ql-editor .video-embed {
-  border: 1px dashed #93c5fd;
-  background: #f8fafc;
-  border-radius: 8px;
-  padding: 6px;
+  margin: 10px 0;
+  display: block;
   user-select: none;
+}
+.video-embed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #eff6ff;
+  border: 1.5px dashed #93c5fd;
+  border-radius: 8px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+[data-theme="dark"] .video-embed-chip,
+.dark .video-embed-chip,
+[data-theme="dark"] .ql-editor .video-embed-chip {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: #3b82f6;
+  color: #93c5fd;
 }
 .ql-editor .video-embed--ready {
   border: none;
