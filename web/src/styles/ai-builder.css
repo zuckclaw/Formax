@@ -1573,3 +1573,35 @@
 .claude-key-foot { margin: 12px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--c-text-light, #94a3b8); }
 .claude-key-foot a { color: var(--c-brand, #0962C5); font-weight: 600; text-decoration: none; }
 .claude-key-foot a:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   CHIP TEMPLATE AKTIF — penanda terlihat + tombol lepas cepat
+   ========================================================================== */
+.claude-active-preset-row { display: flex; justify-content: center; margin: 2px 0 10px; }
+.claude-active-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: var(--c-brand-glow, rgba(9, 98, 197, 0.12));
+  border: 1px solid var(--c-border-focus, #0962C5);
+  color: var(--c-brand, #0962C5);
+  font-size: 12.5px;
+  font-weight: 600;
+  animation: claudeKeyPop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.claude-active-preset-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.claude-active-preset-x:hover { opacity: 1; background: rgba(127, 127, 127, 0.18); }

@@ -133,6 +133,13 @@ export default function AiFormBuilderPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [prompt, setPrompt] = useState('');
+  // Jejak template aktif: snapshot { label, prompt, title, description }.
+  // Selama prompt tidak diubah manual, judul/deskripsi template ikut dikirim.
+  // Begitu prompt menyimpang -> auto-detach total, generate 100% dari teks baru.
+  const [activePreset, setActivePreset] = useState(null);
+  // Flag judul kustom: true bila user mengetik manual di "+ Judul Kustom".
+  // Judul kustom selalu dihormati (diutamakan dari template).
+  const [customTitle, setCustomTitle] = useState(false);
   const [numQuestions, setNumQuestions] = useState(5);
   const [includeCorrect, setIncludeCorrect] = useState(true);
   const [useSections, setUseSections] = useState(true);
@@ -275,6 +282,8 @@ export default function AiFormBuilderPage() {
     setNumQuestions(preset.questions);
     setIncludeCorrect(preset.includeCorrect);
     setUseSections(preset.useSections);
+    setCustomTitle(false);
+    setActivePreset({ label: preset.label, prompt: preset.prompt, title: preset.title, description: preset.description });
     setError('');
     setErrorHint(null);
     setErrorAction(null);
@@ -282,6 +291,17 @@ export default function AiFormBuilderPage() {
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
+  };
+
+  // Lepas template: judul/deskripsi basi dibuang, teks prompt dibiarkan.
+  // Fungsi biasa (bukan useCallback): hanya dipanggil dari event handler.
+  const detachPreset = (wasAttached, silent = false) => {
+    if (wasAttached && !silent) {
+      showToast('Template dilepas — generate memakai teks Anda.', 'info');
+    }
+    setActivePreset(null);
+    setTitle('');
+    setDescription('');
   };
 
   const handleFileUpload = async (e) => {
@@ -372,10 +392,16 @@ export default function AiFormBuilderPage() {
     setErrorHint(null);
     setErrorAction(null);
     setIsGenerating(true);
+    // Judul/deskripsi hanya dikirim bila masih relevan: template utuh (prompt
+    // belum diubah) atau user mengetik manual di Judul Kustom. Prompt yang
+    // sudah diedit manual -> backend menurunkan judul dari teks baru.
+    const presetIntact = !!activePreset && prompt.trim() === activePreset.prompt;
+    const sendTitle = (customTitle || presetIntact) && title.trim() ? title.trim() : undefined;
+    const sendDescription = (customTitle || presetIntact) && description.trim() ? description.trim() : undefined;
     try {
       const data = await generateAiForm(token, {
-        title: title.trim() || undefined,
-        description: description.trim() || undefined,
+        title: sendTitle,
+        description: sendDescription,
         prompt: prompt.trim(),
         num_questions: Number(resolvedNumQuestions),
         include_correct: includeCorrect,
@@ -385,14 +411,25 @@ export default function AiFormBuilderPage() {
       setPreview(data);
       showToast('Form berhasil diracik oleh Formax AI!', 'success');
     } catch (err) {
-      setError(err.message || 'Gagal generate form');
-      showToast(err.message || 'Gagal generate form', 'error');
+      // Petakan error teknis menjadi pesan ramah + tombol aksi (tanpa auto-retry).
+      const mapped = mapAiError(err.message || 'Gagal generate form', { hasOwnKey: !!ownKey });
+      setError(mapped.text);
+      setErrorHint(mapped.hint);
+      setErrorAction(mapped.action ? { type: mapped.action, label: mapped.actionLabel } : null);
+      showToast(mapped.text, 'error');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleErrorAction = () => {};
+  const handleErrorAction = () => {
+    if (!errorAction) return;
+    if (errorAction.type === 'key') {
+      setShowKeyPanel(true);
+    } else if (errorAction.type === 'retry') {
+      if (!isGenerating && prompt.trim()) handleGenerate();
+    }
+  };
 
   const handleKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -507,6 +544,11 @@ export default function AiFormBuilderPage() {
                 setPreview(null);
                 setPrompt('');
                 setAttachedFile(null);
+                // Bersihkan sisa template agar sesi baru steril.
+                setActivePreset(null);
+                setTitle('');
+                setDescription('');
+                setCustomTitle(false);
               }}
             >
               <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -592,6 +634,30 @@ export default function AiFormBuilderPage() {
                 ))}
               </div>
 
+              {/* Chip template aktif — penanda terlihat + tombol lepas cepat */}
+              {activePreset && (
+                <div className="claude-active-preset-row">
+                  <span className="claude-active-preset-chip">
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+                    </svg>
+                    <span>Template: {activePreset.label}</span>
+                    <button
+                      type="button"
+                      className="claude-active-preset-x"
+                      onClick={() => detachPreset(true)}
+                      title="Lepas template (judul/deskripsi template dibuang)"
+                      aria-label="Lepas template"
+                    >
+                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                </div>
+              )}
+
               {/* THE CLAUDE OMNIBOX */}
               <div className={`claude-omnibox-card ${error ? 'has-error' : ''}`}>
               {/* Optional Form Title & Description Expander */}
@@ -602,7 +668,7 @@ export default function AiFormBuilderPage() {
                     className="claude-meta-input"
                     placeholder="Judul Form (opsional)..."
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => { setTitle(e.target.value); setCustomTitle(true); }}
                     maxLength={120}
                   />
                   <input
@@ -610,7 +676,7 @@ export default function AiFormBuilderPage() {
                     className="claude-meta-input meta-desc"
                     placeholder="Deskripsi / Petunjuk Singkat (opsional)..."
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => { setDescription(e.target.value); setCustomTitle(true); }}
                     maxLength={500}
                   />
                 </div>
@@ -626,6 +692,11 @@ export default function AiFormBuilderPage() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setPrompt(val);
+                  // Auto-detach total: prompt diubah manual -> judul/deskripsi
+                  // template langsung dibuang agar generate 100% dari teks baru.
+                  if (activePreset && val !== activePreset.prompt) {
+                    detachPreset(true);
+                  }
                   if (error) {
                     setError('');
                     setErrorHint(null);
