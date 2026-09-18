@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getMe, logout } from '../api/auth';
 import { getMyForms, deleteForm, getForm, getFormSubmissions, exportSubmissions } from '../api/forms';
@@ -41,6 +41,60 @@ function plainLabel(html, fallback = 'Pertanyaan tanpa judul') {
   return t || fallback;
 }
 
+function truncateText(str, maxLen = 55) {
+  if (!str) return '';
+  if (str.length <= maxLen) return str;
+  return str.substring(0, maxLen).trim() + '…';
+}
+
+// Helper: ambil nilai jawaban responden untuk suatu pertanyaan (question_id)
+function getRespondentAnswerValue(sub, questionId) {
+  if (!sub || !sub.answers || !Array.isArray(sub.answers) || !questionId) return '';
+  const qIdStr = String(questionId);
+  const ans = sub.answers.find((a) => String(a.question_id) === qIdStr);
+  if (!ans) return '';
+  if (ans.answer_options && Array.isArray(ans.answer_options) && ans.answer_options.length > 0) {
+    return ans.answer_options.map((opt) => stripHtml(opt)).filter(Boolean).join(', ');
+  }
+  if (ans.answer_text) {
+    return stripHtml(ans.answer_text).trim();
+  }
+  if (ans.file_url) {
+    return 'File terlampir';
+  }
+  return '';
+}
+
+function getRespondentDisplayName(sub) {
+  if (sub?.user?.full_name && sub.user.full_name !== 'Responden (User)') {
+    return sub.user.full_name;
+  }
+  if (sub?.answers && Array.isArray(sub.answers)) {
+    for (const ans of sub.answers) {
+      const qLabel = plainLabel(ans.question?.label || '').toLowerCase();
+      if (qLabel.includes('nama') || qLabel.includes('name')) {
+        const val = getRespondentAnswerValue(sub, ans.question_id);
+        if (val) return val;
+      }
+    }
+  }
+  return sub?.user?.full_name || 'Responden (User)';
+}
+
+function getRespondentDisplayEmail(sub) {
+  if (sub?.user?.email) return sub.user.email;
+  if (sub?.answers && Array.isArray(sub.answers)) {
+    for (const ans of sub.answers) {
+      const qLabel = plainLabel(ans.question?.label || '').toLowerCase();
+      if (qLabel.includes('email') || qLabel.includes('e-mail')) {
+        const val = getRespondentAnswerValue(sub, ans.question_id);
+        if (val) return val;
+      }
+    }
+  }
+  return '-';
+}
+
 function splitSections(questions) {
   const sorted = [...(questions || [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
   const sections = [];
@@ -77,14 +131,65 @@ function getCardGradient(str = '') {
   return gradients[Math.abs(hash) % gradients.length];
 }
 
-export default function DashboardPage() {
+const TAB_TO_PATH = {
+  dashboard: '/dashboard',
+  template: '/dashboard/templat',
+  history: '/dashboard/riwayat',
+  activity: '/dashboard/aktivitas',
+};
+
+// Skeleton tampil minimal 2 detik agar tidak kedip saat fetch cepat.
+// Kalau fetch lebih lama dari itu, skeleton ikut selama fetch (tidak dipotong).
+const MIN_SKELETON_MS = 2000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function withMinSkeleton(startTime, minMs = MIN_SKELETON_MS) {
+  const elapsed = Date.now() - startTime;
+  if (elapsed < minMs) await sleep(minMs - elapsed);
+}
+
+// Skeleton grid kartu (dasbor / riwayat / templat): tiru preview 135px + 2 baris teks
+function SkelCards({ count = 6, gridClass = 'history-card-grid', label = 'Memuat data...' }) {
+  return (
+    <div className={gridClass} role="status" aria-label={label} aria-busy="true">
+      <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>{label}</span>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="skel-card" aria-hidden="true">
+          <div className="skel-card-preview" />
+          <div className="skel-card-body">
+            <div className="skel skel-line title" />
+            <div className="skel skel-line short" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Skeleton baris tabel (hasil responden): 5 baris x 4 kolom
+function SkelTableRows({ rows = 5 }) {
+  return (
+    <div role="status" aria-label="Memuat daftar responden" aria-busy="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="skel-table-row" aria-hidden="true">
+          <div className="skel" />
+          <div className="skel" />
+          <div className="skel" />
+          <div className="skel" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function DashboardPage({ initialTab = 'dashboard' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeNav, setActiveNav] = useState('dashboard');
+  const [activeNav, setActiveNav] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [recentForms, setRecentForms] = useState([]);
   const [allForms, setAllForms] = useState([]);
   const [contextMenu, setContextMenu] = useState(null); // { type: 'form'|'template', id }
@@ -100,8 +205,19 @@ export default function DashboardPage() {
   const [exporting, setExporting] = useState(false);
 
   // Filters & Selected Respondent
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'completed' | 'process'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'completed' | 'process' | 'cheated'
   const [respondentSearch, setRespondentSearch] = useState('');
+  // Debounce search riwayat 200ms: input tetap responsif, filter berat jalan setelah user berhenti mengetik
+  const [debouncedRespondentSearch, setDebouncedRespondentSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedRespondentSearch(respondentSearch), 200);
+    return () => clearTimeout(t);
+  }, [respondentSearch]);
+  const [filterQuestionId, setFilterQuestionId] = useState('');
+  const [filterAnswerValue, setFilterAnswerValue] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'highest_score' | 'lowest_score' | 'name_asc' | 'name_desc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const [selectedRespondent, setSelectedRespondent] = useState(null);
   const [confirmDeleteForm, setConfirmDeleteForm] = useState(null); // objek form yang mau dihapus
   const [confirmDeleteSubmission, setConfirmDeleteSubmission] = useState(false);
@@ -136,17 +252,23 @@ export default function DashboardPage() {
   const fetchTemplates = async () => {
     const t = getValidToken();
     if (!t) return;
+    const startedAt = Date.now();
+    setTemplatesLoading(true);
     try {
       const tpls = await getTemplates(t);
       setTemplates(tpls);
     } catch {
       // diamkan, biar tidak blokir dashboard
+    } finally {
+      await withMinSkeleton(startedAt);
+      setTemplatesLoading(false);
     }
   };
 
   useEffect(() => {
     const t = getValidToken();
     if (!t) return;
+    const startedAt = Date.now();
     Promise.all([
       getMe(t),
       getMyForms(t).catch(() => []),
@@ -162,21 +284,49 @@ export default function DashboardPage() {
       .catch(() => {
         logout();
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        withMinSkeleton(startedAt).then(() => setLoading(false));
+      });
   }, [navigate]);
 
-  // FIX: auto-load template langsung tanpa F5 — handle pending + autoOpen + back reload
+  // Sinkron tab aktif dengan route (/dashboard, /dashboard/templat, dst.)
+  // + redirect otomatis untuk link lama navigate('/dashboard', { state: { activeNav } })
   useEffect(() => {
-    if (location.state?.activeNav) {
+    if (initialTab && initialTab !== activeNav) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveNav(location.state.activeNav);
-      window.history.replaceState({}, document.title);
-    } else if (location.state?.autoOpenTemplate || location.state?.reloadTemplates) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveNav('template');
-      window.history.replaceState({}, document.title);
+      setActiveNav(initialTab);
+      setHistorySubView('list');
+      setActivityResult(null);
+      setActivityDetailSub(null);
     }
-  }, [location.state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab]);
+
+  // FIX: auto-load template langsung tanpa F5 — handle pending + autoOpen + back reload
+  // Kompatibel link lama: redirect ke route nested yang rapi.
+  useEffect(() => {
+    const st = location.state;
+    if (st?.activeNav && st.activeNav !== initialTab) {
+      const target = TAB_TO_PATH[st.activeNav];
+      window.history.replaceState({}, document.title);
+      if (target) {
+        navigate(target, { replace: true });
+        return;
+      }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveNav(st.activeNav);
+      window.history.replaceState({}, document.title);
+    } else if (st?.autoOpenTemplate || st?.reloadTemplates) {
+      window.history.replaceState({}, document.title);
+      if (initialTab !== 'template') {
+        navigate(TAB_TO_PATH.template, { replace: true });
+      } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActiveNav('template');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, initialTab]);
 
   // FIX: load template hanya saat tab Template dibuka (tidak saat refresh dashboard)
   // Juga cek pending template dari FormBuilder agar langsung muncul di "Template Saya" tanpa F5.
@@ -219,7 +369,9 @@ export default function DashboardPage() {
     if (location.state?.newTemplate) {
       const nt = location.state.newTemplate;
       setTemplates((prev) => (prev.some((t) => t.id === nt.id) ? prev : [...prev, nt]));
-      if (location.state?.autoOpenTemplate) setActiveNav('template');
+      if (location.state?.autoOpenTemplate && initialTab !== 'template') {
+        navigate(TAB_TO_PATH.template, { replace: true });
+      }
     }
   }, []);
 
@@ -267,6 +419,7 @@ export default function DashboardPage() {
   // Fetch Aktivitas Saya ketika tab dibuka
   const fetchMyActivity = async () => {
     if (!token) return;
+    const startedAt = Date.now();
     setActivityLoading(true);
     try {
       const data = await getMySubmissions(token);
@@ -276,6 +429,7 @@ export default function DashboardPage() {
     } catch (err) {
       showToast(err.message || 'Gagal memuat Aktivitas Saya', true);
     } finally {
+      await withMinSkeleton(startedAt);
       setActivityLoading(false);
     }
   };
@@ -375,10 +529,14 @@ export default function DashboardPage() {
   const handleOpenResultsPage = async (form) => {
     setSelectedFormForResults(form);
     setHistorySubView('results');
+    const startedAt = Date.now();
     setResultsLoading(true);
     setSelectedRespondent(null);
     setRespondentSearch('');
     setStatusFilter('all');
+    setFilterAnswerValue('');
+    setSortBy('newest');
+    setCurrentPage(1);
 
     try {
       const [detail, subs] = await Promise.all([
@@ -386,6 +544,16 @@ export default function DashboardPage() {
         getFormSubmissions(token, form.id),
       ]);
       setFormDetail(detail);
+
+      // Auto-detect pertanyaan kelas/jurusan/rombel jika ada, agar guru langsung mudah filter
+      const classQ = (detail?.questions || []).find(
+        (q) => q.type !== 'page_break' && /kelas|class|rombel|jurusan/i.test(plainLabel(q.label))
+      );
+      if (classQ) {
+        setFilterQuestionId(String(classQ.id));
+      } else {
+        setFilterQuestionId('');
+      }
 
       // Calculate Quiz scoring and duration for each submission
       const processedSubs = subs.map((sub) => {
@@ -440,6 +608,7 @@ export default function DashboardPage() {
     } catch (err) {
       showToast(err.message || 'Gagal memuat hasil respons', true);
     } finally {
+      await withMinSkeleton(startedAt);
       setResultsLoading(false);
     }
   };
@@ -544,40 +713,175 @@ export default function DashboardPage() {
     )
     : templates;
 
-  // Filter respondents by search & status
-  const filteredRespondents = submissionsList.filter((sub) => {
-    const name = sub.user?.full_name || 'Responden (User)';
-    const email = sub.user?.email || '';
-    const matchesSearch =
-      name.toLowerCase().includes(respondentSearch.toLowerCase()) ||
-      email.toLowerCase().includes(respondentSearch.toLowerCase());
+  // Daftar pertanyaan riil formulir (di luar header page_break)
+  const realQuestions = useMemo(() => {
+    return (formDetail?.questions || [])
+      .filter((q) => q.type !== 'page_break')
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  }, [formDetail]);
 
-    if (!matchesSearch) return false;
-    if (statusFilter === 'completed') return sub.isCompleted && !sub.is_cheated;
-    if (statusFilter === 'process') return !sub.isCompleted && !sub.is_cheated;
-    if (statusFilter === 'cheated') return !!sub.is_cheated;
-    return true;
-  });
+  const selectedQuestion = useMemo(() => {
+    if (!filterQuestionId) return null;
+    return realQuestions.find((q) => String(q.id) === String(filterQuestionId)) || null;
+  }, [filterQuestionId, realQuestions]);
+
+  // Daftar opsi jawaban unik untuk pertanyaan yang dipilih (mis. nama-nama kelas)
+  const availableAnswerValues = useMemo(() => {
+    if (!filterQuestionId) return [];
+    const set = new Set();
+    submissionsList.forEach((sub) => {
+      const val = getRespondentAnswerValue(sub, filterQuestionId);
+      if (val) set.add(val);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [filterQuestionId, submissionsList]);
+
+  // Filter & sortir responden
+  const filteredRespondents = useMemo(() => {
+    const qSearch = debouncedRespondentSearch.trim().toLowerCase();
+
+    let result = submissionsList.filter((sub) => {
+      const name = getRespondentDisplayName(sub);
+      const email = getRespondentDisplayEmail(sub);
+
+      // Pencarian: nama, email, atau isi jawaban
+      if (qSearch) {
+        const matchNameEmail = name.toLowerCase().includes(qSearch) || email.toLowerCase().includes(qSearch);
+        let matchAnswer = false;
+        if (!matchNameEmail && sub.answers && Array.isArray(sub.answers)) {
+          matchAnswer = sub.answers.some((ans) => {
+            if (ans.answer_text && stripHtml(ans.answer_text).toLowerCase().includes(qSearch)) return true;
+            if (ans.answer_options && Array.isArray(ans.answer_options)) {
+              return ans.answer_options.some((opt) => stripHtml(opt).toLowerCase().includes(qSearch));
+            }
+            return false;
+          });
+        }
+        if (!matchNameEmail && !matchAnswer) return false;
+      }
+
+      // Filter status
+      if (statusFilter === 'completed' && (!sub.isCompleted || sub.is_cheated)) return false;
+      if (statusFilter === 'process' && (sub.isCompleted || sub.is_cheated)) return false;
+      if (statusFilter === 'cheated' && !sub.is_cheated) return false;
+
+      // Filter berdasarkan soal & jawaban spesifik (mis. Kelas tertentu)
+      if (filterQuestionId && filterAnswerValue) {
+        const ansVal = getRespondentAnswerValue(sub, filterQuestionId);
+        if (ansVal.toLowerCase() !== filterAnswerValue.toLowerCase()) return false;
+      }
+
+      return true;
+    });
+
+    // Pengurutan (sorting)
+    result = [...result].sort((a, b) => {
+      const nameA = getRespondentDisplayName(a).toLowerCase();
+      const nameB = getRespondentDisplayName(b).toLowerCase();
+      const timeA = parseServerTime(a.submitted_at || a.started_at).getTime();
+      const timeB = parseServerTime(b.submitted_at || b.started_at).getTime();
+      const scoreA = a.scorePercent ?? -1;
+      const scoreB = b.scorePercent ?? -1;
+
+      switch (sortBy) {
+        case 'oldest':
+          return timeA - timeB;
+        case 'highest_score':
+          return scoreB - scoreA;
+        case 'lowest_score':
+          return scoreA - scoreB;
+        case 'name_asc':
+          return nameA.localeCompare(nameB);
+        case 'name_desc':
+          return nameB.localeCompare(nameA);
+        case 'newest':
+        default:
+          return timeB - timeA;
+      }
+    });
+
+    return result;
+  }, [submissionsList, debouncedRespondentSearch, statusFilter, filterQuestionId, filterAnswerValue, sortBy]);
+
+  const hasActiveFilters = Boolean(
+    debouncedRespondentSearch.trim() ||
+    statusFilter !== 'all' ||
+    filterQuestionId ||
+    filterAnswerValue ||
+    sortBy !== 'newest'
+  );
+
+  const resetAllFilters = () => {
+    setRespondentSearch('');
+    setStatusFilter('all');
+    setFilterQuestionId('');
+    setFilterAnswerValue('');
+    setSortBy('newest');
+    setCurrentPage(1);
+  };
+
+  // Scroll UX riwayat: saat ganti halaman, kembalikan ke atas tabel (hormati reduced-motion)
+  const scrollRiwayatTableTop = () => {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      document.querySelector('.table-card-container')?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    });
+  };
+
+  // Paginasi client-side
+  const totalFilteredCount = filteredRespondents.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / itemsPerPage));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalFilteredCount);
+  const paginatedRespondents = filteredRespondents.slice(startIndex, endIndex);
 
   // Calculate Overall Stats for View 1
   const totalRespondents = submissionsList.length;
   const scoredSubs = submissionsList.filter((s) => s.scorePercent !== null);
-  const avgScore =
-    scoredSubs.length > 0
-      ? Math.round(scoredSubs.reduce((acc, curr) => acc + curr.scorePercent, 0) / scoredSubs.length)
-      : null;
-
-  const completedSubs = submissionsList.filter((s) => s.isCompleted);
-  const avgDuration =
-    completedSubs.length > 0
-      ? Math.round(completedSubs.reduce((acc, curr) => acc + curr.durationMinutes, 0) / completedSubs.length)
-      : 0;
 
   if (loading) {
     return (
-      <div className="db-loading">
-        <div className="db-spinner" />
-        <p>Memuat dashboard...</p>
+      <div className="db-root">
+        <aside className="db-sidebar">
+          <div className="db-logo">
+            <div className="db-logo-icon">
+              <img src={logoForm4x} alt="Form4x logo" className="db-logo-img" />
+            </div>
+            <div className="db-logo-text">
+              <span className="db-logo-name">Form4x</span>
+              <span className="db-logo-tagline">Tempat membuat Form Terlengkap</span>
+            </div>
+          </div>
+          <nav className="db-nav" aria-hidden="true">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="skel skel-line full" style={{ height: 40, borderRadius: 10 }} />
+            ))}
+          </nav>
+          <div className="db-sidebar-footer" aria-hidden="true">
+            <div className="db-user" style={{ pointerEvents: 'none' }}>
+              <div className="skel skel-avatar" />
+              <div className="skel-user-text">
+                <div className="skel skel-line" />
+                <div className="skel skel-line" />
+              </div>
+            </div>
+          </div>
+        </aside>
+        <main className="db-main">
+          <header className="db-topbar" aria-hidden="true">
+            <div className="db-topbar-left">
+              <div className="skel skel-line title" style={{ width: 140 }} />
+            </div>
+          </header>
+          <section className="db-content">
+            <div className="skel skel-line title" style={{ width: 180, marginBottom: 18 }} />
+            <SkelCards count={6} label="Memuat dashboard..." />
+          </section>
+        </main>
       </div>
     );
   }
@@ -649,11 +953,15 @@ export default function DashboardPage() {
               id={`nav-${item.key}`}
               className={`db-nav-item ${activeNav === item.key ? 'active' : ''}`}
               onClick={() => {
-                setActiveNav(item.key);
-                setHistorySubView('list');
-                setActivityResult(null);
-                setActivityDetailSub(null);
                 setDrawerOpen(false);
+                if (item.key === activeNav) {
+                  setHistorySubView('list');
+                  setActivityResult(null);
+                  setActivityDetailSub(null);
+                  return;
+                }
+                const target = TAB_TO_PATH[item.key] || '/dashboard';
+                navigate(target);
               }}
             >
               {item.icon}
@@ -851,7 +1159,7 @@ export default function DashboardPage() {
                     <div key={form.id} className="db-recent-card" onClick={() => handleFormClick(form)}>
                       <div className="db-recent-preview">
                         {form.banner_url ? (
-                          <NgrokImage src={form.banner_url} alt={form.title} className="db-recent-banner" />
+                          <NgrokImage src={form.banner_url} alt={stripHtml(form.title)} loading="lazy" decoding="async" className="db-recent-banner" />
                         ) : (
                           <div className="db-preview-doc">
                             <div className="db-preview-line db-line-wide" />
@@ -923,13 +1231,15 @@ export default function DashboardPage() {
           {activeNav === 'template' && (
             <>
               <h2 className="db-section-title">Semua Templat</h2>
-              {filteredTemplates.length > 0 ? (
+              {templatesLoading ? (
+                <SkelCards count={6} gridClass="db-recent-grid" label="Memuat templat..." />
+              ) : filteredTemplates.length > 0 ? (
                 <div className="db-recent-grid">
                   {filteredTemplates.map((tpl) => (
                     <div key={tpl.id} className="db-recent-card" onClick={() => handleTemplateClick(tpl)}>
                       <div className="db-recent-preview">
                         {tpl.banner_url ? (
-                          <NgrokImage src={tpl.banner_url} alt={tpl.title} className="db-recent-banner" />
+                          <NgrokImage src={tpl.banner_url} alt={stripHtml(tpl.title)} loading="lazy" decoding="async" className="db-recent-banner" />
                         ) : (
                           <div className="db-preview-doc">
                             <div className="db-preview-line db-line-wide" />
@@ -1005,7 +1315,7 @@ export default function DashboardPage() {
                         <div key={form.id} className="history-card">
                           <div className="history-card-preview">
                             {form.banner_url ? (
-                              <NgrokImage src={form.banner_url} alt={form.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <NgrokImage src={form.banner_url} alt={stripHtml(form.title)} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             ) : (
                               <div className="db-preview-doc">
                                 <div className="db-preview-line db-line-wide" />
@@ -1133,40 +1443,168 @@ export default function DashboardPage() {
                     );
                   })()}
 
-                  {/* Table Card Container */}
-                  <div className="table-card-container">
-                    <div className="table-card-header">
-                      <h3 className="table-card-title">Daftar Responden</h3>
-                      <div className="table-header-filters">
-                        <input
-                          type="text"
-                          className="db-search"
-                          placeholder="Cari nama atau email..."
-                          value={respondentSearch}
-                          onChange={(e) => setRespondentSearch(e.target.value)}
-                          style={{ width: '220px', padding: '6px 12px', fontSize: '13px' }}
-                        />
-                        <select
-                          className="filter-select"
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                          <option value="all">Semua Status</option>
-                          <option value="completed">Selesai</option>
-                          <option value="process">Proses</option>
-                          <option value="cheated">Curang</option>
-                        </select>
+                    {/* Table Card Container */}
+                    <div className="table-card-container">
+                      <div className="table-card-header">
+                        <div className="table-card-top-row">
+                          <div className="table-card-title-wrap">
+                            <h3 className="table-card-title">Daftar Responden</h3>
+                            {hasActiveFilters && (
+                              <span className="table-filter-count-badge">
+                                {filteredRespondents.length} hasil
+                              </span>
+                            )}
+                          </div>
+                          {hasActiveFilters && (
+                            <button
+                              type="button"
+                              className="btn-reset-filters"
+                              onClick={resetAllFilters}
+                              title="Reset semua filter dan pencarian"
+                            >
+                              ✕ Reset Filter
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="table-header-filters">
+                          {/* Search Input */}
+                          <div className="table-search-box">
+                            <svg className="table-search-icon" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                              <circle cx="11" cy="11" r="8" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input
+                              type="text"
+                              className="db-search table-filter-search"
+                              placeholder="Cari nama, email, atau jawaban..."
+                              value={respondentSearch}
+                              onChange={(e) => {
+                                setRespondentSearch(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                            />
+                            {respondentSearch && (
+                              <button
+                                type="button"
+                                className="table-search-clear"
+                                onClick={() => {
+                                  setRespondentSearch('');
+                                  setCurrentPage(1);
+                                }}
+                                title="Hapus pencarian"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Filter Soal / Identitas */}
+                          {realQuestions.length > 0 && (
+                            <div className="filter-select-wrap">
+                              <select
+                                className={`filter-select ${filterQuestionId ? 'active' : ''}`}
+                                value={filterQuestionId}
+                                onChange={(e) => {
+                                  setFilterQuestionId(e.target.value);
+                                  setFilterAnswerValue('');
+                                  setCurrentPage(1);
+                                }}
+                                title="Filter berdasarkan soal (misal: Pilih Kelas, Jurusan, dll)"
+                              >
+                                <option value="">Semua Soal / Identitas</option>
+                                {realQuestions.map((q, qIdx) => {
+                                  const fullLbl = plainLabel(q.label);
+                                  return (
+                                    <option key={q.id} value={q.id} title={fullLbl}>
+                                      {qIdx + 1}. {truncateText(fullLbl, 50)}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Filter Opsi Jawaban */}
+                          {filterQuestionId && availableAnswerValues.length > 0 && (
+                            <div className="filter-select-wrap">
+                              <select
+                                className={`filter-select ${filterAnswerValue ? 'active' : ''}`}
+                                value={filterAnswerValue}
+                                onChange={(e) => {
+                                  setFilterAnswerValue(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                                title="Filter berdasarkan nilai jawaban spesifik"
+                              >
+                                <option value="">Semua Jawaban</option>
+                                {availableAnswerValues.map((val) => (
+                                  <option key={val} value={val} title={val}>
+                                    {truncateText(val, 45)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Filter Status */}
+                          <div className="filter-select-wrap compact">
+                            <select
+                              className={`filter-select ${statusFilter !== 'all' ? 'active' : ''}`}
+                              value={statusFilter}
+                              onChange={(e) => {
+                                setStatusFilter(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                            >
+                              <option value="all">Semua Status</option>
+                              <option value="completed">Selesai</option>
+                              <option value="process">Proses</option>
+                              <option value="cheated">Curang</option>
+                            </select>
+                          </div>
+
+                          {/* Sort Dropdown */}
+                          <div className="filter-select-wrap compact">
+                            <select
+                              className={`filter-select ${sortBy !== 'newest' ? 'active' : ''}`}
+                              value={sortBy}
+                              onChange={(e) => setSortBy(e.target.value)}
+                              title="Urutkan daftar responden"
+                            >
+                              <option value="newest">Terbaru</option>
+                              <option value="oldest">Terlama</option>
+                              <option value="highest_score">Nilai Tertinggi</option>
+                              <option value="lowest_score">Nilai Terendah</option>
+                              <option value="name_asc">Nama A - Z</option>
+                              <option value="name_desc">Nama Z - A</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
                     {resultsLoading ? (
-                      <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748B' }}>
-                        <div className="db-spinner" style={{ margin: '0 auto 12px' }} />
-                        <p>Memuat daftar responden...</p>
+                      <div style={{ padding: '8px 0 4px' }}>
+                        <div className="stats-cards-grid" style={{ marginBottom: 16 }} aria-hidden="true">
+                          {[1, 2, 3].map((n) => (
+                            <div key={n} className="skel-stat" />
+                          ))}
+                        </div>
+                        <SkelTableRows rows={6} />
                       </div>
                     ) : filteredRespondents.length === 0 ? (
                       <div className="db-empty-state" style={{ padding: '40px 0' }}>
-                        <p>Belum ada data responden yang sesuai.</p>
+                        <p>Tidak ada data responden yang sesuai dengan filter.</p>
+                        {hasActiveFilters && (
+                          <button
+                            type="button"
+                            className="btn-reset-filters-large"
+                            onClick={resetAllFilters}
+                            style={{ marginTop: '12px' }}
+                          >
+                            Reset Semua Filter
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -1175,6 +1613,11 @@ export default function DashboardPage() {
                             <thead>
                               <tr>
                                 <th>NAMA</th>
+                                {selectedQuestion && (
+                                  <th className="th-col-question" title={plainLabel(selectedQuestion.label)}>
+                                    {truncateText(plainLabel(selectedQuestion.label, 'JAWABAN'), 32).toUpperCase()}
+                                  </th>
+                                )}
                                 <th>EMAIL</th>
                                 <th>TANGGAL SUBMIT</th>
                                 <th>SKOR</th>
@@ -1183,14 +1626,26 @@ export default function DashboardPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {filteredRespondents.map((sub) => {
-                                const name = sub.user?.full_name || 'Responden (User)';
-                                const email = sub.user?.email || '-';
+                              {paginatedRespondents.map((sub) => {
+                                const name = getRespondentDisplayName(sub);
+                                const email = getRespondentDisplayEmail(sub);
                                 const isCompleted = sub.isCompleted;
+                                const ansVal = selectedQuestion ? getRespondentAnswerValue(sub, selectedQuestion.id) : '';
 
                                 return (
                                   <tr key={sub.id}>
                                     <td className="td-user-name">{name}</td>
+                                    {selectedQuestion && (
+                                      <td className="td-question-ans">
+                                        {ansVal ? (
+                                          <span className="resp-q-badge" title={`${plainLabel(selectedQuestion.label)}: ${ansVal}`}>
+                                            {ansVal}
+                                          </span>
+                                        ) : (
+                                          <span className="resp-q-empty">(kosong)</span>
+                                        )}
+                                      </td>
+                                    )}
                                     <td className="td-user-email">{email}</td>
                                     <td>{formatDateString(sub.submitted_at || sub.started_at)}</td>
                                     <td className="td-score-val">
@@ -1226,21 +1681,32 @@ export default function DashboardPage() {
                         </div>
                         {/* Mobile cards — fit HP tanpa zoom/scroll kanan */}
                         <div className="results-cards-mobile">
-                          {filteredRespondents.map((sub) => {
-                            const name = sub.user?.full_name || 'Responden (User)';
-                            const email = sub.user?.email || '-';
+                          {paginatedRespondents.map((sub) => {
+                            const name = getRespondentDisplayName(sub);
+                            const email = getRespondentDisplayEmail(sub);
                             const isCompleted = sub.isCompleted;
+                            const ansVal = selectedQuestion ? getRespondentAnswerValue(sub, selectedQuestion.id) : '';
+
                             return (
                               <div key={sub.id} className="results-mobile-card">
                                 <div className="results-mobile-top">
                                   <div style={{ minWidth: 0, flex: 1 }}>
                                     <div className="results-mobile-name">{name}</div>
                                     <div className="results-mobile-email">{email}</div>
+                                    {selectedQuestion && ansVal && (
+                                      <div style={{ marginTop: '6px' }}>
+                                        <span className="resp-q-badge" title={`${plainLabel(selectedQuestion.label)}: ${ansVal}`}>
+                                          {plainLabel(selectedQuestion.label)}: {ansVal}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                   {sub.is_cheated ? (
                                     <span className="status-pill cheated">• Curang</span>
                                   ) : (
-                                    <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>• {isCompleted ? 'Selesai' : 'Proses'}</span>
+                                    <span className={`status-pill ${isCompleted ? 'completed' : 'process'}`}>
+                                      • {isCompleted ? 'Selesai' : 'Proses'}
+                                    </span>
                                   )}
                                 </div>
                                 <div className="results-mobile-meta">
@@ -1267,11 +1733,37 @@ export default function DashboardPage() {
 
                     <div className="table-card-footer">
                       <span>
-                        Menampilkan {filteredRespondents.length > 0 ? 1 : 0}-{filteredRespondents.length} dari {totalRespondents} responden
+                        {totalFilteredCount > 0
+                          ? `Menampilkan ${startIndex + 1}–${endIndex} dari ${totalFilteredCount} responden${hasActiveFilters ? ` (difilter dari ${totalRespondents})` : ''}`
+                          : `Menampilkan 0 dari ${totalRespondents} responden`}
                       </span>
                       <div className="pagination-arrows">
-                        <button className="pagination-btn" disabled>‹</button>
-                        <button className="pagination-btn" disabled>›</button>
+                        <button
+                          type="button"
+                          className="pagination-btn"
+                          disabled={safeCurrentPage <= 1}
+                          onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); scrollRiwayatTableTop(); }}
+                          title="Halaman sebelumnya"
+                          aria-label="Halaman sebelumnya"
+                        >
+                          ‹
+                        </button>
+                        <span
+                          className="pagination-page-indicator"
+                          style={{ display: 'inline-flex', alignItems: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 600, color: '#475569' }}
+                        >
+                          {safeCurrentPage} / {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          className="pagination-btn"
+                          disabled={safeCurrentPage >= totalPages}
+                          onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); scrollRiwayatTableTop(); }}
+                          title="Halaman berikutnya"
+                          aria-label="Halaman berikutnya"
+                        >
+                          ›
+                        </button>
                       </div>
                     </div>
                   </div>

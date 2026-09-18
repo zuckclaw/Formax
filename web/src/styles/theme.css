@@ -475,6 +475,67 @@ body,
   color: var(--text-primary);
 }
 
+[data-theme="dark"] .filter-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .filter-select.active {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+[data-theme="dark"] .table-filter-count-badge {
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--accent);
+}
+
+[data-theme="dark"] .table-search-clear {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .table-search-clear:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-reset-filters {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .btn-reset-filters:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+[data-theme="dark"] .btn-reset-filters-large {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+[data-theme="dark"] .btn-reset-filters-large:hover {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+[data-theme="dark"] .resp-q-badge {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .resp-q-empty {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .pagination-page-indicator {
+  color: var(--text-secondary) !important;
+}
+
 [data-theme="dark"] .btn-table-view {
   background: var(--accent-bg-soft);
   color: var(--accent);

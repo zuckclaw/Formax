@@ -4,7 +4,7 @@ import { apiFetch } from '../api/config';
 // Komponen <img> yang aman untuk ngrok-free.dev
 // Bypass OpaqueResponseBlocking dengan fetch + header + blob URL
 // Jika src bukan ngrok, render <img> biasa
-export default function NgrokImage({ src, alt, className, style, onError }) {
+export default function NgrokImage({ src, alt, className, style, onError, loading = 'lazy', decoding = 'async', draggable = false }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [failed, setFailed] = useState(false);
 
@@ -59,7 +59,7 @@ export default function NgrokImage({ src, alt, className, style, onError }) {
 
   // Ngrok + blob ready -> pakai blob URL (sudah bypass ORB)
   if (isNgrok && blobUrl) {
-    return <img src={blobUrl} alt={alt} className={className} style={style} onError={onError} />;
+    return <img src={blobUrl} alt={alt} className={className} style={style} onError={onError} loading={loading} decoding={decoding} draggable={draggable} />;
   }
 
   // Ngrok tapi masih loading -> render sizer/loading
@@ -84,5 +84,5 @@ export default function NgrokImage({ src, alt, className, style, onError }) {
   }
 
   // Non-ngrok -> direct <img>
-  return <img src={cleanSrc} alt={alt} className={className} style={style} onError={onError} />;
+  return <img src={cleanSrc} alt={alt} className={className} style={style} onError={onError} loading={loading} decoding={decoding} draggable={draggable} />;
 }

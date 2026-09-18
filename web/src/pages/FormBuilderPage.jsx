@@ -1353,7 +1353,7 @@ export default function FormBuilderPage() {
       {/* Sidebar (shared with dashboard) */}
       {drawerOpen && <div className="db-drawer-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
       <aside className={`db-sidebar ${drawerOpen ? 'open' : ''}`}>
-        <div className="db-logo" onClick={() => { setDrawerOpen(false); navigate('/dashboard', { state: { activeNav: 'dashboard' } }); }} style={{ cursor: 'pointer' }}>
+        <div className="db-logo" onClick={() => { setDrawerOpen(false); navigate('/dashboard'); }} style={{ cursor: 'pointer' }}>
           <div className="db-logo-icon">
             <img src={logoForm4x} alt="Form4x logo" className="db-logo-img" />
           </div>
@@ -1364,26 +1364,26 @@ export default function FormBuilderPage() {
         </div>
 
         <nav className="db-nav">
-          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard', { state: { activeNav: 'dashboard' } }); }}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
               <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             <span>Dasbor</span>
           </button>
-          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard', { state: { activeNav: 'template' } }); }}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard/templat'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
             </svg>
             <span>Templat</span>
           </button>
-          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard', { state: { activeNav: 'history' } }); }}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard/riwayat'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.39" />
             </svg>
             <span>Riwayat</span>
           </button>
-          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard', { state: { activeNav: 'activity' } }); }}>
+          <button className="db-nav-item" onClick={() => { setDrawerOpen(false); navigate('/dashboard/aktivitas'); }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
               <rect x="8" y="2" width="8" height="4" rx="1" />
@@ -1419,7 +1419,7 @@ export default function FormBuilderPage() {
             <button className="fb-hamburger" onClick={() => setDrawerOpen((v) => !v)} aria-label="Toggle menu">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
             </button>
-            <button className="fb-back-btn" onClick={() => navigate('/dashboard', { state: { reloadTemplates: true } })} aria-label="Back to dashboard">
+            <button className="fb-back-btn" onClick={() => navigate('/dashboard/templat', { state: { reloadTemplates: true } })} aria-label="Back to dashboard">
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <polyline points="15 18 9 12 15 6" />
               </svg>

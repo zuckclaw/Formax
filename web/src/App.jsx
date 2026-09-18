@@ -85,7 +85,31 @@ function App() {
           path="/dashboard"
           element={
             <PrivateRoute>
-              <DashboardPage />
+              <DashboardPage initialTab="dashboard" />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/templat"
+          element={
+            <PrivateRoute>
+              <DashboardPage initialTab="template" />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/riwayat"
+          element={
+            <PrivateRoute>
+              <DashboardPage initialTab="history" />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/aktivitas"
+          element={
+            <PrivateRoute>
+              <DashboardPage initialTab="activity" />
             </PrivateRoute>
           }
         />

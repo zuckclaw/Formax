@@ -286,13 +286,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  transform: none;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .db-logout-btn:hover {
   background: var(--sidebar-bg-hover);
   color: var(--sidebar-logo-name);
+  transform: none;
+  box-shadow: none;
 }
 
 /* ============================================================
@@ -1659,18 +1663,34 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
 }
 
 .table-card-header {
-  padding: 20px 24px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.table-card-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 14px;
+  width: 100%;
+}
+
+.table-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .table-card-title {
@@ -1678,16 +1698,67 @@
   font-weight: 800;
   color: #0f172a;
   margin: 0;
+  white-space: nowrap;
+}
+
+.table-filter-count-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(9, 98, 197, 0.1);
+  color: #0962c5;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .table-header-filters {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+
+.table-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+.table-search-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.table-filter-search {
+  width: 100% !important;
+  padding: 7px 30px 7px 32px !important;
+  font-size: 13px !important;
+  border-radius: 8px !important;
+}
+
+.filter-select-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 280px;
+}
+
+.filter-select-wrap.compact {
+  flex: 0 1 140px;
+  min-width: 120px;
+  max-width: 160px;
 }
 
 .filter-select {
-  padding: 8px 14px;
+  width: 100%;
+  padding: 8px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   font-size: 13px;
@@ -1695,6 +1766,117 @@
   background: #ffffff;
   outline: none;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-select:hover {
+  border-color: #94a3b8;
+}
+
+.filter-select:focus {
+  border-color: #0962c5;
+  box-shadow: 0 0 0 2px rgba(9, 98, 197, 0.15);
+}
+
+/* Filter select yang aktif (memiliki nilai filter) — visual hint biru */
+.filter-select.active {
+  border-color: #0962c5;
+  background: rgba(9, 98, 197, 0.06);
+  color: #0962c5;
+  font-weight: 600;
+}
+
+.table-search-clear {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+
+.table-search-clear:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Tombol reset semua filter */
+.btn-reset-filters {
+  padding: 8px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-reset-filters:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.btn-reset-filters-large {
+  padding: 8px 20px;
+  border: 1px solid #0962c5;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0962c5;
+  background: rgba(9, 98, 197, 0.06);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-reset-filters-large:hover {
+  background: rgba(9, 98, 197, 0.12);
+}
+
+/* Badge jawaban pertanyaan di baris tabel & kartu mobile */
+.resp-q-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(9, 98, 197, 0.08);
+  border: 1px solid rgba(9, 98, 197, 0.22);
+  color: #0962c5;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.resp-q-empty {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.td-question-ans {
+  max-width: 180px;
+  overflow: hidden;
+}
+
+/* Indikator halaman di footer tabel */
+.pagination-page-indicator {
+  user-select: none;
 }
 
 .resp-table-wrap {
@@ -1777,20 +1959,31 @@
 
 .resp-data-table th {
   background-color: #f8fafc;
-  padding: 14px 20px;
+  padding: 12px 16px;
   font-size: 11px;
   font-weight: 700;
   color: #64748b;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.th-col-question {
+  color: #0962c5 !important;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resp-data-table td {
-  padding: 16px 20px;
+  padding: 14px 16px;
   border-bottom: 1px solid #f1f5f9;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #334155;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .resp-data-table tr:last-child td {
@@ -1804,25 +1997,32 @@
 .td-user-name {
   font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
 }
 
 .td-user-email {
   color: #64748b;
+  white-space: nowrap;
 }
 
 .td-score-val {
   font-weight: 800;
   color: #0053db;
+  white-space: nowrap;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 5px 12px;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .status-pill.completed {
@@ -3355,11 +3555,27 @@
   .table-header-filters {
     width: 100%;
     flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .table-header-filters .db-search {
-    flex: 1;
-    min-width: 140px;
+  .table-header-filters .table-search-box {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .table-header-filters .table-filter-search {
+    width: 100% !important;
+  }
+
+  .table-header-filters .filter-select {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 130px;
+    font-size: 12.5px;
+  }
+
+  .table-header-filters .btn-reset-filters {
+    flex: 1 1 100%;
+    text-align: center;
   }
 }
 
@@ -3661,12 +3877,22 @@
     width: 100%;
   }
 
-  .table-header-filters .db-search {
+  .table-header-filters .table-search-box {
+    width: 100%;
+  }
+
+  .table-header-filters .table-filter-search {
     width: 100% !important;
   }
 
-  .filter-select {
+  .table-header-filters .filter-select {
     width: 100%;
+    font-size: 12.5px;
+  }
+
+  .table-header-filters .btn-reset-filters {
+    width: 100%;
+    text-align: center;
   }
 
   .resp-table-wrap {
@@ -4826,9 +5052,9 @@
 .activity-skeleton-card-lg {
   height: 240px;
   border-radius: 18px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%);
+  background: linear-gradient(90deg, #eef2f7 30%, #e4e9f0 50%, #eef2f7 70%);
   background-size: 400% 100%;
-  animation: shimmer 1.3s ease-in-out infinite;
+  animation: skel-shimmer 2.6s ease-in-out infinite;
 }
 
 .activity-skeleton-row-wrap {
@@ -5076,7 +5302,6 @@
   color: #ffffff !important;
   flex-shrink: 0;
   stroke: #ffffff;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s;
 }
 
 .db-nav-item::before {
@@ -5097,31 +5322,16 @@
   transform: translateY(-50%) scaleY(1);
 }
 
-.db-nav-item::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.5s ease;
-}
-
-.db-nav-item:hover::after {
-  transform: translateX(100%);
-}
+/* Shine sweep nav (::after) dihapus */
 
 .db-nav-item:hover {
-  transform: translateX(3px);
   background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .db-nav-item:hover svg {
   color: #ffffff !important;
-  transform: scale(1.15) rotate(-3deg);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
 .db-nav-item.active {
@@ -5141,50 +5351,29 @@
 }
 
 .db-nav-item:active {
-  transform: translateX(1px) scale(0.98);
+  transform: none;
 }
 
 /* ---------------------------------------------------------------
-   2. DASHBOARD — Create Card Premium Glow
+   2. DASHBOARD — Create Card (glow muter infinite dihapus)
    --------------------------------------------------------------- */
 .db-card-create {
   position: relative;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.db-card-create::before {
-  content: '';
-  position: absolute;
-  inset: -60%;
-  background: conic-gradient(from 0deg, transparent 0deg, rgba(37, 99, 235, 0.08) 60deg, transparent 120deg);
-  animation: rotateGlow 4s linear infinite;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.db-card-create:hover::before {
-  opacity: 1;
-}
-
-@keyframes rotateGlow {
-  to {
-    transform: rotate(360deg);
-  }
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
 .db-card-create:hover {
   border-color: #2563eb;
   color: #1d4ed8;
   background: rgba(37, 99, 235, 0.06);
-  transform: translateY(-5px) scale(1.01);
-  box-shadow: 0 16px 40px -8px rgba(37, 99, 235, 0.22),
-    0 0 0 1px rgba(37, 99, 235, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -8px rgba(37, 99, 235, 0.25);
 }
 
 .db-card-create:active {
-  transform: translateY(-2px) scale(0.99);
-  box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.15);
+  transform: none;
+  box-shadow: none;
 }
 
 .db-create-icon {
@@ -5192,86 +5381,45 @@
 }
 
 .db-card-create:hover .db-create-icon {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: #2563eb;
   color: #ffffff;
-  transform: scale(1.15) rotate(90deg);
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+  transform: none;
+  box-shadow: none;
 }
 
 /* ---------------------------------------------------------------
-   3. TEMPLATE & DASHBOARD CARDS — Lift + Shimmer + Glow
+   3. TEMPLATE & DASHBOARD CARDS — lift saja (shine dihapus)
    --------------------------------------------------------------- */
 .db-card-system,
 .db-recent-card {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.25s ease;
+  transition: transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
-.db-card-system::after,
-.db-recent-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -75%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(120deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.18) 50%,
-      transparent 100%);
-  transform: skewX(-20deg);
-  transition: left 0.5s ease;
-  pointer-events: none;
-}
-
-.db-card-system:hover::after,
-.db-recent-card:hover::after {
-  left: 140%;
-}
+/* Shine sweep (::after) dihapus */
 
 .db-card-system:hover,
 .db-recent-card:hover {
-  transform: translateY(-6px) scale(1.015);
-  box-shadow: 0 20px 48px -8px rgba(15, 23, 42, 0.14),
-    0 8px 16px -4px rgba(15, 23, 42, 0.06),
-    0 0 0 1px rgba(59, 130, 246, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 14px 32px -8px rgba(15, 23, 42, 0.12);
   border-color: rgba(59, 130, 246, 0.3);
 }
 
 .db-card-system:active,
 .db-recent-card:active {
-  transform: translateY(-2px) scale(1.005);
+  transform: translateY(-1px);
   box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.1);
 }
 
-/* Card preview doc float up on hover */
-.db-card-system:hover .db-preview-doc,
-.db-recent-card:hover .db-preview-doc {
-  transform: scale(1.06) translateY(-2px);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1), 0 2px 4px rgba(15, 23, 42, 0.06);
-}
+/* Card preview-doc statis saat hover (float dihapus) */
 
-/* Blank template card accent */
-.db-card-system:hover .db-card-preview.blank-bg {
-  background: linear-gradient(135deg, #c7d2fe 0%, #a5b4fc 100%);
-  transition: background 0.4s ease;
-}
-
-.db-card-system:hover .db-card-preview.attendance-bg {
-  background: linear-gradient(135deg, #99f6e4 0%, #5eead4 100%);
-  transition: background 0.4s ease;
-}
-
-.db-card-system:hover .db-card-preview.exam-bg {
-  background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
-  transition: background 0.4s ease;
-}
+/* Preview background statis — transisi gradient saat hover dihapus */
 
 /* ---------------------------------------------------------------
-   4. HISTORY CARDS — Enhanced Glow + Color Accent Border
+   4. HISTORY CARDS — Lift + Glow only (shine removed)
    --------------------------------------------------------------- */
 .history-card {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
@@ -5296,26 +5444,7 @@
   opacity: 1;
 }
 
-.history-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -75%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(120deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.15) 50%,
-      transparent 100%);
-  transform: skewX(-20deg);
-  transition: left 0.55s ease;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.history-card:hover::after {
-  left: 140%;
-}
+/* Shine sweep (::after) intentionally removed — card stays static glow-free */
 
 .history-card:hover {
   transform: translateY(-6px);
@@ -5330,112 +5459,48 @@
 }
 
 /* ---------------------------------------------------------------
-   5. "LIHAT HASIL" BUTTON — Premium Gradient Shift
+   5. "LIHAT HASIL" BUTTON — flat, tanpa gradient-shift/scale
    --------------------------------------------------------------- */
 .history-btn-result {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.history-btn-result::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.history-btn-result:hover::before {
-  opacity: 1;
-}
-
-.history-btn-result span,
-.history-btn-result svg {
-  position: relative;
-  z-index: 1;
+  transition: background-color 0.15s ease;
 }
 
 .history-btn-result:hover {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.45),
-    0 2px 6px rgba(37, 99, 235, 0.25);
+  background: #1d4ed8;
 }
 
 .history-btn-result:active {
-  transform: translateY(0) scale(0.98);
-  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3);
+  background: #1e40af;
 }
 
 /* ---------------------------------------------------------------
-   6. ACTIVITY CARDS — Glow + Progress Bar Animate
+   6. ACTIVITY CARDS — lift saja (shine sweep dihapus, konsisten dgn history)
    --------------------------------------------------------------- */
 .activity-card-item {
   position: relative;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 0.25s ease !important;
+  transition: transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.2s ease !important;
 }
 
-.activity-card-item::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -75%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(120deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.16) 50%,
-      transparent 100%);
-  transform: skewX(-20deg);
-  transition: left 0.5s ease;
-  pointer-events: none;
-}
-
-.activity-card-item:hover::after {
-  left: 140%;
-}
+/* Shine sweep (::after) dihapus */
 
 .activity-card-item:hover {
-  transform: translateY(-5px) scale(1.01) !important;
-  box-shadow: 0 18px 44px -8px rgba(15, 23, 42, 0.12),
-    0 6px 14px -4px rgba(15, 23, 42, 0.06) !important;
+  transform: translateY(-4px) !important;
+  box-shadow: 0 14px 32px -8px rgba(15, 23, 42, 0.12) !important;
   border-color: rgba(59, 130, 246, 0.25) !important;
 }
 
 .activity-card-item:active {
-  transform: translateY(-2px) scale(1.003) !important;
+  transform: translateY(-1px) !important;
 }
 
-/* Progress bar animated stripe on activity cards */
+/* Progress bar activity cards — statis (shimmer infinite dihapus demi performa) */
 .activity-progress-fill {
   position: relative;
   overflow: hidden;
-}
-
-.activity-progress-fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  animation: progressShimmer 2s ease-in-out infinite;
-}
-
-@keyframes progressShimmer {
-  0% {
-    left: -100%;
-  }
-
-  100% {
-    left: 150%;
-  }
 }
 
 /* ---------------------------------------------------------------
@@ -5467,12 +5532,11 @@
 }
 
 .filter-tab-btn.active {
-  transform: scale(1.03);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .filter-tab-btn:active {
-  transform: scale(0.97);
+  transform: none;
 }
 
 /* ---------------------------------------------------------------
@@ -5488,103 +5552,59 @@
 }
 
 .view-toggle-btn.active {
-  transform: scale(1.05);
+  transform: none;
 }
 
 /* ---------------------------------------------------------------
-   10. LIHAT HASIL / VIEW RESULT Button in Activity Cards
+   10. LIHAT HASIL / VIEW RESULT Button in Activity Cards — flat
    --------------------------------------------------------------- */
 .activity-btn-result,
 .activity-view-btn {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-.activity-btn-result::before,
-.activity-view-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-
-.activity-btn-result:hover::before,
-.activity-view-btn:hover::before {
-  opacity: 1;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+  transform: none;
 }
 
 .activity-btn-result:hover,
 .activity-view-btn:hover {
-  transform: translateY(-2px) scale(1.04) !important;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35) !important;
+  transform: none !important;
+  box-shadow: none !important;
+  filter: brightness(0.94);
 }
 
 .activity-btn-result:active,
 .activity-view-btn:active {
-  transform: scale(0.97) !important;
+  transform: none !important;
+  filter: brightness(0.9);
 }
 
 /* ---------------------------------------------------------------
-   11. EXPORT EXCEL BUTTON — Business Premium Effect
+   11. EXPORT EXCEL BUTTON — flat (overlay gradient dihapus)
    --------------------------------------------------------------- */
 .btn-export-excel {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-.btn-export-excel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #1a7a3a 0%, #15803d 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.btn-export-excel:hover:not(:disabled)::before {
-  opacity: 1;
-}
-
-.btn-export-excel>* {
-  position: relative;
-  z-index: 1;
+  transition: background-color 0.15s ease !important;
 }
 
 .btn-export-excel:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(21, 128, 61, 0.3),
-    0 4px 8px rgba(21, 128, 61, 0.15) !important;
+  transform: none;
+  box-shadow: 0 4px 12px rgba(10, 37, 64, 0.15) !important;
   background: #1d813e !important;
 }
 
 .btn-export-excel:active:not(:disabled) {
-  transform: translateY(0);
+  transform: none;
 }
 
 /* ---------------------------------------------------------------
-   12. BACK NAV BUTTON — Slide Arrow Effect
+   12. BACK NAV BUTTON — warna saja, tanpa geser
    --------------------------------------------------------------- */
 .back-nav-btn {
-  position: relative;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.15s ease;
   gap: 8px;
-}
-
-.back-nav-btn svg {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .back-nav-btn:hover {
   color: #2563eb;
-  transform: translateX(-2px);
-}
-
-.back-nav-btn:hover svg {
-  transform: translateX(-4px);
+  transform: none;
 }
 
 /* ---------------------------------------------------------------
@@ -5597,38 +5617,13 @@
   overflow: hidden;
 }
 
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s ease;
-}
-
-.stat-card:hover::before {
-  transform: scaleX(1);
-}
-
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 14px 36px -6px rgba(15, 23, 42, 0.1),
     0 4px 10px -2px rgba(59, 130, 246, 0.06);
 }
 
-.stat-icon-box {
-  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.28s ease;
-}
-
-.stat-card:hover .stat-icon-box {
-  transform: scale(1.12) rotate(-5deg);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
-}
+/* Ikon statis — animasi scale/rotate saat hover dihapus */
 
 /* ---------------------------------------------------------------
    14. CONTEXT MENU ITEMS — Smooth Elevated Items
@@ -5750,15 +5745,7 @@
   color: #60a5fa !important;
 }
 
-[data-theme='dark'] .db-card-system::after,
-[data-theme='dark'] .db-recent-card::after,
-[data-theme='dark'] .history-card::after,
-[data-theme='dark'] .activity-card-item::after {
-  background: linear-gradient(120deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.06) 50%,
-      transparent 100%);
-}
+/* Shine ::after sudah dihapus di semua kartu — override dark di bawah tidak diperlukan lagi */
 
 /* ---------------------------------------------------------------
    17. SECTION TITLE — Subtle Gradient Underline
@@ -5778,29 +5765,27 @@
   height: 3px;
   border-radius: 2px;
   background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  transition: width 0.3s ease;
-}
-
-.db-section-title:hover::after {
-  width: 100%;
 }
 
 /* ---------------------------------------------------------------
-   18. LOGOUT BUTTON — Danger Pulse on Hover
+   18. LOGOUT BUTTON — Static (no motion, color feedback only)
    --------------------------------------------------------------- */
 .db-logout-btn {
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  transform: none;
+  box-shadow: none;
 }
 
 .db-logout-btn:hover {
   background: rgba(239, 68, 68, 0.1) !important;
   color: #ef4444 !important;
-  transform: rotate(10deg) scale(1.1);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+  transform: none;
+  box-shadow: none;
 }
 
 .db-logout-btn:active {
-  transform: rotate(5deg) scale(0.95);
+  transform: none;
+  box-shadow: none;
 }
 
 /* ---------------------------------------------------------------
@@ -6169,12 +6154,6 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  animation: fabSparklePulse 2s ease-in-out infinite;
-}
-
-@keyframes fabSparklePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.22); }
 }
 
 .fab-ai-text {
@@ -6217,5 +6196,175 @@
   .fab-ai-logo {
     width: 24px;
     height: 24px;
+  }
+}
+
+/* ============================================================
+   RIWAYAT SCROLL UX — tanpa Lenis (native + render bertahap)
+   ============================================================ */
+
+/* Cegah scroll chaining ke halaman saat geser tabel horizontal / pane jawaban */
+.resp-table-wrap {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.detail-answers-pane {
+  overscroll-behavior-y: contain;
+}
+
+/* Skip render offscreen: kartu riwayat + kartu analytics di bawah fold */
+.history-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
+}
+
+.analytics-section-wrapper-card,
+.analytics-question-card,
+.score-chart-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* Fallback saat browser belum dukung content-visibility: tetap aman, tanpa perubahan visual */
+@supports not (content-visibility: auto) {
+  .history-card,
+  .analytics-section-wrapper-card,
+  .analytics-question-card,
+  .score-chart-card {
+    content-visibility: visible;
+  }
+}
+
+/* Hormati pengguna yang sensitif gerak + hemat compositor saat scroll */
+@media (prefers-reduced-motion: reduce) {
+  .results-page-container {
+    animation: none;
+  }
+  .history-card,
+  .history-card:hover,
+  .history-card:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ============================================================
+   SKELETON SCREEN — Dasbor / Riwayat / Templat / Aktivitas
+   Shimmer halus, hormati reduced-motion + dark mode
+   ============================================================ */
+@keyframes skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+/* Alias lama: activity skeleton memakai nama `shimmer` */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skel {
+  background: linear-gradient(90deg, #eef2f7 30%, #e4e9f0 50%, #eef2f7 70%);
+  background-size: 400% 100%;
+  animation: skel-shimmer 2.6s ease-in-out infinite;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+/* Kartu grid (riwayat / templat / dasbor): preview 135px + body */
+.skel-card {
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+.skel-card-preview {
+  height: 135px;
+  background: linear-gradient(90deg, #eef2f7 30%, #e4e9f0 50%, #eef2f7 70%);
+  background-size: 400% 100%;
+  animation: skel-shimmer 2.6s ease-in-out infinite;
+}
+.skel-card-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skel-line { height: 12px; }
+.skel-line.title { width: 70%; height: 14px; }
+.skel-line.short { width: 45%; }
+.skel-line.full { width: 100%; }
+
+/* Stat cards (hasil responden) */
+.skel-stat {
+  height: 92px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #eef2f7 30%, #e4e9f0 50%, #eef2f7 70%);
+  background-size: 400% 100%;
+  animation: skel-shimmer 2.6s ease-in-out infinite;
+  border: 1px solid #e2e8f0;
+}
+
+/* Baris tabel responden */
+.skel-table-row {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1.5fr 1fr;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.skel-table-row .skel { height: 14px; }
+
+/* Perbaiki skeleton aktivitas lama (class ada, style belum lengkap) */
+.activity-skeleton-card {
+  height: 84px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #eef2f7 30%, #e4e9f0 50%, #eef2f7 70%);
+  background-size: 400% 100%;
+  animation: skel-shimmer 2.6s ease-in-out infinite;
+  border: 1px solid #e2e8f0;
+}
+.activity-skeleton-card-lg {
+  animation-name: skel-shimmer;
+}
+
+/* Skeleton user di sidebar saat profil belum termuat */
+.skel-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.skel-user-text { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.skel-user-text .skel-line:first-child { width: 80px; }
+.skel-user-text .skel-line:last-child { width: 110px; height: 10px; }
+
+[data-theme='dark'] .skel,
+[data-theme='dark'] .skel-card-preview,
+[data-theme='dark'] .skel-stat,
+[data-theme='dark'] .activity-skeleton-card,
+[data-theme='dark'] .activity-skeleton-card-lg {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 37%, #1e293b 63%);
+  background-size: 400% 100%;
+}
+[data-theme='dark'] .skel-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+[data-theme='dark'] .skel-stat,
+[data-theme='dark'] .activity-skeleton-card {
+  border-color: #334155;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel,
+  .skel-card-preview,
+  .skel-stat,
+  .activity-skeleton-card,
+  .activity-skeleton-card-lg {
+    animation: none;
   }
 }
