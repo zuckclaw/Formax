@@ -18,7 +18,7 @@ from html.parser import HTMLParser
 _ALLOWED_TAGS = {
     "p", "br", "strong", "b", "em", "i", "u", "s", "strike", "del",
     "span", "ul", "ol", "li", "h1", "h2", "h3", "h4", "blockquote",
-    "a", "sub", "sup", "font", "div", "pre", "img", "hr",
+    "a", "sub", "sup", "font", "div", "pre", "code", "img", "hr",
     # audio/video untuk RichTextEditor dcb894e — harus di-allow agar tidak di-strip
     "audio", "video", "source",
     # KaTeX / math — harus di-allow agar rumus tidak hilang (fix \frac tampil sebagai teks)
@@ -46,7 +46,8 @@ _ALLOWED_ATTRS = {
     "source": {"src", "type", "class"},
     "div": {"style", "class", "data-value", "data-latex", "aria-hidden"},
     "p": {"style", "class"},
-    "pre": {"style", "class"},
+    "pre": {"style", "class", "data-language"},
+    "code": {"style", "class", "data-language"},
     "blockquote": {"style", "class"},
     "h1": {"style", "class"}, "h2": {"style", "class"}, "h3": {"style", "class"}, "h4": {"style", "class"},
     "ul": {"style", "class"}, "li": {"style", "class"},

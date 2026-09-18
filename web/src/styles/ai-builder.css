@@ -1370,3 +1370,206 @@
     margin-left: 0;
   }
 }
+
+/* ==========================================================================
+   CODE BLOCKS - soal coding/HTML (hasil normalizer AI + codeRender)
+   Scope: preview paper AI builder. Dark block + inline pill + tombol copy.
+   ========================================================================== */
+.claude-form-paper pre,
+.claude-q-label pre,
+.claude-option-label pre,
+.claude-paper-desc pre,
+.claude-section-desc pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: "Fira Code", "Source Code Pro", "JetBrains Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-x: auto;
+  margin: 8px 0;
+  border-left: 3px solid var(--c-brand, #0962C5);
+  font-weight: 400;
+  position: relative;
+  max-height: 400px;
+  white-space: pre;
+  word-wrap: normal;
+  tab-size: 2;
+  text-align: left;
+}
+.claude-form-paper pre.ql-syntax { background: #282c34; color: #abb2bf; }
+.claude-form-paper pre code,
+.claude-q-label pre code,
+.claude-option-label pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+/* Inline code pill: tag/potongan pendek seperti <p>, <div> */
+.claude-q-label code,
+.claude-option-label code,
+.claude-paper-desc code,
+.claude-section-desc code,
+.claude-paper-title code {
+  background: #f1f5f9;
+  color: #e11d48;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "Fira Code", "Source Code Pro", "Courier New", monospace;
+  font-size: 0.88em;
+  font-weight: 500;
+  word-break: break-word;
+}
+[data-theme="dark"] .claude-q-label code,
+[data-theme="dark"] .claude-option-label code,
+[data-theme="dark"] .claude-paper-desc code,
+[data-theme="dark"] .claude-section-desc code {
+  background: #1e293b;
+  color: #fda4af;
+  border: 1px solid #334155;
+}
+.claude-form-paper .hljs { background: transparent !important; }
+.claude-form-paper pre.hljs { background: #282c34 !important; }
+/* Copy button (dibuat oleh enhanceCodeBlocks) */
+.claude-form-paper .code-block-wrapper { position: relative; }
+.claude-form-paper .code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255,255,255,0.12);
+  color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+.claude-form-paper .code-copy-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
+.claude-form-paper .code-copy-btn.copied { background: #10b981; border-color: #10b981; color: #fff; }
+
+/* ==========================================================================
+   ERROR HINT + ACTION (tanpa auto-retry, semua aksi manual oleh user)
+   ========================================================================== */
+.claude-error-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.claude-error-text { font-weight: 600; }
+.claude-error-hint { font-size: 12.5px; opacity: 0.85; line-height: 1.5; }
+.claude-error-action {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border-focus, #0962C5);
+  background: var(--c-brand-glow, rgba(9, 98, 197, 0.12));
+  color: var(--c-brand, #0962C5);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.claude-error-action:hover:not(:disabled) { filter: brightness(0.96); transform: translateY(-1px); }
+.claude-error-action:disabled { opacity: 0.6; cursor: default; }
+
+/* ==========================================================================
+   BYOK — API Key Gemini pribadi (modern, simple)
+   ========================================================================== */
+.claude-key-wrap { position: relative; }
+.claude-key-dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
+.claude-key-dot.on { background: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18); }
+.claude-key-panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 340px;
+  max-width: calc(100vw - 48px);
+  background: var(--c-bg-card, #ffffff);
+  border: 1px solid var(--c-border, #e2e8f0);
+  border-radius: 14px;
+  box-shadow: var(--c-shadow-lg, 0 10px 25px -3px rgba(0, 0, 0, 0.08));
+  padding: 16px;
+  z-index: 40;
+  animation: claudeKeyPop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes claudeKeyPop {
+  0% { opacity: 0; transform: translateY(6px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.claude-key-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.claude-key-title { margin: 0; font-size: 14px; font-weight: 700; color: var(--c-text-main, #0f172a); }
+.claude-key-sub { margin: 2px 0 0; font-size: 12px; color: var(--c-text-muted, #64748b); }
+.claude-key-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 8px; border: none;
+  background: transparent; color: var(--c-text-muted, #64748b); cursor: pointer;
+}
+.claude-key-close:hover { background: var(--c-bg-subtle, #f1f5f9); color: var(--c-text-main, #0f172a); }
+.claude-key-status {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--c-bg-subtle, #f1f5f9);
+  font-size: 12.5px; font-weight: 600; color: var(--c-text-muted, #64748b);
+}
+.claude-key-status.on { color: #047857; background: rgba(16, 185, 129, 0.1); }
+[data-theme="dark"] .claude-key-status.on { color: #6ee7b7; }
+.claude-key-label { display: block; font-size: 12px; font-weight: 600; color: var(--c-text-muted, #64748b); margin-bottom: 6px; }
+.claude-key-input-row { display: flex; gap: 8px; }
+.claude-key-input {
+  flex: 1; min-width: 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--c-border, #e2e8f0);
+  background: var(--c-bg-page, #f8fafc);
+  color: var(--c-text-main, #0f172a);
+  font-size: 13px; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  outline: none;
+}
+.claude-key-input:focus { border-color: var(--c-border-focus, #0962C5); box-shadow: 0 0 0 3px var(--c-brand-glow, rgba(9, 98, 197, 0.16)); }
+.claude-key-eye {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; border-radius: 9px;
+  border: 1px solid var(--c-border, #e2e8f0);
+  background: var(--c-bg-card, #ffffff); color: var(--c-text-muted, #64748b);
+  cursor: pointer;
+}
+.claude-key-eye:hover { color: var(--c-text-main, #0f172a); border-color: var(--c-border-hover, #cbd5e1); }
+.claude-key-remember { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 0; font-size: 12px; color: var(--c-text-muted, #64748b); cursor: pointer; line-height: 1.5; }
+.claude-key-remember input { margin-top: 2px; accent-color: var(--c-brand, #0962C5); }
+.claude-key-status-msg { margin-top: 10px; padding: 8px 10px; border-radius: 9px; font-size: 12.5px; line-height: 1.5; }
+.claude-key-status-msg.ok { background: rgba(16, 185, 129, 0.1); color: #047857; }
+.claude-key-status-msg.err { background: rgba(239, 68, 68, 0.08); color: #b91c1c; }
+[data-theme="dark"] .claude-key-status-msg.ok { color: #6ee7b7; }
+[data-theme="dark"] .claude-key-status-msg.err { color: #fca5a5; }
+.claude-key-actions { display: flex; gap: 8px; margin-top: 12px; }
+.claude-key-save {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px 12px; border-radius: 9px; border: none;
+  background: var(--c-brand, #0962C5); color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.15s ease;
+}
+.claude-key-save:hover:not(:disabled) { background: var(--c-brand-hover, #0852a8); }
+.claude-key-save:disabled { opacity: 0.55; cursor: default; }
+.claude-key-remove {
+  padding: 9px 14px; border-radius: 9px;
+  border: 1px solid var(--c-border, #e2e8f0);
+  background: transparent; color: var(--c-text-muted, #64748b);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.claude-key-remove:hover { border-color: #fca5a5; color: #b91c1c; }
+.claude-key-foot { margin: 12px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--c-text-light, #94a3b8); }
+.claude-key-foot a { color: var(--c-brand, #0962C5); font-weight: 600; text-decoration: none; }
+.claude-key-foot a:hover { text-decoration: underline; }

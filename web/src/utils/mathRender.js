@@ -1,4 +1,5 @@
 import katex from 'katex'
+import { prepareCodeHtml } from './codeRender'
 
 // Regex ringan tanpa nested catastrophic: cukup tangkap \command + 0-2 blok {..}
 // + pangkat/subscript plain seperti 9^{10}, x_{i}, x^{n}_{i} (tanpa \)
@@ -72,23 +73,37 @@ function enrichTextChunk(text) {
 const _cache = new Map()
 export function prepareMathHtml(html) {
   if (!html || typeof html !== 'string') return html
-  const needsMath = html.includes('\\') || HAS_POW_SUB.test(html)
+  // Lenient code pass dulu (idempoten): fence ```...``` + backtick `...` jadi
+  // <pre><code>/<code> rapi dan isi <pre> dipastikan ter-escape.
+  // Ini memperbaiki semua konsumen (fill, builder, dashboard, AI preview)
+  // tanpa mengubah tiap call-site. Strict pass untuk output mentah AI
+  // tetap dilakukan eksplisit di AiFormBuilderPage sebelum memanggil ini.
+  let src = html
+  try {
+    const converted = prepareCodeHtml(html)
+    if (typeof converted === 'string') src = converted
+  } catch { /* abaikan, lanjut dengan html asli */ }
+  const needsMath = src.includes('\\') || HAS_POW_SUB.test(src)
   HAS_POW_SUB.lastIndex = 0
-  if (!needsMath) return html
   if (_cache.has(html)) return _cache.get(html)
+  if (!needsMath) {
+    _cache.set(html, src)
+    if (_cache.size > 200) _cache.delete(_cache.keys().next().value)
+    return src
+  }
   // fast-path: sudah ada katex dan tidak ada raw math di luar annotation/data-value -> skip
-  if (html.includes('katex')) {
-    const stripped = html.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/g, '').replace(/data-(value|latex)="[^"]*"/g, '')
+  if (src.includes('katex')) {
+    const stripped = src.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/g, '').replace(/data-(value|latex)="[^"]*"/g, '')
     const stillHas = stripped.includes('\\') ? HAS_LATEX.test(stripped) : HAS_POW_SUB.test(stripped)
     HAS_POW_SUB.lastIndex = 0
     if (!stillHas) {
-      _cache.set(html, html)
+      _cache.set(html, src)
       if (_cache.size > 200) _cache.delete(_cache.keys().next().value)
-      return html
+      return src
     }
   }
   // tag-aware split: hanya proses chunk text, bukan tag — skip di dalam <pre>/<code>
-  const parts = html.split(/(<[^>]+>)/g)
+  const parts = src.split(/(<[^>]+>)/g)
   let changed = false
   let insidePre = 0
   let insideCode = 0
@@ -111,7 +126,7 @@ export function prepareMathHtml(html) {
     }
   }
   // handle ql-formula kosong (old data) : <span class="ql-formula" data-value="\frac{3}{6}"></span>
-  let out = changed ? parts.join('') : html
+  let out = changed ? parts.join('') : src
   if (out && typeof out === 'string' && out.includes('undefined')) {
     out = out
       .replace(/<div[^>]*class="[^"]*math-display-block[^"]*"[^>]*data-latex="undefined"[^>]*>.*?<\/div>/gi, '')
@@ -133,9 +148,9 @@ export function prepareMathHtml(html) {
         return full.replace('></div>', `>${rendered}</div>`)
       } catch { return full }
     })
-    if (out !== html) changed = true
+    if (out !== src) changed = true
   }
-  const res = changed ? out : html
+  const res = changed ? out : src
   _cache.set(html, res)
   if (_cache.size > 200) _cache.delete(_cache.keys().next().value)
   return res

@@ -15,6 +15,7 @@ import '../styles/form-fill.css';
 import '../styles/video-embed.css';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
+import { prepareCodeHtml, ensureVisibleCodeHtml } from '../utils/codeRender';
 import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { getValidToken } from '../utils/authStorage';
 import { parseServerTime } from '../utils/date';
@@ -142,7 +143,13 @@ function normalizeColors(html) {
 // Sekarang juga enrich raw LaTeX (\frac dll) yang lolos dari sanitizer lama
 // agar tetap tampil sebagai rumus di fillpage & riwayat.
 // Sanitasi DOMPurify di akhir agar XSS tersimpan tidak bisa eksekusi di browser.
-const richHtml = (html) => ({ __html: safeHtml(prepareMathHtml(normalizeColors(html ?? ''))) });
+// prepareCodeHtml (lenient): ubah fence ```...``` + backtick jadi <pre><code>/<code>
+// rapi dan pastikan isi <pre> ter-escape, tanpa menyentuh rich-text Quill lain.
+const richHtml = (html) => {
+  const raw = normalizeColors(html ?? '');
+  const withCode = prepareCodeHtml(raw);
+  return { __html: ensureVisibleCodeHtml(raw, safeHtml(prepareMathHtml(withCode))) };
+};
 
 // Hook untuk render video embed inline (YouTube/Vimeo/Drive/MP4) tanpa keluar form
 // Fix: React dangerouslySetInnerHTML bikin object baru tiap render -> innerHTML di-reset tiap state change (pilih opsi / zoom)

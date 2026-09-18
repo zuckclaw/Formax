@@ -1,10 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createForm } from '../api/forms';
-import { generateAiForm, extractAiFileText } from '../api/ai';
+import { generateAiForm, extractAiFileText, validateGeminiKey } from '../api/ai';
 import { getValidToken } from '../utils/authStorage';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
+import { prepareCodeHtml, ensureVisibleCodeHtml } from '../utils/codeRender';
+import { mapAiError } from '../utils/aiErrors';
+import { getOwnGeminiKey, setOwnGeminiKey, clearOwnGeminiKey, maskGeminiKey } from '../utils/geminiKey';
+import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { validatePrompt, extractQuestionCountFromPrompt } from '../utils/promptValidator';
 import AiIntroPortal from '../components/AiIntroPortal';
 import ThemeToggle from '../components/ThemeToggle';
@@ -50,6 +54,22 @@ const QUESTION_TYPE_LABELS = {
   file_upload: 'Upload File',
   page_break: 'Bagian Header',
 };
+
+// Helper module-scope (di luar komponen) agar pure menurut React Compiler:
+// Date.now/Math.random tidak boleh dipanggil di dalam body render/hook.
+function createAiFormSlug() {
+  return `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+// Baca status key sekali (lazy initializer) — storage access diisolasi di sini.
+function loadOwnKeyState() {
+  try {
+    const { key, remembered } = getOwnGeminiKey();
+    return key ? { suffix: maskGeminiKey(key), remembered } : null;
+  } catch {
+    return null;
+  }
+}
 
 const PRESET_PROMPTS = [
   {
@@ -119,11 +139,99 @@ export default function AiFormBuilderPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
+  const [errorHint, setErrorHint] = useState(null);
+  const [errorAction, setErrorAction] = useState(null); // { type: 'key'|'retry', label }
   const [toast, setToast] = useState(null);
   const [showPortal, setShowPortal] = useState(true);
   const [showTitleField, setShowTitleField] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const guideRef = useRef(null);
+  const previewPaperRef = useRef(null);
+  const keyWrapRef = useRef(null);
+
+  // BYOK — API key Gemini milik user (session default, opt-in ingat).
+  const [showKeyPanel, setShowKeyPanel] = useState(false);
+  const [ownKey, setOwnKey] = useState(loadOwnKeyState);
+  const [keyInput, setKeyInput] = useState('');
+  const [showKeyText, setShowKeyText] = useState(false);
+  const [rememberKey, setRememberKey] = useState(false);
+  const [isCheckingKey, setIsCheckingKey] = useState(false);
+  const [keyStatus, setKeyStatus] = useState(null); // { ok: bool, msg }
+
+  const refreshOwnKey = useCallback(() => {
+    try {
+      const { key, remembered } = getOwnGeminiKey();
+      setOwnKey(key ? { suffix: maskGeminiKey(key), remembered } : null);
+    } catch {
+      setOwnKey(null);
+    }
+  }, []);
+
+  // Panel key ditutup saat klik di luar / tekan Escape.
+  useEffect(() => {
+    if (!showKeyPanel) return;
+    const handleClickOutside = (e) => {
+      if (keyWrapRef.current && !keyWrapRef.current.contains(e.target)) {
+        setShowKeyPanel(false);
+      }
+    };
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setShowKeyPanel(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [showKeyPanel]);
+
+  const handleCheckKey = async () => {
+    const v = keyInput.trim();
+    if (v.length < 20) {
+      setKeyStatus({ ok: false, msg: 'Key terlalu pendek. Tempel API key Gemini utuh (biasanya diawali AIza).' });
+      return;
+    }
+    setIsCheckingKey(true);
+    setKeyStatus(null);
+    try {
+      const res = await validateGeminiKey(token, v);
+      setOwnGeminiKey(v, rememberKey);
+      refreshOwnKey();
+      setKeyInput('');
+      setKeyStatus({ ok: true, msg: `Key valid! ${res.models?.length || 'Beberapa'} model tersedia (${(res.models || []).slice(0, 3).join(', ')}${(res.models || []).length > 3 ? '…' : ''}).` });
+      showToast('API key pribadi tersimpan & aktif!', 'success');
+    } catch (err) {
+      const mapped = mapAiError(err.message || 'Gagal memeriksa key', { hasOwnKey: false });
+      setKeyStatus({ ok: false, msg: `${mapped.text} ${mapped.hint || ''}`.trim() });
+    } finally {
+      setIsCheckingKey(false);
+    }
+  };
+
+  const handleRemoveKey = () => {
+    clearOwnGeminiKey();
+    refreshOwnKey();
+    setKeyInput('');
+    setKeyStatus(null);
+    showToast('API key pribadi dihapus — kembali memakai kunci server.', 'info');
+  };
+
+  // Pipeline render AI: code (strict) -> math -> sanitasi.
+  // Strict karena output AI adalah teks mentah yang bisa berisi tag HTML mentah
+  // ("fungsi tag <p>", opsi "<div>") yang harus jadi code, bukan elemen beneran.
+  const aiHtml = useCallback((raw) => {
+    const normalized = prepareCodeHtml(raw ?? '', { strict: true });
+    const withMath = prepareMathHtml(normalized);
+    return ensureVisibleCodeHtml(raw ?? '', safeHtml(withMath));
+  }, []);
+
+  // Highlight + tombol copy untuk <pre><code> di hasil preview.
+  useEffect(() => {
+    if (previewPaperRef.current) {
+      try { enhanceCodeBlocks(previewPaperRef.current); } catch { /* abaikan */ }
+    }
+  }, [preview]);
 
   // File Attachment State
   const [attachedFile, setAttachedFile] = useState(null); // { name, size, text, charCount }
@@ -168,6 +276,8 @@ export default function AiFormBuilderPage() {
     setIncludeCorrect(preset.includeCorrect);
     setUseSections(preset.useSections);
     setError('');
+    setErrorHint(null);
+    setErrorAction(null);
     showToast(`Template "${preset.label}" diterapkan!`, 'info');
     if (textareaRef.current) {
       textareaRef.current.focus();
@@ -259,6 +369,8 @@ export default function AiFormBuilderPage() {
     }
 
     setError('');
+    setErrorHint(null);
+    setErrorAction(null);
     setIsGenerating(true);
     try {
       const data = await generateAiForm(token, {
@@ -279,6 +391,8 @@ export default function AiFormBuilderPage() {
       setIsGenerating(false);
     }
   };
+
+  const handleErrorAction = () => {};
 
   const handleKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -315,7 +429,7 @@ export default function AiFormBuilderPage() {
       const created = await createForm(token, {
         title: payload.title,
         description: payload.description,
-        slug: `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        slug: createAiFormSlug(),
         questions: payload.questions,
         status: 'draft',
         allow_see_result: false,
@@ -512,7 +626,11 @@ export default function AiFormBuilderPage() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setPrompt(val);
-                  if (error) setError('');
+                  if (error) {
+                    setError('');
+                    setErrorHint(null);
+                    setErrorAction(null);
+                  }
                   const detected = extractQuestionCountFromPrompt(val);
                   if (detected !== null && detected !== numQuestions) {
                     setNumQuestions(detected);
@@ -551,7 +669,29 @@ export default function AiFormBuilderPage() {
                   <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  <span>{error}</span>
+                  <div className="claude-error-body">
+                    <span className="claude-error-text">{error}</span>
+                    {errorHint && <span className="claude-error-hint">{errorHint}</span>}
+                    {errorAction && (
+                      <button
+                        type="button"
+                        className="claude-error-action"
+                        onClick={handleErrorAction}
+                        disabled={isGenerating && errorAction.type === 'retry'}
+                      >
+                        {errorAction.type === 'key' ? (
+                          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                          </svg>
+                        ) : (
+                          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        )}
+                        <span>{errorAction.label}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -584,6 +724,121 @@ export default function AiFormBuilderPage() {
                     )}
                     <span>{attachedFile ? 'File Terlampir' : 'Sisipkan File'}</span>
                   </button>
+
+                  {/* BYOK — API Key Gemini pribadi */}
+                  <div className="claude-key-wrap" ref={keyWrapRef}>
+                    <button
+                      type="button"
+                      className={`claude-toolbar-btn ${ownKey ? 'active' : ''}`}
+                      onClick={() => setShowKeyPanel((v) => !v)}
+                      title={ownKey ? `API key pribadi aktif (${ownKey.suffix}) — klik untuk kelola` : 'Tempel API key Gemini gratis milik Anda (opsional)'}
+                    >
+                      <span className={`claude-key-dot ${ownKey ? 'on' : ''}`} />
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                      </svg>
+                      <span>{ownKey ? `Key ${ownKey.suffix}` : 'API Key'}</span>
+                    </button>
+
+                    {showKeyPanel && (
+                      <div className="claude-key-panel">
+                        <div className="claude-key-head">
+                          <div>
+                            <h3 className="claude-key-title">API Key Gemini Pribadi</h3>
+                            <p className="claude-key-sub">Gratis via Google AI Studio. Kuota milik Anda sendiri.</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="claude-key-close"
+                            onClick={() => setShowKeyPanel(false)}
+                            aria-label="Tutup"
+                          >
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className={`claude-key-status ${ownKey ? 'on' : ''}`}>
+                          <span className={`claude-key-dot ${ownKey ? 'on' : ''}`} />
+                          <span>{ownKey ? `Aktif — ${ownKey.suffix}${ownKey.remembered ? ' · tersimpan di perangkat' : ' · hanya sesi ini'}` : 'Nonaktif — memakai kunci server'}</span>
+                        </div>
+
+                        <label className="claude-key-label" htmlFor="claude-gemini-key">Tempel API key</label>
+                        <div className="claude-key-input-row">
+                          <input
+                            id="claude-gemini-key"
+                            type={showKeyText ? 'text' : 'password'}
+                            className="claude-key-input"
+                            placeholder="AIza…"
+                            value={keyInput}
+                            onChange={(e) => setKeyInput(e.target.value)}
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                          <button
+                            type="button"
+                            className="claude-key-eye"
+                            onClick={() => setShowKeyText((v) => !v)}
+                            title={showKeyText ? 'Sembunyikan' : 'Tampilkan'}
+                          >
+                            {showKeyText ? (
+                              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                              </svg>
+                            ) : (
+                              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+
+                        <label className="claude-key-remember">
+                          <input
+                            type="checkbox"
+                            checked={rememberKey}
+                            onChange={(e) => setRememberKey(e.target.checked)}
+                          />
+                          <span>Ingat di perangkat ini (jika mati, key hanya berlaku sesi ini)</span>
+                        </label>
+
+                        {keyStatus && (
+                          <div className={`claude-key-status-msg ${keyStatus.ok ? 'ok' : 'err'}`}>
+                            <span>{keyStatus.msg}</span>
+                          </div>
+                        )}
+
+                        <div className="claude-key-actions">
+                          <button
+                            type="button"
+                            className="claude-key-save"
+                            onClick={handleCheckKey}
+                            disabled={isCheckingKey || keyInput.trim().length < 20}
+                          >
+                            {isCheckingKey ? <span className="claude-micro-spinner" /> : null}
+                            <span>{isCheckingKey ? 'Memeriksa…' : 'Cek & Simpan'}</span>
+                          </button>
+                          {ownKey && (
+                            <button
+                              type="button"
+                              className="claude-key-remove"
+                              onClick={handleRemoveKey}
+                            >
+                              <span>Hapus</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="claude-key-foot">
+                          Ambil gratis di{' '}
+                          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>
+                          {' '}· key hanya tersimpan di browser Anda & dikirim ke Google via server.
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Question Count Pill Dropdown */}
                   <div className="claude-pill-dropdown-wrap">
@@ -723,16 +978,16 @@ export default function AiFormBuilderPage() {
               </div>
 
               {/* Form Artifact Paper */}
-              <div className="claude-form-paper">
+              <div className="claude-form-paper" ref={previewPaperRef}>
                 <div className="claude-paper-header">
                   <h1
                     className="claude-paper-title"
-                    dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.title)) }}
+                    dangerouslySetInnerHTML={{ __html: aiHtml(preview.title) }}
                   />
                   {preview.description && (
                     <p
                       className="claude-paper-desc"
-                      dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(preview.description)) }}
+                      dangerouslySetInnerHTML={{ __html: aiHtml(preview.description) }}
                     />
                   )}
                 </div>
@@ -749,12 +1004,12 @@ export default function AiFormBuilderPage() {
                         </div>
                         <h3
                           className="claude-section-title"
-                          dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.label)) }}
+                          dangerouslySetInnerHTML={{ __html: aiHtml(sec.pb.label) }}
                         />
                         {sec.pb.settings?.description && (
                           <p
                             className="claude-section-desc"
-                            dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(sec.pb.settings.description)) }}
+                            dangerouslySetInnerHTML={{ __html: aiHtml(sec.pb.settings.description) }}
                           />
                         )}
                       </div>
@@ -768,7 +1023,7 @@ export default function AiFormBuilderPage() {
                             <div className="claude-q-label-wrap">
                               <div
                                 className="claude-q-label"
-                                dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label)) }}
+                                dangerouslySetInnerHTML={{ __html: aiHtml(q.label) }}
                               />
                             </div>
                             <span className="claude-q-type-badge">
@@ -791,7 +1046,7 @@ export default function AiFormBuilderPage() {
                                   </div>
                                   <span
                                     className="claude-option-label"
-                                    dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(opt.label)) }}
+                                    dangerouslySetInnerHTML={{ __html: aiHtml(opt.label) }}
                                   />
                                   {opt.is_correct && (
                                     <span className="claude-correct-badge">✓ Kunci Jawaban</span>

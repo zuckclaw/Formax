@@ -7,7 +7,7 @@ import random
 from typing import Optional, List
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header
 from pydantic import BaseModel, Field
 
 from ..deps import get_current_user
@@ -74,6 +74,7 @@ CRITICAL INSTRUCTIONS:
 3. ZERO AI-SLOP: Never generate generic placeholders like "Opsi A", "Jawaban 1", "Pertanyaan 1", "Teks placeholder", or "Soal tentang X". Every question label, section header, and option MUST be realistic, specific, and complete.
 4. MATH & SCIENCE FORMULAS: If the form includes math, physics, or statistics, format equations in standard LaTeX syntax wrapped in \\(...\\) for inline or \\[...\\] for block math (e.g., \\(f(x) = ax^2 + bx + c\\), \\(\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1\\)).
 5. EXAM ACCURACY: When include_correct is true, ensure EXACTLY 1 correct option (is_correct: true) per single_choice question, with plausible distractors.
+6. CODE SNIPPETS (HTML/CSS/JS/Python/dll): NEVER output raw/bare HTML tags inside label/options (e.g. NEVER write "fungsi tag <p>" or option "<div class=...>" as raw tags). ALWAYS escape angle brackets as entities (&lt; &gt; &amp;) for inline code, e.g. "fungsi tag &lt;p&gt;", "penulisan &lt;div class=&quot;container&quot;&gt; yang benar". For multi-line code, wrap the ESCAPED code in <pre><code class="language-html">...escaped code...</code></pre> (language-html/css/javascript/python as appropriate). Markdown fences (```html) are FORBIDDEN inside JSON — use <pre><code> instead. Keep double quotes inside JSON strings properly escaped (JSON syntax must stay valid).
 
 JSON SCHEMA:
 {
@@ -118,6 +119,21 @@ def _build_user_prompt(req: AiGenerateRequest, effective_num_questions: int) -> 
     is_math = bool(re.search(r'(matematika|math|aljabar|kalkulus|geometri|trigonometri|fisika|rumus|persamaan|equation|hitung|kuadrat|pecahan|integral|turunan)', req.prompt, re.IGNORECASE))
     math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX!" if is_math else ""
 
+    # Check if prompt asks for coding questions (HTML/CSS/JS/Python/dll)
+    is_code = bool(re.search(r'(html|css|javascript|js\b|python|php|java\b|tag\b|elemen|koding|coding|program|script|div\b|kode\b|informatika|pemrograman|web\b|tailwind|react|vue)', req.prompt, re.IGNORECASE))
+    code_hint = (
+        "PENTING FORMAT CODE: Soal ini mengandung KODE. Aturan wajib: "
+        "(1) JANGAN tulis tag HTML mentah di label/opsi (contoh SALAH: \"fungsi tag <p>\", opsi \"<div>\"). "
+        "(2) Inline code WAJIB di-escape sebagai entities: &lt; &gt; &amp; &quot; "
+        "(contoh BENAR: \"fungsi tag &lt;p&gt;\", \"&lt;div class=&quot;container&quot;&gt;\"). "
+        "(3) Kode multi-baris WAJIB dibungkus <pre><code class=\"language-html\">...kode yang sudah di-escape...</code></pre> "
+        "(ganti language-html dengan language-css/language-javascript/language-python sesuai bahasa). "
+        "(4) DILARANG memakai markdown fence ``` di dalam JSON. "
+        "(5) VALIDITAS JSON DI ATAS SEGALANYA: tidak ada newline literal di dalam string "
+        "(pakai escape \\n bila perlu baris baru), setiap tanda kutip ganda di dalam string "
+        "WAJIB di-escape sebagai \\\", dan snippet code dibuat sekompak mungkin."
+    ) if is_code else ""
+
     file_context_hint = ""
     if req.file_context and req.file_context.strip():
         file_context_hint = f"\n=== REFERENSI DOKUMEN / MATERI TERLAMPIR ===\n{req.file_context.strip()[:15000]}\n=== AKHIR DOKUMEN TERLAMPIR ===\n(PENTING: Buat soal/formulir berdasarkan materi dokumen di atas secara relevan dan presisi.)\n"
@@ -130,6 +146,7 @@ Prompt Pengguna: "{req.prompt}"
 {section_hint}
 {type_hint}
 {math_hint}
+{code_hint}
 
 PENTING:
 - Buat tepat {effective_num_questions} pertanyaan utama (di luar type page_break).
@@ -139,6 +156,11 @@ PENTING:
 
 def _repair_json(text: str) -> str:
     text = text.strip()
+    # Hapus fence markdown yang membungkus SELURUH respons (dengan/tanpa preamble).
+    # Contoh: "Here is JSON:\n```json\n{...}\n```" -> ambil isi fence dulu.
+    fence_m = re.search(r"```(?:json)?\s*(\{[\s\S]*\})\s*```", text)
+    if fence_m:
+        return fence_m.group(1)
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
@@ -147,17 +169,279 @@ def _repair_json(text: str) -> str:
         return m.group(0)
     return text
 
+
+# ==================== ERROR TAGS (kontrak stabil untuk UX frontend) ====================
+# Frontend (AiFormBuilderPage via mapAiError) memetakan prefix ini menjadi pesan
+# ramah + tombol aksi. JANGAN ubah string tag tanpa update web/src/utils/aiErrors.js.
+TAG_BUSY = "[AI_BUSY]"        # semua kandidat 503/overload/transien -> coba lagi manual
+TAG_QUOTA = "[AI_QUOTA]"      # kuota Google habis -> tempel API key sendiri / tunggu reset
+TAG_BAD_KEY = "[AI_BAD_KEY]"  # API key (milik user) tidak valid -> periksa key
+TAG_BAD_JSON = "[AI_BAD_JSON]"  # model mengembalikan JSON rusak -> generate ulang manual
+
+
+def _classify_provider_error(status_code: int, body: str) -> Optional[str]:
+    """Kembalikan tag error berdasarkan status + isi body dari Google. None = tak dikenal."""
+    b = (body or "").lower()
+    if status_code == 503 or "high demand" in b or "unavailable" in b or "overloaded" in b:
+        return TAG_BUSY
+    if status_code == 429 or "quota" in b or "rate limit" in b or "resource_exhausted" in b:
+        return TAG_QUOTA
+    if status_code in (400, 401, 403) and ("api key" in b or "api_key" in b or "invalid" in b or "permission denied" in b):
+        return TAG_BAD_KEY
+    if status_code in (500, 502, 504) or "internal error" in b or "timeout" in b:
+        return TAG_BUSY
+    return None
+
+
+# ==================== BYOK (Bring Your Own Key — Gemini milik user) ====================
+# Key dikirim per-request via header X-Gemini-API-Key (tidak disimpan di server).
+# TIDAK PERNAH log full key — hanya suffix 4 char untuk diagnosis.
+
+def _mask_key(key: str) -> str:
+    if not key or len(key) <= 4:
+        return "****"
+    return f"****{key[-4:]}"
+
+
+def _resolve_gemini_key(header_key: Optional[str]):
+    """Kembalikan (api_key, source, error). source: 'own' | 'server'. error: str|None."""
+    own = (header_key or "").strip()
+    if own:
+        if len(own) < 20 or len(own) > 300 or any(ord(c) < 32 or ord(c) == 127 for c in own):
+            return None, "own", "Format API key tidak valid. Tempel ulang API key Gemini (biasanya diawali AIza, ~39 karakter)."
+        return own, "own", None
+    env_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not env_key:
+        return None, "server", None
+    return env_key, "server", None
+
+
+# ==================== LENIENT JSON PARSER (jaring pengaman output model lemah) ====================
+# Model non-JSON-mode (gemma/groq fallback, atau kandidat lemah saat overload)
+# sering menulis newline literal / trailing comma di dalam string code.
+# Parser ini string-aware: tidak pernah menyentuh isi di dalam string JSON.
+
+def _escape_controls_in_strings(s: str) -> str:
+    out = []
+    in_str = False
+    esc = False
+    for ch in s:
+        if in_str:
+            if esc:
+                out.append(ch)
+                esc = False
+            elif ch == "\\":
+                out.append(ch)
+                esc = True
+            elif ch == '"':
+                out.append(ch)
+                in_str = False
+            elif ch == "\n":
+                out.append("\\n")
+            elif ch == "\r":
+                out.append("\\r")
+            elif ch == "\t":
+                out.append("\\t")
+            elif ord(ch) < 32:
+                out.append(f"\\u{ord(ch):04x}")
+            else:
+                out.append(ch)
+        else:
+            out.append(ch)
+            if ch == '"':
+                in_str = True
+    return "".join(out)
+
+
+def _strip_trailing_commas_outside_strings(s: str) -> str:
+    out = []
+    in_str = False
+    esc = False
+    i, n = 0, len(s)
+    while i < n:
+        ch = s[i]
+        if in_str:
+            out.append(ch)
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            i += 1
+            continue
+        if ch == '"':
+            in_str = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == ",":
+            j = i + 1
+            while j < n and s[j] in " \t\r\n":
+                j += 1
+            if j < n and s[j] in "}]":
+                i += 1  # buang koma tergantung — di luar string, aman
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _loads_lenient(text: str):
+    """json.loads ketat dulu, lalu repair string-aware. Raise JSONDecodeError asli bila gagal."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    fixed = _escape_controls_in_strings(text)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+    fixed2 = _strip_trailing_commas_outside_strings(fixed)
+    return json.loads(fixed2)
+
+
+def _error_window(text: str, pos: int, radius: int = 200) -> str:
+    lo = max(0, pos - radius)
+    hi = min(len(text), pos + radius)
+    return text[lo:hi]
+
+
+# ==================== CODE NORMALIZER (fix soal coding/HTML kosong) ====================
+# AI sering mengembalikan tag HTML mentah di label/opsi (mis. "fungsi tag <p>",
+# opsi "<div class=\"container\">"). Tag mentah itu kemudian dianggap elemen HTML
+# beneran oleh DOMPurify di frontend dan di-strip -> soal/opsi tampak kosong.
+# Normalizer ini mengubahnya menjadi entities + <pre><code> yang aman dirender.
+
+import html as _html_mod
+
+_CODE_FENCE_RE = re.compile(r"```(\w*)\s*\n?([\s\S]*?)```", re.MULTILINE)
+_PRE_BLOCK_RE = re.compile(r"<pre(\s[^>]*)?>([\s\S]*?)</pre\s*>", re.IGNORECASE)
+_CODE_TAG_RE = re.compile(r"</?(?:html|head|body|title|meta|link|div|span|p|a|img|ul|ol|li|table|thead|tbody|tr|td|th|form|input|button|select|option|textarea|label|h1|h2|h3|h4|h5|h6|header|footer|section|article|nav|main|aside|style|script|pre|code|blockquote|br|hr)(?:\s[^<>]*)?/?>", re.IGNORECASE)
+
+
+def _escape_code_text(code: str) -> str:
+    """Escape < > & untuk ditampilkan sebagai teks code (hindari double-escape)."""
+    if not code:
+        return ""
+    # Jika sudah berbentuk entities, jangan escape ulang.
+    if "&lt;" in code or "&gt;" in code:
+        return code
+    return _html_mod.escape(code, quote=False)
+
+
+def _normalize_code_html(value: str) -> str:
+    """Normalisasi satu string label/opsi/deskripsi agar snippet code aman dirender.
+
+    - Lindungi <pre>...</pre> yang sudah benar (escape isi mentahnya).
+    - Konversi markdown fence ```lang ... ``` menjadi <pre><code>.
+    - Escape bare tag HTML di luar <pre>/<code> menjadi entities + bungkus
+      inline <code> bila berupa potongan pendek, atau <pre><code> bila multi-baris.
+    - Idempoten: konten yang sudah &lt;...&gt; tidak diubah.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    s = value.strip()
+    if not s:
+        return s
+    # 1) <pre> block yang sudah ada -> perbaiki isinya langsung (sebelum stash),
+    #    agar tidak terjadi nested <code> ganda.
+    # Sudah ada <pre> yang benar -> pastikan isinya ter-escape, lalu selesai.
+    if "<pre" in s.lower():
+        def _fix_pre(m):
+            attrs, inner = m.group(1) or "", m.group(2) or ""
+            # Jika inner sudah berisi <code>, escape di dalam code saja.
+            cm = re.search(r"<code(\s[^>]*)?>([\s\S]*?)</code\s*>", inner, re.IGNORECASE)
+            if cm:
+                code_attrs, code_inner = cm.group(1) or "", cm.group(2) or ""
+                if "<" in code_inner and "&lt;" not in code_inner:
+                    code_inner = _html_mod.escape(code_inner, quote=False)
+                # pastikan ada language class untuk highlight
+                if "language-" not in (code_attrs or ""):
+                    code_attrs = (code_attrs or "") + ' class="language-html"'
+                inner = re.sub(
+                    r"<code(\s[^>]*)?>([\s\S]*?)</code\s*>",
+                    f"<code{code_attrs}>{code_inner}</code>",
+                    inner, count=1, flags=re.IGNORECASE,
+                )
+                return f"<pre{attrs}>{inner}</pre>"
+            # <pre> tanpa <code>: escape seluruh inner lalu bungkus <code>
+            if "<" in inner and "&lt;" not in inner:
+                inner = _html_mod.escape(inner, quote=False)
+            return f'<pre{attrs}><code class="language-html">{inner}</code></pre>'
+        return _PRE_BLOCK_RE.sub(_fix_pre, s)
+
+    # 2) Lindungi inline <code>...</code> yang sudah benar agar tidak di-escape ulang.
+    _code_placeholders = []
+
+    def _stash_code(m):
+        _code_placeholders.append(m.group(0))
+        return f"\x00CODE{len(_code_placeholders) - 1}\x00"
+
+    s = re.sub(r"<code(\s[^>]*)?>[\s\S]*?</code\s*>", _stash_code, s, flags=re.IGNORECASE)
+
+    def _restore(t):
+        for i, orig in enumerate(_code_placeholders):
+            t = t.replace(f"\x00CODE{i}\x00", orig)
+        return t
+
+    # Konversi markdown fence -> <pre><code> (AI kadang tetap memakai fence di dalam JSON string)
+    def _fence_to_pre(m):
+        lang = (m.group(1) or "html").strip().lower() or "html"
+        if lang in ("htm",):
+            lang = "html"
+        if lang in ("js",):
+            lang = "javascript"
+        if lang in ("py",):
+            lang = "python"
+        code = m.group(2) or ""
+        return f'<pre><code class="language-{lang}">{_escape_code_text(code.strip())}</code></pre>'
+    s = _CODE_FENCE_RE.sub(_fence_to_pre, s)
+
+    # Tidak ada tag mentah -> selesai.
+    if "<" not in s or "&lt;" in s and not _CODE_TAG_RE.search(s):
+        # Masih mungkin ada backtick inline `code` -> jadikan <code>
+        if "`" in s:
+            s = re.sub(
+                r"`([^`\n]+)`",
+                lambda m: f"<code>{_escape_code_text(m.group(1))}</code>",
+                s,
+            )
+        return _restore(s)
+
+    # Ada bare tag di luar pre/code.
+    # Kasus multi-baris mirip dokumen HTML utuh -> bungkus seluruhnya sebagai block.
+    if "\n" in s and _CODE_TAG_RE.search(s) and s.count("<") >= 2:
+        return _restore(f'<pre><code class="language-html">{_escape_code_text(s)}</code></pre>')
+
+    # Kasus umum: escape tiap bare tag, bungkus potongan code pendek dengan <code>.
+    def _esc_tag(m):
+        raw = m.group(0)
+        return f"<code>{_html_mod.escape(raw, quote=False)}</code>"
+    s = _CODE_TAG_RE.sub(_esc_tag, s)
+    # Sisa backtick inline -> <code>
+    if "`" in s:
+        s = re.sub(
+            r"`([^`\n]+)`",
+            lambda m: f"<code>{_escape_code_text(m.group(1))}</code>",
+            s,
+        )
+    return _restore(s)
+
 # last error string for fail-loud response (set by _call_gemini / _call_openrouter)
 _last_ai_error: Optional[str] = None
 
 
-async def _call_gemini(user_prompt: str) -> Optional[str]:
+async def _call_gemini(user_prompt: str, api_key: Optional[str] = None, key_source: str = "server") -> Optional[str]:
     global _last_ai_error
-    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
         _last_ai_error = "GEMINI_API_KEY belum di-set di environment"
         print(f"[ai] {_last_ai_error}")
         return None
+    print(f"[ai] Gemini key source: {key_source} ({_mask_key(api_key)})")
 
     env_model = (os.getenv("GEMINI_MODEL") or "").strip()
     # Filter env model yang sudah retire — jangan biarkan GEMINI_MODEL=gemini-1.5-flash meracuni daftar
@@ -233,7 +517,14 @@ async def _call_gemini(user_prompt: str) -> Optional[str]:
                         print(f"[ai] ListModels {ver} discovered (filtered+sorted): {[x[1] for x in discovered[:6]]}")
                         break
                 else:
+                    tag = _classify_provider_error(r.status_code, r.text[:500])
                     print(f"[ai] ListModels {ver} failed {r.status_code}: {r.text[:200]}")
+                    # Key milik user yang invalid -> fail fast dengan pesan jelas (jangan
+                    # buang waktu mencoba semua kandidat dengan key yang pasti ditolak).
+                    if tag == TAG_BAD_KEY and key_source == "own":
+                        _last_ai_error = f"{TAG_BAD_KEY} API key Gemini milik Anda ditolak Google ({_mask_key(api_key)}). Periksa kembali key di Google AI Studio."
+                        print(f"[ai] {_last_ai_error}")
+                        return None
         except Exception as e:
             print(f"[ai] ListModels {ver} exception: {e}")
     if discovered:
@@ -250,8 +541,21 @@ async def _call_gemini(user_prompt: str) -> Optional[str]:
             seen.add(key)
 
     all_errors = []
+    tag_counts = {}
+    overloaded_models = set()
+    consecutive_overload = 0
     last_err = None
     for api_version, model in candidates:
+        # Jika v1 model ini sudah 503 (overload Google), v1beta-nya hampir pasti
+        # ikut 503 — lewati agar failover lebih cepat (tanpa auto-retry berulang).
+        if api_version == "v1beta" and model in overloaded_models:
+            print(f"[ai] skip {api_version}/{model} (v1 sudah 503)")
+            continue
+        # 3x 503 beruntun = overload sistemik Google, bukan model tertentu.
+        # Berhenti cepat dengan pesan jelas (user klik Coba lagi manual 1-2 mnt).
+        if consecutive_overload >= 3:
+            print("[ai] fail fast: 3x 503 beruntun, stop failover")
+            break
         url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={api_key}"
 
         full_prompt = f"{SYSTEM_BASE}\n\n{user_prompt}"
@@ -268,7 +572,10 @@ async def _call_gemini(user_prompt: str) -> Optional[str]:
             payload["generationConfig"]["responseMimeType"] = "application/json"
 
         try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
+            # Timeout per-candidate 25 dtk: generate normal 10-20 dtk; lebih dari
+            # itu kemungkinan hang/overload — lanjut ke kandidat berikut agar
+            # total failover tetap di bawah timeout frontend (120 dtk).
+            async with httpx.AsyncClient(timeout=25.0) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -281,9 +588,22 @@ async def _call_gemini(user_prompt: str) -> Optional[str]:
                             return json.dumps(data)
                 else:
                     err_text = resp.text[:500]
+                    tag = _classify_provider_error(resp.status_code, err_text)
+                    if tag:
+                        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+                    if resp.status_code == 503:
+                        overloaded_models.add(model)
+                        consecutive_overload += 1
+                    else:
+                        consecutive_overload = 0
                     last_err = f"{api_version}/{model} -> {resp.status_code}: {err_text[:300]}"
                     all_errors.append(last_err)
                     print(f"[ai] Gemini try failed: {last_err}")
+                    # Key milik user yang invalid -> fail fast, jangan coba kandidat lain.
+                    if tag == TAG_BAD_KEY and key_source == "own":
+                        _last_ai_error = f"{TAG_BAD_KEY} API key Gemini milik Anda ditolak Google ({_mask_key(api_key)}). Periksa kembali key di Google AI Studio."
+                        print(f"[ai] {_last_ai_error}")
+                        return None
                     # Retry tanpa responseMimeType jika 400 karena mime tidak support
                     if resp.status_code == 400 and "responseMimeType" in err_text and "responseMimeType" in payload.get("generationConfig", {}):
                         payload["generationConfig"].pop("responseMimeType", None)
@@ -312,13 +632,28 @@ async def _call_gemini(user_prompt: str) -> Optional[str]:
             last_err = f"{api_version}/{model} exception: {str(e)}"
             all_errors.append(last_err)
             print(f"[ai] Gemini exception: {last_err}")
+            # Timeout ke Google biasanya menyertai overload — hitung ke budget.
+            if "timeout" in str(e).lower():
+                consecutive_overload += 1
+            else:
+                consecutive_overload = 0
             continue
 
-    # gabung semua error biar 502 tidak cuma tampil last model (1.5-flash-latest) tapi semua kandidat
+    # gabung semua error biar 502 tidak cuma tampil last model tapi semua kandidat.
+    # Awali dengan tag dominan agar frontend (mapAiError) bisa memetakan ke
+    # pesan ramah + tombol aksi yang tepat.
+    dominant = None
+    if tag_counts.get(TAG_BAD_KEY) and key_source == "own":
+        dominant = TAG_BAD_KEY
+    elif tag_counts.get(TAG_QUOTA):
+        dominant = TAG_QUOTA
+    elif tag_counts.get(TAG_BUSY):
+        dominant = TAG_BUSY
     if all_errors:
-        _last_ai_error = " | ".join(all_errors[-6:])  # max 6 biar tidak kepanjangan
+        tail = " | ".join(all_errors[-6:])  # max 6 biar tidak kepanjangan
+        _last_ai_error = f"{dominant + ' ' if dominant else ''}Semua model Gemini gagal ({key_source} key {_mask_key(api_key)}): {tail}"
     else:
-        _last_ai_error = last_err or "Semua model Gemini gagal tanpa detail"
+        _last_ai_error = (dominant + " " if dominant else "") + (last_err or "Semua model Gemini gagal tanpa detail")
     print(f"[ai] All Gemini models failed. Last error: {_last_ai_error}")
     return None
 
@@ -376,13 +711,16 @@ async def _call_openrouter(user_prompt: str) -> Optional[str]:
     return None
 
 
-async def _call_ai(user_prompt: str) -> Optional[str]:
+async def _call_ai(user_prompt: str, gemini_key: Optional[str] = None, key_source: str = "server") -> Optional[str]:
     """Orchestrator: coba Gemini dulu, baru OpenRouter/Groq fallback."""
     global _last_ai_error
     _last_ai_error = None
-    text = await _call_gemini(user_prompt)
+    text = await _call_gemini(user_prompt, api_key=gemini_key, key_source=key_source)
     if text:
         return text
+    # Key milik user yang invalid -> fail fast, jangan timpa pesan jelas dengan fallback.
+    if key_source == "own" and _last_ai_error and TAG_BAD_KEY in _last_ai_error:
+        return None
     # fallback kritis - hanya jika Gemini gagal total
     text2 = await _call_openrouter(user_prompt)
     if text2:
@@ -394,6 +732,8 @@ async def _call_ai(user_prompt: str) -> Optional[str]:
 
 def _detect_domain(prompt: str) -> str:
     p = prompt.lower()
+    if any(k in p for k in ["html", "css", "javascript", "python", "koding", "coding", "pemrograman", "tag ", "elemen html", "informatika", "web dasar"]):
+        return "code"
     if any(k in p for k in ["matematika", "math", "aljabar", "geometri", "kalkulus", "persamaan", "kuadrat", "akar"]):
         return "math"
     if any(k in p for k in ["inggris", "english", "grammar", "tense", "vocabulary", "reading"]):
@@ -415,7 +755,9 @@ def _smart_fallback_generator(req: AiGenerateRequest) -> dict:
 
     title = (req.title or "").strip()
     if not title or len(title) < 5:
-        if domain == "math":
+        if domain == "code":
+            title = "Kuis Pemrograman Web — HTML & Dasar Coding"
+        elif domain == "math":
             title = "Ujian Matematika — Aljabar & Pemecahan Masalah"
         elif domain == "english":
             title = "English Language Proficiency Quiz"
@@ -495,8 +837,19 @@ def _smart_fallback_generator(req: AiGenerateRequest) -> dict:
         ("Upload Bukti Identitas / Dokumen Pendukung", [], 0, "file_upload"),
     ]
 
+    CODE_ITEMS = [
+        ("Apa fungsi tag &lt;p&gt; pada HTML?", ['<code>&lt;p&gt;</code> membuat paragraf teks', '<code>&lt;p&gt;</code> membuat gambar', '<code>&lt;p&gt;</code> membuat tabel', '<code>&lt;p&gt;</code> membuat link'], 0),
+        ("Manakah penulisan elemen &lt;div class=&quot;container&quot;&gt; yang benar?", ['<code>&lt;div class=&quot;container&quot;&gt;</code>', '<code>&lt;div container&gt;</code>', '<code>&lt;division class=&quot;container&quot;&gt;</code>', '<code>&lt;div=&quot;container&quot;&gt;</code>'], 0),
+        ("Tag HTML yang tepat untuk membuat tabel adalah...", ['<code>&lt;table&gt;</code>', '<code>&lt;tab&gt;</code>', '<code>&lt;grid&gt;</code>', '<code>&lt;form&gt;</code>'], 0),
+        ("Perhatikan kode berikut:<pre><code class=\"language-html\">&lt;a href=\"https://contoh.id\"&gt;Kunjungi&lt;/a&gt;</code></pre>Atribut href berfungsi untuk...", ["Menentukan tujuan link", "Mengubah warna teks", "Membuat tabel", "Menyisipkan gambar"], 0),
+        ("Tag &lt;img&gt; membutuhkan atribut wajib berupa...", ['<code>src</code> dan <code>alt</code>', '<code>href</code> dan <code>link</code>', '<code>class</code> saja', '<code>id</code> saja'], 0),
+        ("Perhatikan kode berikut:<pre><code class=\"language-html\">&lt;ul&gt;\n  &lt;li&gt;Apel&lt;/li&gt;\n  &lt;li&gt;Jeruk&lt;/li&gt;\n&lt;/ul&gt;</code></pre>Hasil tampilan kode tersebut adalah...", ["Daftar bullet (tidak bernomor)", "Daftar bernomor", "Tabel 2 kolom", "Formulir input"], 0),
+    ]
+
     # Select pool
-    if domain == "math":
+    if domain == "code":
+        pool = CODE_ITEMS
+    elif domain == "math":
         pool = MATH_ITEMS
     elif domain == "english":
         pool = ENGLISH_ITEMS
@@ -557,6 +910,38 @@ def _smart_fallback_generator(req: AiGenerateRequest) -> dict:
 
     return {"title": title, "description": desc, "questions": questions}
 
+def _visible_text_len(s: str) -> int:
+    """Panjang teks terlihat (strip tag + unescape entities) agar label code
+    seperti '&lt;div&gt;' tidak dianggap kosong."""
+    if not s:
+        return 0
+    t = re.sub(r"<[^>]+>", "", s)
+    t = _html_mod.unescape(t).strip()
+    return len(t)
+
+
+def _safe_truncate(s: str, limit: int) -> str:
+    """Potong string tanpa memenggal tag/entity HTML di tengah."""
+    if not s or len(s) <= limit:
+        return s
+    cut = s[:limit]
+    # Jangan potong di dalam tag <...>
+    lt, gt = cut.rfind("<"), cut.rfind(">")
+    if lt > gt:
+        cut = cut[:lt]
+    # Jangan potong di dalam entity &...;
+    amp, semi = cut.rfind("&"), cut.rfind(";")
+    if amp > semi and amp > len(cut) - 10:
+        cut = cut[:amp]
+    # Tutup tag code/pre yang terpotong agar markup tetap valid
+    low = cut.lower()
+    if "<code" in low and "</code>" not in low:
+        cut += "</code>"
+    if "<pre" in low and "</pre>" not in low:
+        cut += "</pre>"
+    return cut
+
+
 def _validate_and_normalize(raw_questions: list, num_questions: int, use_sections: bool) -> List[dict]:
     out = []
     question_count = 0
@@ -581,8 +966,8 @@ def _validate_and_normalize(raw_questions: list, num_questions: int, use_section
         if t not in ALLOWED_TYPES:
             t = "text"
 
-        label = str(q.get("label") or "").strip()
-        if not label or len(label) < 2:
+        label = _normalize_code_html(str(q.get("label") or "").strip())
+        if not label or _visible_text_len(label) < 2:
             continue
 
         # Clean AI slop artifacts from labels
@@ -596,11 +981,11 @@ def _validate_and_normalize(raw_questions: list, num_questions: int, use_section
                 continue
             out.append({
                 "type": "page_break",
-                "label": label[:120],
+                "label": label[:2000],
                 "is_required": False,
                 "placeholder": "",
                 "settings": {
-                    "description": str(q.get("settings", {}).get("description") or "")[:300],
+                    "description": _normalize_code_html(str(q.get("settings", {}).get("description") or ""))[:2000],
                     "shuffle": bool(q.get("settings", {}).get("shuffle", True))
                 },
                 "options": []
@@ -616,11 +1001,11 @@ def _validate_and_normalize(raw_questions: list, num_questions: int, use_section
             for o in opts[:5]:
                 if not isinstance(o, dict):
                     continue
-                o_label = str(o.get("label") or "").strip()
-                if not o_label or o_label.lower().startswith("opsi a soal") or o_label.lower().startswith("jawaban 1"):
+                o_label = _normalize_code_html(str(o.get("label") or "").strip())
+                if not o_label or _visible_text_len(o_label) < 1 or o_label.lower().startswith("opsi a soal") or o_label.lower().startswith("jawaban 1"):
                     continue
                 norm_opts.append({
-                    "label": o_label[:300],
+                    "label": _safe_truncate(o_label, 2000),
                     "is_correct": bool(o.get("is_correct", False))
                 })
 
@@ -633,10 +1018,10 @@ def _validate_and_normalize(raw_questions: list, num_questions: int, use_section
 
         out.append({
             "type": t,
-            "label": label[:600],
+            "label": _safe_truncate(label, 4000),
             "is_required": bool(q.get("is_required", True)),
-            "placeholder": str(q.get("placeholder") or "")[:150],
-            "settings": q.get("settings") if isinstance(q.get("settings"), dict) else {},
+            "placeholder": _normalize_code_html(str(q.get("placeholder") or ""))[:150],
+            "settings": {k: (_normalize_code_html(v) if isinstance(v, str) else v) for k, v in (q.get("settings") if isinstance(q.get("settings"), dict) else {}).items()},
             "options": norm_opts if t in ("single_choice", "checkbox", "dropdown") else []
         })
         question_count += 1
@@ -648,12 +1033,21 @@ def _validate_and_normalize(raw_questions: list, num_questions: int, use_section
     return out
 
 @router.post("/generate-form", response_model=AiGenerateOut)
-async def generate_form(payload: AiGenerateRequest, current_user: models.User = Depends(get_current_user)):
+async def generate_form(
+    payload: AiGenerateRequest,
+    current_user: models.User = Depends(get_current_user),
+    x_gemini_api_key: Optional[str] = Header(default=None, alias="X-Gemini-API-Key"),
+):
     is_valid, err_msg = validate_prompt(payload.prompt)
     if not is_valid:
         raise HTTPException(status_code=400, detail=err_msg or "Prompt tidak valid atau terdeteksi ketikan acak.")
 
     _check_rate_limit(str(current_user.id))
+
+    # BYOK: kunci Gemini milik user (header) lebih diutamakan dari env server.
+    gemini_key, key_source, key_err = _resolve_gemini_key(x_gemini_api_key)
+    if key_err:
+        raise HTTPException(status_code=400, detail=key_err)
 
     # Cek apakah pengguna meminta jumlah soal eksplisit dalam prompt teks
     extracted_count = extract_question_count(payload.prompt)
@@ -663,10 +1057,10 @@ async def generate_form(payload: AiGenerateRequest, current_user: models.User = 
     description = (payload.description or "").strip()
     user_prompt = _build_user_prompt(payload, effective_num_questions)
 
-    raw_text = await _call_ai(user_prompt)
+    raw_text = await _call_ai(user_prompt, gemini_key=gemini_key, key_source=key_source)
 
     if raw_text is None:
-        # Fail loudly (opsi A) — jangan silent fallback bodoh
+        # Fail loudly (opsi A) — jangan silent fallback bodoh; tanpa auto-retry.
         detail = _last_ai_error or "Semua model AI gagal. Periksa GEMINI_API_KEY dan koneksi."
         # beri hint spesifik untuk kasus 404 model lama
         if "404" in detail and "1.5-flash" in detail:
@@ -675,20 +1069,26 @@ async def generate_form(payload: AiGenerateRequest, current_user: models.User = 
 
     cleaned = _repair_json(raw_text)
     try:
-        data = json.loads(cleaned)
+        data = _loads_lenient(cleaned)
     except Exception:
         try:
             cleaned2 = _repair_json(raw_text[raw_text.find("{"):])
-            data = json.loads(cleaned2)
+            data = _loads_lenient(cleaned2)
         except Exception as je:
-            # Fail loudly — jangan jatuh ke template bodoh
+            # Fail loudly + beri konteks lokasi rusak agar bisa didiagnosis.
+            pos = getattr(je, "pos", None)
+            if isinstance(pos, int):
+                window = _error_window(cleaned, pos)
+                loc = f" (karakter {pos}, potongan: ...{window}...)"
+            else:
+                loc = f" Raw snippet: {raw_text[:500]}"
             raise HTTPException(
                 status_code=502,
-                detail=f"AI mengembalikan JSON tidak valid (bukan fallback). Raw snippet: {raw_text[:500]} | parse error: {je}"
+                detail=f"{TAG_BAD_JSON} AI mengembalikan format rusak.{loc} | parse error: {je} | Silakan klik Generate ulang, atau sederhanakan prompt."
             )
 
-    gen_title = str(data.get("title") or title or "Form Buatan Formax AI").strip()[:120]
-    gen_desc = str(data.get("description") or description or "").strip()[:2000]
+    gen_title = _safe_truncate(_normalize_code_html(str(data.get("title") or title or "Form Buatan Formax AI").strip()), 200)
+    gen_desc = _safe_truncate(_normalize_code_html(str(data.get("description") or description or "").strip()), 3000)
     raw_questions = data.get("questions") or data.get("items") or []
 
     if not isinstance(raw_questions, list) or len(raw_questions) == 0:
@@ -709,8 +1109,67 @@ async def generate_form(payload: AiGenerateRequest, current_user: models.User = 
         title=gen_title,
         description=gen_desc,
         questions=questions,
-        usage={"model": os.getenv("GEMINI_MODEL", "gemini-3.6-flash"), "prompt_chars": len(payload.prompt)}
+        usage={"model": os.getenv("GEMINI_MODEL", "gemini-3.6-flash"), "prompt_chars": len(payload.prompt), "key_source": key_source}
     )
+
+
+class ValidateKeyOut(BaseModel):
+    valid: bool
+    models: List[str] = []
+    key_suffix: str = ""
+
+
+@router.post("/validate-key", response_model=ValidateKeyOut)
+async def validate_gemini_key(
+    current_user: models.User = Depends(get_current_user),
+    x_gemini_api_key: Optional[str] = Header(default=None, alias="X-Gemini-API-Key"),
+):
+    """Cek API key Gemini milik user via ListModels (tanpa menghabiskan kuota generate)."""
+    _check_rate_limit(str(current_user.id), limit=30)
+    gemini_key, key_source, key_err = _resolve_gemini_key(x_gemini_api_key)
+    if key_err or not gemini_key or key_source != "own":
+        raise HTTPException(status_code=400, detail=key_err or "Tempel API key Gemini Anda di header X-Gemini-API-Key.")
+    found: List[str] = []
+    last_status: Optional[int] = None
+    last_body = ""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for ver in ("v1", "v1beta"):
+                try:
+                    r = await client.get(f"https://generativelanguage.googleapis.com/{ver}/models?key={gemini_key}")
+                except Exception as e:
+                    last_body = str(e)
+                    continue
+                last_status = r.status_code
+                last_body = r.text[:300]
+                if r.status_code == 200:
+                    try:
+                        j = r.json()
+                    except Exception:
+                        continue
+                    for m in j.get("models", []):
+                        name = m.get("name", "")
+                        mid = name.split("/")[-1] if "/" in name else name
+                        if "generateContent" in (m.get("supportedGenerationMethods") or []):
+                            if "flash" in mid or "pro" in mid or "gemma" in mid:
+                                found.append(mid)
+                    if found:
+                        break
+                elif _classify_provider_error(r.status_code, r.text[:500]) == TAG_BAD_KEY:
+                    raise HTTPException(status_code=401, detail=f"{TAG_BAD_KEY} API key ditolak Google. Periksa kembali key di Google AI Studio.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"{TAG_BUSY} Gagal menghubungi Google: {e}")
+    if not found:
+        tag = _classify_provider_error(last_status or 0, last_body)
+        if tag == TAG_BAD_KEY:
+            raise HTTPException(status_code=401, detail=f"{TAG_BAD_KEY} API key ditolak Google. Periksa kembali key di Google AI Studio.")
+        raise HTTPException(status_code=502, detail=f"{tag + ' ' if tag else ''}Google tidak mengembalikan daftar model (HTTP {last_status}). Coba lagi nanti.")
+    seen = set()
+    uniq = [m for m in found if not (m in seen or seen.add(m))]
+    print(f"[ai] validate-key ok ({_mask_key(gemini_key)}): {len(uniq)} models")
+    return ValidateKeyOut(valid=True, models=uniq[:20], key_suffix=_mask_key(gemini_key))
 
 
 @router.post("/extract-file")
