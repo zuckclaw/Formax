@@ -24,6 +24,7 @@ import NgrokImage from '../components/NgrokImage';
 import { safeHtml } from '../utils/safeHtml';
 import { prepareMathHtml } from '../utils/mathRender';
 import { enhanceCodeBlocks } from '../utils/codeCopy';
+import { DEFAULT_ACCENT, THEME_PRESETS, normalizeTheme, themeAccent, themeStyle } from '../utils/formTheme';
 
 const QUESTION_TYPES = [
   { value: 'text', label: 'Teks' },
@@ -126,7 +127,7 @@ function PreviewPanel({ formData, questions, onClose }) {
 
   return (
     <div className="fb-preview-overlay" onClick={onClose}>
-      <div className="fb-preview-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="fb-preview-panel" onClick={(e) => e.stopPropagation()} style={themeStyle(formData.theme)}>
         {/* Preview Header */}
         <div className="fb-preview-header">
           <div className="fb-preview-header-left">
@@ -404,6 +405,7 @@ export default function FormBuilderPage() {
     shuffle_questions: false,
     shuffle_options: false,
     banner_url: null,
+    theme: null,
     start_date: '',
     end_date: '',
     join_token: null,
@@ -452,6 +454,7 @@ export default function FormBuilderPage() {
             shuffle_questions: form.shuffle_questions ?? false,
             shuffle_options: form.shuffle_options ?? false,
             banner_url: form.banner_url || null,
+            theme: form.theme || null,
             start_date: form.start_date ? form.start_date.substring(0, 16) : '',
             end_date: form.end_date ? form.end_date.substring(0, 16) : '',
             join_token: form.join_token,
@@ -485,6 +488,7 @@ export default function FormBuilderPage() {
               title: tpl.title || '',
               description: tpl.description || '',
               banner_url: tpl.banner_url || null,
+              theme: tpl.theme || null,
             }));
             setQuestions(
               (tpl.questions || [])
@@ -597,6 +601,7 @@ export default function FormBuilderPage() {
             shuffle_questions: !!formData.shuffle_questions,
             shuffle_options: !!formData.shuffle_options,
             banner_url: formData.banner_url,
+            theme: formData.theme,
             start_date: formData.start_date || null,
             end_date: formData.end_date || null,
             use_join_token: useJoinToken,
@@ -689,6 +694,7 @@ export default function FormBuilderPage() {
           slug,
           template_id: templateId || null,
           banner_url: formData.banner_url,
+          theme: formData.theme,
           start_date: formData.start_date || null,
           end_date: formData.end_date || null,
           use_join_token: useJoinToken,
@@ -817,6 +823,7 @@ export default function FormBuilderPage() {
         title: formData.title,
         description: formData.description,
         banner_url: formData.banner_url,
+        theme: formData.theme,
         questions: questions.map((q, idx) => ({
           type: q.type,
           label: q.label,
@@ -2042,6 +2049,74 @@ export default function FormBuilderPage() {
                         }
                       }}
                     />
+                  </div>
+                </div>
+
+                {/* ===== Tema Tampilan ===== */}
+                <div className="fb-settings-separator">
+                  <span>Tema Tampilan</span>
+                </div>
+
+                <div className="fb-setting-group">
+                  <label className="fb-setting-label">Warna Aksen Form</label>
+                  <p className="fb-setting-row-desc" style={{ margin: '0 0 10px' }}>
+                    Berlaku di halaman pengisi & Preview. Warna lain (hover, badge, tombol) menyesuaikan otomatis.
+                  </p>
+                  <div className="fb-theme-swatches">
+                    {THEME_PRESETS.map((p) => {
+                      const current = themeAccent(formData.theme);
+                      const selected = current === p.accent;
+                      return (
+                        <button
+                          key={p.accent}
+                          type="button"
+                          className={`fb-theme-swatch${selected ? ' selected' : ''}`}
+                          style={{ background: p.accent }}
+                          title={p.name}
+                          aria-label={`Tema ${p.name}`}
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              theme: p.accent === DEFAULT_ACCENT ? null : { accent: p.accent },
+                            }))
+                          }
+                        >
+                          {selected && (
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth={3}>
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                    <label className="fb-theme-custom" title="Warna kustom (color picker)">
+                      <input
+                        type="color"
+                        value={themeAccent(formData.theme)}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, theme: { accent: e.target.value } }))
+                        }
+                        aria-label="Pilih warna kustom"
+                      />
+                      <span>+</span>
+                    </label>
+                  </div>
+                  <div className="fb-theme-current">
+                    <span
+                      className="fb-theme-current-dot"
+                      style={{ background: themeAccent(formData.theme) }}
+                    />
+                    <code>{normalizeTheme(formData.theme) ? themeAccent(formData.theme) : `${DEFAULT_ACCENT} (default)`}</code>
+                    {normalizeTheme(formData.theme) && (
+                      <button
+                        type="button"
+                        className="fb-theme-reset"
+                        onClick={() => setFormData((prev) => ({ ...prev, theme: null }))}
+                      >
+                        Kembalikan default
+                      </button>
+                    )}
                   </div>
                 </div>
 

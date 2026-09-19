@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPublicFormBySlug, joinForm, saveAnswer, submitFinal, getSubmissionResult, flagCheated } from '../api/submissions';
 import { uploadFile } from '../api/uploads';
-import { getMe } from '../api/auth';
+import { getMe, logout } from '../api/auth';
 import ThemeToggle from '../components/ThemeToggle';
 import NgrokImage from '../components/NgrokImage';
 import NgrokAudio from '../components/NgrokAudio';
@@ -20,6 +20,7 @@ import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { getValidToken } from '../utils/authStorage';
 import { parseServerTime } from '../utils/date';
 import { enhanceVideoContainers } from '../utils/videoEmbed';
+import { themeStyle } from '../utils/formTheme';
 
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
@@ -289,6 +290,8 @@ export default function FormFillPage() {
 
   // Form & Submission states
   const [form, setForm] = useState(null);
+  // Vars tema per-form (kosong = default biru)
+  const ffThemeVars = themeStyle(form?.theme);
   const [submissionId, setSubmissionId] = useState(null);
   const [answers, setAnswers] = useState({}); // { [question_id]: { answer_text, answer_options, file_url } }
   const [bookmarked, setBookmarked] = useState(() => {
@@ -388,6 +391,9 @@ export default function FormFillPage() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinTokenInput, setJoinTokenInput] = useState('');
   const [joinError, setJoinError] = useState('');
+  // Gerbang identitas: konfirmasi akun sebelum join (muncul tiap buka link)
+  const [showIdentityGate, setShowIdentityGate] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   // Submit states
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -476,58 +482,9 @@ export default function FormFillPage() {
           return;
         }
 
-        // Try auto joining form (if no join token required or user already joined)
-        try {
-          if (joiningRef.current) return;
-          joiningRef.current = true;
-          const sub = await joinForm(getToken(), slug);
-          setSubmissionId(sub.id);
-          // apply shuffled order per-section if any
-          if (sub.shuffled_order || sub.shuffled_options) {
-            try {
-              const reordered = applyShuffledOrder(formData.questions || [], sub.shuffled_order, sub.shuffled_options);
-              setForm((prev) => prev ? { ...prev, questions: reordered } : prev);
-            } catch {}
-          }
-          if (sub.submitted_at) {
-            setIsSubmitted(true);
-            if (sub.is_auto_submitted) setIsAutoSubmitted(true);
-          } else if (formData.require_fullscreen) {
-            setShowFullscreenIntro(true);
-          }
-          if (sub.is_cheated) {
-            setCheated(true);
-          }
-          // Load existing answers if any
-          if (sub.answers && Array.isArray(sub.answers)) {
-            const initialAnswers = {};
-            sub.answers.forEach((ans) => {
-              initialAnswers[ans.question_id] = {
-                answer_text: ans.answer_text || '',
-                answer_options: ans.answer_options || [],
-                file_url: ans.file_url || null,
-              };
-            });
-            setAnswers(initialAnswers);
-          }
-        } catch (err) {
-          // If unauthenticated / session expired, redirect to auth with return url
-          if (err.message && /login|auth|unauthorized|kadaluarsa|tidak valid/i.test(err.message)) {
-            const raw = window.location.pathname + window.location.search;
-            const safe = raw.startsWith('/') && !raw.startsWith('//') ? raw : `/f/${slug}`;
-            const redirectUrl = encodeURIComponent(safe);
-            navigate(`/auth?redirect=${redirectUrl}`, { replace: true });
-            return;
-          }
-          // If error mentions token required, show join token modal
-          if (formData.join_token || (err.message && err.message.toLowerCase().includes('token'))) {
-            setShowJoinModal(true);
-          } else {
-            setErrorMsg(err.message || 'Gagal memulai form');
-          }
-        } finally {
-          joiningRef.current = false;
-        }
+        // Berhenti di gerbang identitas — join dilaksanakan setelah user konfirmasi akun.
+        // Mencegah submission tercipta di akun yang salah.
+        setShowIdentityGate(true);
       } catch (err) {
         if (err.message && /login|auth|unauthorized|kadaluarsa|tidak valid/i.test(err.message)) {
           const raw = window.location.pathname + window.location.search;
@@ -544,6 +501,75 @@ export default function FormFillPage() {
 
     loadForm();
   }, [slug, navigate]);
+
+  // Join setelah identitas dikonfirmasi (dipakai gerbang identitas).
+  const doJoin = async () => {
+    const formData = form;
+    if (!formData || joiningRef.current) return;
+    joiningRef.current = true;
+    setJoining(true);
+    try {
+      const sub = await joinForm(getToken(), slug);
+      setSubmissionId(sub.id);
+      // apply shuffled order per-section if any
+      if (sub.shuffled_order || sub.shuffled_options) {
+        try {
+          const reordered = applyShuffledOrder(formData.questions || [], sub.shuffled_order, sub.shuffled_options);
+          setForm((prev) => prev ? { ...prev, questions: reordered } : prev);
+        } catch {}
+      }
+      if (sub.submitted_at) {
+        setIsSubmitted(true);
+        if (sub.is_auto_submitted) setIsAutoSubmitted(true);
+      } else if (formData.require_fullscreen) {
+        setShowFullscreenIntro(true);
+      }
+      if (sub.is_cheated) {
+        setCheated(true);
+      }
+      // Load existing answers if any
+      if (sub.answers && Array.isArray(sub.answers)) {
+        const initialAnswers = {};
+        sub.answers.forEach((ans) => {
+          initialAnswers[ans.question_id] = {
+            answer_text: ans.answer_text || '',
+            answer_options: ans.answer_options || [],
+            file_url: ans.file_url || null,
+          };
+        });
+        setAnswers(initialAnswers);
+      }
+      setShowIdentityGate(false);
+    } catch (err) {
+      // If unauthenticated / session expired, redirect to auth with return url
+      if (err.message && /login|auth|unauthorized|kadaluarsa|tidak valid/i.test(err.message)) {
+        const raw = window.location.pathname + window.location.search;
+        const safe = raw.startsWith('/') && !raw.startsWith('//') ? raw : `/f/${slug}`;
+        const redirectUrl = encodeURIComponent(safe);
+        navigate(`/auth?redirect=${redirectUrl}`, { replace: true });
+        return;
+      }
+      // If error mentions token required, show join token modal
+      if (formData.join_token || (err.message && err.message.toLowerCase().includes('token'))) {
+        setShowIdentityGate(false);
+        setShowJoinModal(true);
+      } else {
+        setShowIdentityGate(false);
+        setErrorMsg(err.message || 'Gagal memulai form');
+      }
+    } finally {
+      joiningRef.current = false;
+      setJoining(false);
+    }
+  };
+
+  // Ganti akun: keluar total lalu kembali ke link form ini setelah login.
+  const handleSwitchAccount = () => {
+    logout();
+    setUserProfile(null);
+    setShowIdentityGate(false);
+    navigate(`/auth?redirect=${encodeURIComponent(`/f/${slug}`)}`, { replace: true });
+  };
 
   // Handle manual join with token
   const handleJoinWithToken = async (e) => {
@@ -1178,7 +1204,7 @@ export default function FormFillPage() {
   // Render Loading & Error States
   if (loading) {
     return (
-      <div className="form-fill-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="form-fill-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...ffThemeVars }}>
         <div className="ff-loading-wrap">
           <div className="ff-spinner" />
           <p>Memuat form...</p>
@@ -1196,7 +1222,7 @@ export default function FormFillPage() {
       errorMsg.toLowerCase().includes('tidak menerima');
 
     return (
-      <div className="form-fill-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '24px' }}>
+      <div className="form-fill-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '24px', ...ffThemeVars }}>
         <header className="form-fill-header" style={{ position: 'fixed', top: 0, left: 0, right: 0 }}>
           <div className="form-fill-logo-wrap" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} role="button" tabIndex={0} aria-label="Ke dashboard">
             <img src={logoForm4x} alt="Form4x logo" className="form-fill-logo-img" />
@@ -1248,10 +1274,103 @@ export default function FormFillPage() {
     );
   }
 
+  // Gerbang identitas — tampil tiap buka link, sebelum join tercipta.
+  if (showIdentityGate && form && !loading && !errorMsg) {
+    const gateInitial = (userProfile?.full_name || userProfile?.email || 'F').charAt(0).toUpperCase();
+    return (
+      <div className="form-fill-container ff-gate-page" style={ffThemeVars}>
+        <header className="form-fill-header ff-gate-header">
+          <div className="form-fill-logo-wrap" style={{ cursor: 'default', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img src={logoForm4x} alt="Form4x logo" className="form-fill-logo-img" />
+            <h1 className="form-fill-logo">Form4x</h1>
+          </div>
+          <div className="form-fill-header-right">
+            <ThemeToggle />
+          </div>
+        </header>
+        <main className="ff-gate-wrap">
+          <div className="ff-gate-card">
+            <div className="ff-gate-card-header">
+              <div className="ff-gate-avatar-wrapper">
+                <div className="ff-gate-avatar">
+                  {userProfile?.avatar_url && !avatarError ? (
+                    <img src={userProfile.avatar_url} alt={userProfile.full_name || 'Profil'} onError={() => setAvatarError(true)} />
+                  ) : (
+                    <span>{gateInitial}</span>
+                  )}
+                </div>
+                <span className="ff-gate-status-dot" title="Akun Aktif" />
+              </div>
+              <div className="ff-gate-header-text">
+                <span className="ff-gate-kicker" dangerouslySetInnerHTML={richHtml(form?.title || 'Formulir')} />
+                <h2 className="ff-gate-title">Konfirmasi akun</h2>
+              </div>
+            </div>
+
+            <p className="ff-gate-desc">
+              Anda akan mengisi form <strong>{stripHtml(form?.title || 'ini')}</strong> menggunakan akun di bawah ini. Jawaban akan tercatat atas nama akun tersebut.
+            </p>
+
+            {userProfile ? (
+              <div className="ff-gate-account-box">
+                <div className="ff-gate-account-icon">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="ff-gate-account-info">
+                  <span className="ff-gate-account-label">Mengisi sebagai</span>
+                  <span className="ff-gate-account-email" title={userProfile.email || userProfile.full_name}>
+                    {userProfile.email || userProfile.full_name || 'Pengguna'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="ff-gate-account-box ff-gate-skel-box">
+                <div className="ff-gate-skel-avatar" />
+                <div className="ff-gate-skel-text">
+                  <div className="ff-gate-skel-line" style={{ width: 90 }} />
+                  <div className="ff-gate-skel-line short" style={{ width: 170 }} />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="ff-gate-primary"
+              onClick={doJoin}
+              disabled={!userProfile || joining}
+            >
+              {joining ? 'Membuka form…' : 'Lanjut isi form'}
+            </button>
+
+            <button
+              type="button"
+              className="ff-gate-secondary"
+              onClick={handleSwitchAccount}
+              disabled={joining}
+            >
+              Ganti akun
+            </button>
+
+            <div className="ff-gate-divider" />
+
+            <div className="ff-gate-footer-hint">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="ff-gate-info-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Jawaban tercatat atas nama akun di atas — pastikan sudah benar sebelum melanjutkan.</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // Halaman Hasil (responden lihat skor + rincian jawaban)
   if (showResult && result) {
     return (
-      <div className="form-fill-container">
+      <div className="form-fill-container" style={ffThemeVars}>
         <header className="form-fill-header">
           <div className="form-fill-logo-wrap" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} role="button" tabIndex={0} aria-label="Ke dashboard">
             <img src={logoForm4x} alt="Form4x logo" className="form-fill-logo-img" />
@@ -1387,7 +1506,7 @@ export default function FormFillPage() {
   // Submitted Success View
   if (isSubmitted) {
     return (
-      <div className="form-fill-container success-page-container">
+      <div className="form-fill-container success-page-container" style={ffThemeVars}>
         <header className="form-fill-header">
           <div className="form-fill-logo-wrap" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} role="button" tabIndex={0} aria-label="Ke dashboard">
             <img src={logoForm4x} alt="Form4x logo" className="form-fill-logo-img" />
@@ -1478,7 +1597,7 @@ export default function FormFillPage() {
   const currentSectionAnswered = currentQuestions.filter((q) => isQuestionAnswered(q.id)).length;
 
   return (
-    <div className="form-fill-container">
+    <div className="form-fill-container" style={ffThemeVars}>
       {/* Header Bar */}
       <header className="form-fill-header">
         <div className="form-fill-logo-wrap" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} role="button" tabIndex={0} aria-label="Ke dashboard">

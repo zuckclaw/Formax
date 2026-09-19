@@ -52,6 +52,7 @@ def create_template(
             title=payload.title.strip(),
             description=(payload.description or "").strip() or None,
             banner_url=payload.banner_url,
+            theme=payload.theme,
         )
         db.add(template)
         db.flush()

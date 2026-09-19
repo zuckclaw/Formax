@@ -71,6 +71,8 @@ class Template(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     banner_url = Column(String, nullable=True)
+    # Tema tampilan fill page: {"accent": "#0053db"} — nullable agar migrasi Postgres instan (tanpa rewrite)
+    theme = Column(JSON, nullable=True)
     is_system = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -98,6 +100,8 @@ class Form(Base):
     banner_url = Column(String, nullable=True)
 
     accept_responses = Column(Boolean, default=True)
+    # Tema tampilan fill page: {"accent": "#0053db"} — nullable agar migrasi Postgres instan (tanpa rewrite)
+    theme = Column(JSON, nullable=True)
 
     # settings tambahan
     allow_see_result = Column(Boolean, default=False)   # responden boleh lihat hasil submit + skor

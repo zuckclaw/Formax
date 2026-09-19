@@ -107,6 +107,7 @@ def create_form(
         description=payload.description,
         slug=payload.slug,
         banner_url=payload.banner_url,
+        theme=payload.theme,
         start_date=payload.start_date,
         end_date=payload.end_date,
         join_token=security.generate_join_token() if payload.use_join_token else None,
@@ -132,6 +133,8 @@ def create_form(
         # template & template_questions sudah divalidasi di atas sebelum insert.
         if not form.banner_url and template.banner_url:
             form.banner_url = template.banner_url
+        if not form.theme and getattr(template, "theme", None):
+            form.theme = template.theme
         template_questions = (
             db.query(models.Question)
             .filter(models.Question.template_id == str(payload.template_id))
@@ -222,7 +225,7 @@ def get_form_by_slug(slug: str, db: Session = Depends(get_db)):
         ))
     return schemas.PublicFormOut(
         id=form.id, owner_id=form.owner_id, title=form.title, description=form.description,
-        banner_url=form.banner_url, status=form.status, slug=form.slug,
+        banner_url=form.banner_url, theme=getattr(form, "theme", None), status=form.status, slug=form.slug,
         require_join_token=bool(form.join_token),
         accept_responses=form.accept_responses, allow_see_result=form.allow_see_result,
         max_submissions=form.max_submissions, require_fullscreen=form.require_fullscreen,

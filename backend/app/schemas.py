@@ -1,11 +1,29 @@
+import re
 import uuid
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, EmailStr, field_validator
 
 from .models import QuestionType, FormStatus
 from .sanitize import sanitize_html
 from .utils.emoji_filter import contains_emoji, remove_emojis
+
+
+# Tema fill page: {"accent": "#0053db"} — validasi ketat agar tidak jadi celah CSS injection.
+HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def validate_theme(v):
+    if v is None:
+        return None
+    if not isinstance(v, dict):
+        raise ValueError("theme harus berupa object")
+    accent = v.get("accent")
+    if accent is None:
+        return {}
+    if not isinstance(accent, str) or not HEX_COLOR_RE.match(accent):
+        raise ValueError("theme.accent harus hex 6 digit, mis. #0053db")
+    return {"accent": accent.lower()}
 
 
 # ============================================================
@@ -199,6 +217,7 @@ class PublicFormOut(BaseModel):
     title: str
     description: Optional[str]
     banner_url: Optional[str]
+    theme: Optional[Dict[str, Any]] = None
     status: FormStatus
     slug: str
     # join_token sengaja TIDAK dikirim (cukup flag butuh token atau tidak)
@@ -272,6 +291,7 @@ class TemplateCreate(BaseModel):
     title: str
     description: Optional[str] = None
     banner_url: Optional[str] = None
+    theme: Optional[Dict[str, Any]] = None
     questions: List[QuestionCreate] = []
 
     @field_validator("title", "description")
@@ -279,17 +299,28 @@ class TemplateCreate(BaseModel):
     def _clean_html_fields(cls, v):
         return sanitize_html(v)
 
+    @field_validator("theme")
+    @classmethod
+    def _validate_theme(cls, v):
+        return validate_theme(v)
+
 
 class TemplateUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     banner_url: Optional[str] = None
+    theme: Optional[Dict[str, Any]] = None
     questions: Optional[List[QuestionCreate]] = None  # untuk draft update, replace semua questions
 
     @field_validator("title", "description")
     @classmethod
     def _clean_html_fields(cls, v):
         return sanitize_html(v)
+
+    @field_validator("theme")
+    @classmethod
+    def _validate_theme(cls, v):
+        return validate_theme(v)
 
 
 class TemplateOut(BaseModel):
@@ -298,6 +329,7 @@ class TemplateOut(BaseModel):
     title: str
     description: Optional[str]
     banner_url: Optional[str]
+    theme: Optional[Dict[str, Any]] = None
     is_system: bool
     created_at: datetime
     questions: List[QuestionOut] = []
@@ -315,6 +347,7 @@ class FormCreate(BaseModel):
     template_id: Optional[uuid.UUID] = None
     slug: str
     banner_url: Optional[str] = None
+    theme: Optional[Dict[str, Any]] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     use_join_token: bool = False        # kalau true, server generate token acak buat ujian bareng
@@ -336,6 +369,11 @@ class FormCreate(BaseModel):
     def _clean_html_fields(cls, v):
         return sanitize_html(v)
 
+    @field_validator("theme")
+    @classmethod
+    def _validate_theme(cls, v):
+        return validate_theme(v)
+
     @field_validator("max_submissions")
     @classmethod
     def _check_max_sub(cls, v: int) -> int:
@@ -352,6 +390,7 @@ class FormUpdate(BaseModel):
     status: Optional[FormStatus] = None
     accept_responses: Optional[bool] = None
     banner_url: Optional[str] = None
+    theme: Optional[Dict[str, Any]] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     use_join_token: Optional[bool] = None
@@ -367,6 +406,11 @@ class FormUpdate(BaseModel):
     @classmethod
     def _clean_html_fields(cls, v):
         return sanitize_html(v)
+
+    @field_validator("theme")
+    @classmethod
+    def _validate_theme(cls, v):
+        return validate_theme(v)
 
     @field_validator("max_submissions")
     @classmethod
@@ -385,6 +429,7 @@ class FormOut(BaseModel):
     title: str
     description: Optional[str]
     banner_url: Optional[str]
+    theme: Optional[Dict[str, Any]] = None
     status: FormStatus
     slug: str
     join_token: Optional[str]

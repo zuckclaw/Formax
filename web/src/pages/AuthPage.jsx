@@ -25,14 +25,14 @@ export default function AuthPage() {
   const inputRefs = useRef([]);
 
   // Login state
-  const [loginData, setLoginData] = useState({ email: '', password: '', remember: false });
+  const [loginData, setLoginData] = useState({ email: '', password: '', remember: true });
 
   // Register state
   const [registerData, setRegisterData] = useState({
     full_name: '',
     email: '',
     password: '',
-    remember: false,
+    remember: true,
   });
 
   // Forgot password state
@@ -467,7 +467,7 @@ export default function AuthPage() {
                       checked={loginData.remember}
                       onChange={(e) => setLoginData({ ...loginData, remember: e.target.checked })}
                     />
-                    <label htmlFor="login-remember" style={{ margin: 0, cursor: 'pointer' }}>Remember me</label>
+                    <label htmlFor="login-remember" style={{ margin: 0, cursor: 'pointer' }} title="Tetap login 30 hari di perangkat ini">Ingat saya</label>
                   </div>
                   <button type="button" className="auth-link" onClick={startForgotPassword} style={{ fontSize: '13px', fontWeight: 500 }}>
                     Lupa Password?
@@ -547,7 +547,7 @@ export default function AuthPage() {
                     checked={registerData.remember}
                     onChange={(e) => setRegisterData({ ...registerData, remember: e.target.checked })}
                   />
-                  <label htmlFor="reg-remember">Remember me</label>
+                  <label htmlFor="reg-remember" title="Tetap login 30 hari di perangkat ini">Ingat saya</label>
                 </div>
                 <button id="btn-register" type="submit" className="auth-btn" disabled={loading}>
                   {loading ? <span className="spinner" /> : 'Kirim OTP'}

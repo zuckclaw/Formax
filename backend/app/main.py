@@ -78,6 +78,10 @@ try:
         if _table_exists_conn(conn, "templates", dialect) and not _column_exists_conn(conn, "templates", "banner_url", dialect):
             conn.execute(text("ALTER TABLE templates ADD COLUMN banner_url VARCHAR;"))
 
+        # Tema fill page (JSON nullable → ADD COLUMN instan di Postgres, tanpa rewrite tabel)
+        add_column("forms", "theme", "JSON")
+        add_column("templates", "theme", "JSON")
+
         if _table_exists_conn(conn, "question_options", dialect) and not _column_exists_conn(conn, "question_options", "is_correct", dialect):
             conn.execute(text("ALTER TABLE question_options ADD COLUMN is_correct BOOLEAN;"))
 
