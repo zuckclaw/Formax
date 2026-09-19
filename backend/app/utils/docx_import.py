@@ -2,27 +2,188 @@
 Parser import soal pilihan ganda dari file Word (.docx).
 
 Aturan format yang didukung:
-- Soal   : "1. Teks soal" / "1) Teks soal" / "Soal 1: Teks soal"
+- Soal   : "1. Teks soal" / "1) Teks soal" / "Soal 1: Teks soal" / "Pertanyaan 1:" / "No. 1."
 - Opsi   : "A. teks" / "a) teks" / "(B) teks" / "*C. teks" (tanda * = kunci)
 - Kunci  : tanda * di depan opsi ATAU baris "Jawaban: B" / "Kunci: B"
+- Kode   : paragraf font monospace (Consolas/Courier/dll) → blok <pre><code>;
+           monospace inline → <code>. Fence ``` juga didukung via frontend.
+- Rumus  : Equation Editor Word (OMML) → LaTeX; teks biasa (x^2, \\frac)
+           dirender otomatis oleh frontend.
+- Opsi multi-baris & gambar di dalam opsi didukung (ditempel ke opsi terakhir).
 """
+import html
 import io
 import os
 import re
 import uuid
 from typing import BinaryIO
 
+from .omml_to_latex import iter_math_nodes
+
 try:
     from docx import Document
 except ImportError:
     Document = None
 
-QUESTION_RE = re.compile(r"^\s*(?:soal\s*)?(\d{1,3})\s*[.)\]:\-]\s+(.+)$", re.IGNORECASE)
+QUESTION_RE = re.compile(r"^\s*(?:soal\s*|pertanyaan\s*|nomor\s*|no\.?\s*)?(\d{1,3})\s*[.)\]:\-]\s+(.+)$", re.IGNORECASE)
 OPTION_RE = re.compile(r"^\s*\*?\s*\(?\s*([A-Ha-h])\s*[).\]:\-]\s+(.+)$")
 ANSWER_RE = re.compile(
-    r"^\s*(?:(?:kunci\s+)?jawaban|kunci|answer)\s*[:=\-]\s*\(?([A-Ha-h])\)?\s*$",
+    r"^\s*(?:(?:kunci\s+)?jawaban|kunci|answer)\s*[:=\-]\s*\(?([A-Ha-h])\)?\s*(?:\(.*\))?\s*$",
     re.IGNORECASE,
 )
+
+# Paragraf yang sepenuhnya catatan dalam kurung → abaikan (jangan ditempel ke opsi).
+PAREN_NOTE_RE = re.compile(r"^\(.*\)$")
+
+# Gaya paragraf yang selalu dilewati (judul, heading, kutipan, footer).
+SKIP_STYLE_NAMES = {"title", "subtitle", "quote", "intense quote", "toc heading"}
+
+
+def _para_style_name(para) -> str:
+    try:
+        return getattr(para.style, "name", "") or ""
+    except Exception:
+        return ""
+
+
+def _is_heading_para(para) -> bool:
+    n = _para_style_name(para).strip().lower()
+    return n in SKIP_STYLE_NAMES or n.startswith("heading")
+
+
+def _num_fmt_of(para):
+    """Format auto-list paragraf: 'bullet' | 'decimal' | ... | None.
+
+    Resolve numId → abstractNum → level numFmt via numbering.xml.
+    Gagal resolve → None (fallback perilaku lama).
+    """
+    try:
+        from docx.oxml.ns import qn
+        pPr = para._p.pPr
+        if pPr is None:
+            return None
+        numPr = pPr.numPr
+        if numPr is None:
+            return None
+        numId = numPr.numId.val
+        ilvl = numPr.ilvl.val if numPr.ilvl is not None else 0
+        pkg = para.part.package
+        numbering = None
+        for part in pkg.iter_parts():
+            try:
+                if "numbering" in str(getattr(part, "partname", "")):
+                    numbering = part._element
+                    break
+            except Exception:
+                continue
+        if numbering is None:
+            return None
+        abs_id = None
+        for num in numbering.findall(qn("w:num")):
+            try:
+                if num.get(qn("w:numId")) is not None and int(num.get(qn("w:numId"))) == int(numId):
+                    abs_el = num.find(qn("w:abstractNumId"))
+                    if abs_el is not None:
+                        abs_id = abs_el.get(qn("w:val"))
+                    break
+            except Exception:
+                continue
+        if abs_id is None:
+            return None
+        for absnum in numbering.findall(qn("w:abstractNum")):
+            try:
+                if str(absnum.get(qn("w:abstractNumId"))) != str(abs_id):
+                    continue
+                for lvl in absnum.findall(qn("w:lvl")):
+                    try:
+                        if lvl.get(qn("w:ilvl")) is not None and int(lvl.get(qn("w:ilvl"))) != int(ilvl):
+                            continue
+                    except Exception:
+                        pass
+                    fmt_el = lvl.find(qn("w:numFmt"))
+                    if fmt_el is not None:
+                        return (fmt_el.get(qn("w:val")) or "").strip().lower() or None
+            except Exception:
+                continue
+    except Exception:
+        return None
+    return None
+
+
+def _para_list_kind(para):
+    """'bullet' | 'decimal' | 'list' | None — jenis auto-list paragraf."""
+    try:
+        style = (_para_style_name(para) or "").lower()
+    except Exception:
+        style = ""
+    if "bullet" in style:
+        return "bullet"
+    fmt = _num_fmt_of(para)
+    if fmt:
+        if fmt == "bullet":
+            return "bullet"
+        return "decimal"
+    if "list" in style or "number" in style:
+        return "list"
+    return None
+
+
+def _split_para_lines(segments):
+    """Pecah segmen paragraf menjadi baris-baris (sel tabel berisi \\n).
+
+    Return list (match_text, html, is_all_mono, line_segments).
+    Baris kosong dilewati. Display-math menempati baris sendiri.
+    """
+    lines = []
+    cur = []
+
+    def flush():
+        if not cur:
+            return
+        txt = _segments_to_text(cur)
+        has_math = any(s[0] == "math" for s in cur)
+        if not txt and not has_math:
+            cur.clear()
+            return
+        h = _segments_to_html(cur)
+        has_text = any(s[0] == "text" and s[1] for s in cur)
+        allm = has_text and all(s[2] for s in cur if s[0] == "text" and s[1])
+        lines.append((txt, h, allm, list(cur)))
+        cur.clear()
+
+    for seg in segments:
+        if seg[0] == "math" and seg[2]:
+            flush()
+            lines.append((
+                _segments_to_text([seg]),
+                _segments_to_html([seg]),
+                False,
+                [seg],
+            ))
+            continue
+        if seg[0] == "text":
+            parts = seg[1].split("\n")
+            for i, part in enumerate(parts):
+                if i > 0:
+                    flush()
+                if part:
+                    cur.append(("text", part, seg[2]))
+            continue
+        cur.append(seg)
+    flush()
+    return lines
+
+# Font yang dianggap sebagai kode program.
+MONO_FONTS = {
+    "consolas", "courier new", "courier", "fira code", "fira mono",
+    "source code pro", "jetbrains mono", "lucida console", "menlo",
+    "monaco", "cascadia code", "cascadia mono", "roboto mono", "ubuntu mono",
+}
+
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+MAX_LABEL_CHARS = 8000
+MAX_OPTION_CHARS = 2000
 
 
 def _extract_images_from_paragraph(para, base_url: str = "") -> list[str]:
@@ -151,7 +312,202 @@ def _normalize_line(text: str) -> str:
     text = text.replace('\xa0', ' ').replace('\u200b', '').replace('\ufeff', '').replace('\r', ' ')
     # ganti tab dengan spasi
     text = text.replace('\t', ' ')
-    return text.strip()
+    text = text.strip()
+    # kupas bold markdown "**...**" ala Google Docs agar regex nomor/huruf cocok,
+    # tapi "**B. ..." = opsi benar yang di-bold → pertahankan satu * sebagai kunci.
+    if text.startswith('**'):
+        rest = text[2:].lstrip()
+        if re.match(r'\(?\s*[A-Ha-h]\s*[).\]:\-]', rest):
+            text = '*' + rest
+        else:
+            text = rest
+    if text.endswith('**') and len(text) > 2:
+        text = text[:-2].rstrip()
+    return text
+
+
+def _run_is_mono(r_el) -> bool:
+    """True bila run memakai font monospace (kode program)."""
+    try:
+        for node in r_el.iter():
+            tag = node.tag if isinstance(getattr(node, 'tag', ''), str) else ''
+            if tag.endswith('}rFonts'):
+                for attr_key in (
+                    '{%s}ascii' % W_NS, '{%s}hAnsi' % W_NS, '{%s}cs' % W_NS,
+                    'ascii', 'hAnsi', 'hansi', 'cs',
+                ):
+                    try:
+                        val = node.get(attr_key)
+                    except Exception:
+                        val = None
+                    if val and str(val).strip().lower() in MONO_FONTS:
+                        return True
+    except Exception:
+        pass
+    return False
+
+
+def _run_text_of(r_el) -> str:
+    parts = []
+    try:
+        for node in r_el.iter():
+            tag = node.tag if isinstance(getattr(node, 'tag', ''), str) else ''
+            if tag.endswith('}t') and node.text:
+                parts.append(node.text)
+    except Exception:
+        pass
+    return ''.join(parts)
+
+
+def _latex_attr(latex: str) -> str:
+    """Escape LaTeX untuk atribut data-value/data-latex (tanpa quote mentah)."""
+    return html.escape(latex, quote=True)
+
+
+def _iter_rich_segments(p_element):
+    """Yield segmen paragraf sesuai urutan dokumen.
+
+    ('text', str, mono_bool) | ('math', latex, display_bool)
+    Tidak pernah melempar.
+    """
+    try:
+        children = list(p_element)
+    except Exception:
+        return
+    for ch in children:
+        try:
+            tag = ch.tag if isinstance(getattr(ch, 'tag', ''), str) else ''
+            if tag.endswith('}r'):
+                yield ('text', _run_text_of(ch), _run_is_mono(ch))
+            elif tag.endswith('}oMath'):
+                from .omml_to_latex import _convert as _omml_convert
+                latex = _omml_convert(ch).strip()
+                if latex:
+                    yield ('math', latex, False)
+            elif tag.endswith('}oMathPara'):
+                parts = []
+                for node in ch.iter():
+                    ntag = node.tag if isinstance(getattr(node, 'tag', ''), str) else ''
+                    if ntag.endswith('}oMath'):
+                        from .omml_to_latex import _convert as _omml_convert
+                        lx = _omml_convert(node).strip()
+                        if lx:
+                            parts.append(lx)
+                if parts:
+                    yield ('math', ' \\\\ '.join(parts), True)
+            else:
+                # hyperlink / smartTag / wadah lain: gali w:r di dalamnya
+                try:
+                    nested = [n for n in ch.iter() if isinstance(getattr(n, 'tag', ''), str) and n.tag.endswith('}r')]
+                except Exception:
+                    nested = []
+                for r_el in nested:
+                    yield ('text', _run_text_of(r_el), _run_is_mono(r_el))
+        except Exception:
+            continue
+
+
+def _build_para_parts(para):
+    """Bangun (match_text, html, is_all_mono, segments) dari satu paragraf.
+
+    match_text: teks polos (+LaTeX mentah) untuk pencocokan regex struktur.
+    html:       teks ter-escape + span rumus + tag kode, siap disimpan.
+    """
+    try:
+        segments = list(_iter_rich_segments(para._element))
+    except Exception:
+        segments = []
+    if not segments:
+        # fallback: teks polos (paragraf biasa / compat)
+        try:
+            t = para.text or ''
+        except Exception:
+            t = ''
+        t = _normalize_line(t)
+        return t, html.escape(t, quote=False), False, [('text', t, False)]
+
+    match_chunks = []
+    html_chunks = []
+    has_text = False
+    all_mono = True
+    for seg in segments:
+        if seg[0] == 'math':
+            _, latex, display = seg
+            match_chunks.append(' %s ' % latex)
+            if display:
+                html_chunks.append('<div class="math-display-block" data-latex="%s"></div>' % _latex_attr(latex))
+            else:
+                html_chunks.append('<span class="ql-formula" data-value="%s"></span>' % _latex_attr(latex))
+            all_mono = False
+        else:
+            _, text, mono = seg
+            if text:
+                has_text = True
+                match_chunks.append(text)
+                esc = html.escape(text, quote=False)
+                if mono:
+                    html_chunks.append('<code>%s</code>' % esc)
+                else:
+                    html_chunks.append(esc)
+                    all_mono = False
+            # segmen teks kosong tidak memengaruhi all_mono
+    match_text = _normalize_line(''.join(match_chunks))
+    is_all_mono = has_text and all_mono
+    return match_text, ''.join(html_chunks), is_all_mono, segments
+
+def _segments_to_text(segments) -> str:
+    """Teks polos dari segmen (untuk value / pencocokan lanjutan)."""
+    out = []
+    for seg in segments:
+        if seg[0] == 'math':
+            out.append(seg[1])
+        else:
+            out.append(seg[1])
+    return _normalize_line(''.join(out))
+
+
+def _segments_to_html(segments, with_code: bool = True) -> str:
+    """HTML dari segmen: teks ter-escape (+<code> bila mono), span rumus."""
+    out = []
+    for seg in segments:
+        if seg[0] == 'math':
+            _, latex, display = seg
+            if display:
+                out.append('<div class="math-display-block" data-latex="%s"></div>' % _latex_attr(latex))
+            else:
+                out.append('<span class="ql-formula" data-value="%s"></span>' % _latex_attr(latex))
+        else:
+            _, text, mono = seg
+            if not text:
+                continue
+            esc = html.escape(text, quote=False)
+            if mono and with_code:
+                out.append('<code>%s</code>' % esc)
+            else:
+                out.append(esc)
+    return ''.join(out)
+
+
+def _strip_prefix_segments(segments, kind: str):
+    """Buang prefix '1.' / 'A.' dari segmen pertama (format sisanya dipertahankan)."""
+    if kind == 'question':
+        pat = r'^\s*(?:soal\s*|pertanyaan\s*|nomor\s*|no\.?\s*)?\d{1,3}\s*[.)\]:\-]\s+'
+    else:
+        pat = r'^\s*\*?\s*\(?\s*[A-Ha-h]\s*[).\]:\-]\s+'
+    out = []
+    stripped = False
+    for seg in segments:
+        if not stripped and seg[0] == 'text':
+            m = re.match(pat, seg[1], re.IGNORECASE)
+            if m:
+                rest = seg[1][m.end():]
+                stripped = True
+                if rest:
+                    out.append(('text', rest, seg[2]))
+                continue
+        out.append(seg)
+    return out
+
 
 def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
     """Parse file .docx menjadi daftar soal pilihan ganda, termasuk mendeteksi & mengekstrak gambar dalam soal.
@@ -170,6 +526,8 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
           "valid_count": int,
         }
     """
+    if Document is None:
+        raise ValueError("python-docx tidak terpasang di server")
     document = Document(file)
 
     questions = []
@@ -177,6 +535,10 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
     seen_numbers = set()
     # auto-letter untuk list tanpa huruf (Word auto-numbering)
     next_auto_letter_ord = None
+    # baris kode monospace tertunda (digabung jadi satu blok <pre>)
+    pending_code = []
+    # blok yang dilewati karena rusak (dilaporkan di akhir)
+    skipped_blocks = 0
 
     # gunakan iterator yang mencakup table
     try:
@@ -188,34 +550,77 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
         paragraphs = document.paragraphs
 
     for para in paragraphs:
-        # Ekstrak gambar yang ada pada paragraf ini (jika ada)
-        extracted_imgs = _extract_images_from_paragraph(para, base_url=base_url)
+        # Isolasi per-paragraf: 1 blok rusak tidak boleh menggagalkan seluruh preview.
+        try:
+            extracted_imgs = _extract_images_from_paragraph(para, base_url=base_url)
+        except Exception:
+            extracted_imgs = []
         img_html = ""
         if extracted_imgs:
             img_html = "".join([
                 f'<p><img src="{url}" alt="Gambar Soal" style="max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px;" /></p>'
                 for url in extracted_imgs
             ])
-
-        raw = para.text or ""
-        lines = raw.splitlines() if '\n' in raw or '\r' in raw else [raw]
-
-        # Jika paragraf hanya berisi gambar tanpa teks, tetap proses paragraf ini
-        if not any(_normalize_line(l) for l in lines) and img_html:
-            lines = [""]
-
-        for raw_line in lines:
-            line = _normalize_line(raw_line)
-
-            # Jika baris kosong tetapi ada gambar yang harus dimasukkan ke soal aktif (sebelum opsi)
-            if not line:
-                if img_html and current is not None and not current["options"]:
-                    current["label"] = f"{current['label']} {img_html}".strip()
-                    img_html = ""
+        # Judul / heading / kutipan = instruksi dokumen, bukan soal → lewati total.
+        try:
+            if _is_heading_para(para):
                 continue
+        except Exception:
+            pass
+        try:
+            para_kind = _para_list_kind(para)
+        except Exception:
+            para_kind = None
+        try:
+            match_text0, _html0, is_all_mono0, segments0 = _build_para_parts(para)
+        except Exception:
+            skipped_blocks += 1
+            continue
+        try:
+            line_items = _split_para_lines(segments0)
+        except Exception:
+            line_items = [(match_text0, _html0, is_all_mono0, segments0)]
 
-            answer_match = ANSWER_RE.match(line)
+        def _attach_html(snippet: str) -> bool:
+            """Tempel HTML ke label soal (bila opsi belum ada) atau opsi terakhir."""
+            if current is None or not snippet:
+                return False
+            if current["options"]:
+                last = current["options"][-1]
+                last["label"] = (last["label"] + " " + snippet).strip()[:4000]
+            else:
+                current["label"] = (current["label"] + " " + snippet).strip()[:12000]
+            return True
+
+        def _flush_code() -> str:
+            """Gabung baris kode monospace tertunda menjadi satu blok <pre>."""
+            if not pending_code:
+                return ""
+            block = "<pre><code class=\"language-plaintext\">%s</code></pre>" % "\n".join(
+                html.escape(l, quote=False) for l in pending_code
+            )
+            pending_code.clear()
+            return block
+
+        # Paragraf tanpa baris teks (murni gambar/kosong): tempel gambar lalu lanjut
+        if not line_items:
+            if img_html:
+                code_html = _flush_code()
+                if code_html:
+                    _attach_html(code_html)
+                _attach_html(img_html)
+            continue
+
+        for li, (match_text, _html, is_all_mono, segments) in enumerate(line_items):
+            # Gambar milik paragraf ini hanya ditempel sekali (baris pertama)
+            if li > 0:
+                img_html = ""
+
+            answer_match = ANSWER_RE.match(match_text)
             if answer_match and current is not None:
+                code_html = _flush_code()
+                if code_html:
+                    _attach_html(code_html)
                 letter = answer_match.group(1).upper()
                 matched = [o for o in current["options"] if o["letter"] == letter]
                 if matched:
@@ -223,23 +628,45 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
                         o["is_correct"] = o["letter"] == letter
                 else:
                     current["errors"].append(
-                        f"Kunci jawaban '{letter}' tidak ada di daftar opsi"
+                        f"Kunci jawaban '{letter}' tidak ada di daftar opsi (soal {current['number']})"
                     )
                 continue
 
-            question_match = QUESTION_RE.match(line)
-            option_match = OPTION_RE.match(line) if not question_match else None
+            question_match = QUESTION_RE.match(match_text)
+            option_match = OPTION_RE.match(match_text) if not question_match else None
+
+            # Paragraf full-monospace yang BUKAN struktur → kumpulkan jadi blok kode
+            if is_all_mono and not question_match and not option_match and not answer_match:
+                if len(match_text) <= MAX_OPTION_CHARS:
+                    pending_code.append(match_text)
+                if img_html:
+                    code_html = _flush_code()
+                    if code_html:
+                        _attach_html(code_html)
+                    _attach_html(img_html)
+                continue
+
+            # List ber-bullet (catatan/aturan, bukan opsi) → abaikan total.
+            # Opsi eksplisit "A." sudah ditangani di atas; ini hanya untuk baris
+            # tanpa pola struktur.
+            if para_kind == "bullet":
+                continue
 
             if question_match:
+                # Kode tertunda milik soal SEBELUMnya → tempel dulu sebelum buat soal baru
+                code_html = _flush_code()
+                if code_html:
+                    _attach_html(code_html)
                 number = int(question_match.group(1))
-                q_text = question_match.group(2).strip()
+                inner_segs = _strip_prefix_segments(segments, 'question')
+                q_html = _segments_to_html(inner_segs, with_code=False)
                 if img_html:
-                    q_text = f"{q_text} {img_html}".strip()
+                    q_html = f"{q_html} {img_html}".strip()
                     img_html = ""
 
                 current = {
                     "number": number,
-                    "label": q_text,
+                    "label": q_html,
                     "options": [],
                     "errors": [],
                 }
@@ -251,25 +678,30 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
                 continue
 
             if option_match and current is not None:
+                code_html = _flush_code()
+                if code_html:
+                    _attach_html(code_html)
                 # Jika ada gambar di nomor soal yang belum dipasang sebelum opsi A/B/C
                 if img_html:
                     current["label"] = f"{current['label']} {img_html}".strip()
                     img_html = ""
 
                 letter = option_match.group(1).upper()
-                text = option_match.group(2).strip()
-                is_correct = line.lstrip().startswith("*")
+                inner_segs = _strip_prefix_segments(segments, 'option')
+                opt_html = _segments_to_html(inner_segs, with_code=False)
+                opt_text = _segments_to_text(inner_segs)
+                is_correct = match_text.lstrip().startswith("*")
                 existing = next((o for o in current["options"] if o["letter"] == letter), None)
                 if existing is None:
                     current["options"].append({
                         "letter": letter,
-                        "label": text,
-                        "value": text,
+                        "label": opt_html,
+                        "value": opt_text,
                         "order_index": len(current["options"]),
                         "is_correct": is_correct,
                     })
                 else:
-                    existing.update({"label": text, "value": text})
+                    existing.update({"label": opt_html, "value": opt_text})
                     if is_correct:
                         existing["is_correct"] = True
                 # sync auto-letter ke huruf berikutnya
@@ -279,14 +711,18 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
                     pass
                 continue
 
-            # Fallback: opsi tanpa huruf karena Word auto-numbering (list A. tidak ada di text)
-            if current is not None and _is_list_paragraph(para) and line and not question_match and not answer_match:
+            # Fallback: opsi tanpa huruf karena Word auto-numbering desimal
+            # (list A. tidak ada di text). Bullet sudah dilewati di atas.
+            if current is not None and _is_list_paragraph(para) and match_text and not question_match and not answer_match:
+                code_html = _flush_code()
+                if code_html:
+                    _attach_html(code_html)
                 if img_html:
                     current["label"] = f"{current['label']} {img_html}".strip()
                     img_html = ""
 
-                is_correct_fallback = line.lstrip().startswith("*")
-                clean_text = line.lstrip().lstrip("*").strip()
+                is_correct_fallback = match_text.lstrip().startswith("*")
+                clean_text = match_text.lstrip().lstrip("*").strip()
                 if clean_text and len(clean_text) < 180:
                     if next_auto_letter_ord is None:
                         next_auto_letter_ord = ord('A') + len(current["options"])
@@ -294,7 +730,7 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
                     if not any(o["letter"] == letter for o in current["options"]):
                         current["options"].append({
                             "letter": letter,
-                            "label": clean_text,
+                            "label": html.escape(clean_text, quote=False),
                             "value": clean_text,
                             "order_index": len(current["options"]),
                             "is_correct": is_correct_fallback,
@@ -302,13 +738,36 @@ def parse_docx_questions(file: BinaryIO, base_url: str = "") -> dict:
                         next_auto_letter_ord += 1
                         continue
 
-            # Baris lain: anggap lanjutan teks soal
-            if current is not None and not current["options"]:
-                label_part = line
+            # Garis pemisah (───, ***, •••) → abaikan, jangan ditempel ke opsi.
+            if match_text and not re.search(r"\w", match_text, re.UNICODE):
+                continue
+
+            # Catatan dalam kurung penuh "(...)" → abaikan, jangan ditempel ke opsi.
+            if PAREN_NOTE_RE.match(match_text):
+                continue
+
+            # Baris lain: lanjutan teks soal (belum ada opsi) ATAU lanjutan opsi terakhir
+            if current is not None:
+                label_part = _html
                 if img_html:
-                    label_part = f"{line} {img_html}"
+                    label_part = f"{label_part} {img_html}"
                     img_html = ""
-                current["label"] = f"{current['label']} {label_part}".strip()
+                _attach_html(label_part)
+
+    # Sisa kode tertunda di akhir dokumen
+    try:
+        if pending_code:
+            block = "<pre><code class=\"language-plaintext\">%s</code></pre>" % "\n".join(
+                html.escape(l, quote=False) for l in pending_code
+            )
+            pending_code.clear()
+            if current is not None:
+                _attach_html(block)
+    except Exception:
+        pass
+
+    if skipped_blocks and current is not None:
+        current["errors"].append(f"{skipped_blocks} bagian tidak terbaca dan dilewati")
 
     result = []
     for q in questions:
@@ -430,10 +889,10 @@ def generate_template_docx() -> bytes:
         set_cell_shading(cell, "2563EB")
 
     rows_data = [
-        ("Nomor Soal", '1. Ibu kota Indonesia adalah ...\n2) Hasil dari 15 x 15 adalah ...'),
-        ("Opsi Jawaban", 'A. Bandung\nB. Jakarta\nC. Surabaya\nD. Medan'),
-        ("Kunci Jawaban\n(Opsi 1)", '*B. Jakarta\n(tanda * di depan opsi yang benar)'),
-        ("Kunci Jawaban\n(Opsi 2)", 'Jawaban: B\n(ditulis di baris setelah semua opsi)'),
+        ("Nomor Soal", "Tulis nomor + titik lalu teks soal (contoh pola: «1.» Ibu kota Indonesia adalah ...)"),
+        ("Opsi Jawaban", "Tulis huruf + titik (pola: «A.» Bandung «B.» Jakarta «C.» Surabaya «D.» Medan)"),
+        ("Kunci Jawaban\n(Opsi 1)", "Awali opsi yang benar dengan bintang (pola: «*B.» Jakarta)"),
+        ("Kunci Jawaban\n(Opsi 2)", "Atau tulis di baris tersendiri setelah semua opsi (pola: «Jawaban: B»)"),
     ]
 
     for row_idx, (komponen, contoh) in enumerate(rows_data, start=1):
@@ -462,11 +921,12 @@ def generate_template_docx() -> bytes:
 
     add_colored_heading("Contoh Soal yang Benar", level=1, color=DARK)
 
-    p_note = document.add_paragraph()
-    run_note = p_note.add_run("Cara 1: Tandai kunci dengan tanda bintang (*) di depan opsi")
-    run_note.bold = True
-    run_note.font.color.rgb = GREEN
-    run_note.font.size = Pt(11)
+    p_del = document.add_paragraph()
+    run_del = p_del.add_run("Hapus contoh di bawah ini lalu tulis soal Anda sendiri dengan format yang sama.")
+    run_del.bold = True
+    run_del.font.size = Pt(11)
+
+    p_note = add_colored_heading("Cara 1: Tandai kunci dengan tanda bintang (*) di depan opsi", level=3, color=GREEN)
 
     samples_star = [
         ("Ibu kota Indonesia adalah ...", [
@@ -489,11 +949,7 @@ def generate_template_docx() -> bytes:
 
     document.add_paragraph("")
 
-    p_note2 = document.add_paragraph()
-    run_note2 = p_note2.add_run("Cara 2: Tulis jawaban di baris tersendiri setelah opsi")
-    run_note2.bold = True
-    run_note2.font.color.rgb = GREEN
-    run_note2.font.size = Pt(11)
+    p_note2 = add_colored_heading("Cara 2: Tulis jawaban di baris tersendiri setelah opsi", level=3, color=GREEN)
 
     samples_keyword = [
         ("Hasil dari 12 x 12 adalah ...", [
@@ -519,11 +975,7 @@ def generate_template_docx() -> bytes:
 
     document.add_paragraph("")
 
-    p_note3 = document.add_paragraph()
-    run_note3 = p_note3.add_run("Cara 3: Gabungan (opsional)")
-    run_note3.bold = True
-    run_note3.font.color.rgb = GREEN
-    run_note3.font.size = Pt(11)
+    p_note3 = add_colored_heading("Cara 3: Gabungan (opsional)", level=3, color=GREEN)
 
     samples_mixed = [
         ("Planet yang dikenal sebagai planet merah adalah ...", [
@@ -549,10 +1001,14 @@ def generate_template_docx() -> bytes:
     add_colored_heading("Penting!", level=2, color=RED)
 
     rules = [
+        "Hapus contoh soal di file ini lalu tulis soal Anda sendiri",
         "Setiap soal HARUS menggunakan nomor (1. 2. 3. dst.)",
         "Opsi jawaban HARUS menggunakan huruf (A. B. C. D. dst.)",
         "Kunci jawaban WAJIB ditandai dengan salah satu cara di atas",
         "Hanya soal PILIHAN GANDA yang bisa diimport (maksimal 8 opsi)",
+        "Rumus Equation Editor Word & teks (x^2, \\frac) otomatis jadi rumus",
+        "Blok kode: tulis dengan font Consolas/Courier agar tampil sebagai kode",
+        "Opsi boleh multi-baris & berisi gambar — otomatis ditempel ke opsi",
         "Jangan gunakan format .doc lama — simpan sebagai .docx",
     ]
     for rule in rules:
@@ -562,7 +1018,7 @@ def generate_template_docx() -> bytes:
 
     document.add_paragraph("")
 
-    footer_line = doc_title.add_run if False else document.add_paragraph()
+    footer_line = doc_title.add_run if False else document.add_paragraph(style="Quote")
     footer_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run_footer = footer_line.add_run("Dibuat dengan ❤ oleh Formax — formax.com")
     run_footer.font.size = Pt(9)

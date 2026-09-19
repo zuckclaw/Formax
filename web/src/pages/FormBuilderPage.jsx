@@ -17,6 +17,7 @@ import { downloadTemplateDocx, previewDocxImport, confirmDocxImport } from '../a
 import { apiFetch, API_BASE_URL } from '../api/config';
 import { getValidToken } from '../utils/authStorage';
 import 'highlight.js/styles/atom-one-dark.min.css';
+import 'katex/dist/katex.min.css';
 import '../styles/form-builder.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
@@ -2581,12 +2582,12 @@ export default function FormBuilderPage() {
                         />
                         <div className="fb-import-q-content">
                           <span className="fb-import-q-num">Soal {q.number} {q.errors.length === 0 ? '• Valid' : '• Error'}</span>
-                          <div className="fb-import-q-label">{q.label}</div>
+                          <div className="fb-import-q-label ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(q.label || '')) }} />
                           {q.options.length > 0 && (
                             <div className="fb-import-q-options">
                               {q.options.map((o) => (
                                 <span key={o.order_index ?? o.label} className={`fb-import-q-opt ${o.is_correct ? 'correct' : ''}`}>
-                                  {String.fromCharCode(65 + o.order_index)}. {o.label}{o.is_correct ? ' ★' : ''}
+                                  {String.fromCharCode(65 + o.order_index)}. <span dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(o.label || '')) }} />{o.is_correct ? ' ★' : ''}
                                 </span>
                               ))}
                             </div>
