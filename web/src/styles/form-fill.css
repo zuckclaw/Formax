@@ -3197,6 +3197,12 @@ pre.hljs, div.ql-code-block.hljs { background: #282c34 !important; }
 .ql-editor .math-display-block .katex-display {
   margin: 0;
 }
+/* Display block di dalam opsi: ramping + scroll horizontal bila sempit */
+.option-label-text .math-display-block {
+  margin: 4px 0 !important;
+  padding: 8px 10px;
+  text-align: left;
+}
 /* Prevent KaTeX error red boxes from breaking layout */
 .katex-error {
   color: #ef4444 !important;

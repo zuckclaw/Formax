@@ -39,7 +39,7 @@ class AiGenerateRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=120)
     description: Optional[str] = Field(None, max_length=2000)
     prompt: str = Field(..., min_length=10, max_length=4000)
-    num_questions: int = Field(10, ge=3, le=30)
+    num_questions: int = Field(10, ge=3, le=40)
     include_correct: bool = True
     use_sections: bool = True
     prefer_type: Optional[str] = None
@@ -117,7 +117,7 @@ def _build_user_prompt(req: AiGenerateRequest, effective_num_questions: int) -> 
     
     # Check if prompt contains math/science related terms
     is_math = bool(re.search(r'(matematika|math|aljabar|kalkulus|geometri|trigonometri|fisika|rumus|persamaan|equation|hitung|kuadrat|pecahan|integral|turunan)', req.prompt, re.IGNORECASE))
-    math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX!" if is_math else ""
+    math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX! RUMUS SATU BARIS: di dalam \\(...\\) DILARANG memakai pemisah baris \\\\, environment aligned/matrix/cases/pmatrix, atau tag <br> — tulis tiap rumus opsi dalam SATU BARIS utuh." if is_math else ""
 
     # Check if prompt asks for coding questions (HTML/CSS/JS/Python/dll)
     is_code = bool(re.search(r'(html|css|javascript|js\b|python|php|java\b|tag\b|elemen|koding|coding|program|script|div\b|kode\b|informatika|pemrograman|web\b|tailwind|react|vue)', req.prompt, re.IGNORECASE))
@@ -138,6 +138,17 @@ def _build_user_prompt(req: AiGenerateRequest, effective_num_questions: int) -> 
     if req.file_context and req.file_context.strip():
         file_context_hint = f"\n=== REFERENSI DOKUMEN / MATERI TERLAMPIR ===\n{req.file_context.strip()[:15000]}\n=== AKHIR DOKUMEN TERLAMPIR ===\n(PENTING: Buat soal/formulir berdasarkan materi dokumen di atas secara relevan dan presisi.)\n"
 
+    # Target besar (26-40): tekankan kompak agar JSON tidak terpotong di tengah.
+    # Soal yang tidak muat lebih baik sedikit — JANGAN mengorbankan validitas JSON.
+    big_hint = ""
+    if effective_num_questions > 25:
+        big_hint = (
+            f"TARGET BESAR ({effective_num_questions} soal): buat snippet code MAKSIMAL 6 baris per soal, "
+            "opsi singkat (maksimal ±12 kata), deskripsi section 1 kalimat. "
+            "Utamakan SEMUA soal lengkap & JSON valid daripada detail berlebih. "
+            "Jika tidak muat, hasilkan soal selengkap mungkin — jangan potong JSON di tengah."
+        )
+
     return f"""{title_hint}
 {desc_hint}
 Prompt Pengguna: "{req.prompt}"
@@ -147,6 +158,7 @@ Prompt Pengguna: "{req.prompt}"
 {type_hint}
 {math_hint}
 {code_hint}
+{big_hint}
 
 PENTING:
 - Buat tepat {effective_num_questions} pertanyaan utama (di luar type page_break).
@@ -287,6 +299,79 @@ def _strip_trailing_commas_outside_strings(s: str) -> str:
     return "".join(out)
 
 
+def _looks_like_latex_after_bs(s: str, i: int) -> bool:
+    """True bila backslash di posisi i kemungkinan awal perintah LaTeX.
+
+    Kasus: model menulis \\frac / \\neq / \\theta tunggal. Dalam JSON,
+    \\f/\\b/\\n/\\t adalah escape VALID (formfeed/backspace/newline/tab)
+    sehingga json.loads lolos tapi isi rusak (formfeed + "rac").
+    Prosa normal praktis tidak pernah memakai escape itu diikuti huruf,
+    jadi pola di bawah aman digandakan menjadi backslash literal.
+    """
+    if i + 1 >= len(s):
+        return False
+    nxt = s[i + 1]
+    if nxt == "f" and i + 2 < len(s) and s[i + 2].isalpha():
+        return True  # \frac, \footnotesize, ...
+    if nxt == "b" and i + 2 < len(s) and s[i + 2].isalpha():
+        return True  # \binom, \bar, \beta, ...
+    if nxt == "n":
+        # \neq \notin \nexists \nabla — newline asli + huruf kecil jarang
+        # diawali pola ini; newline + kapital tetap dibiarkan.
+        tail = s[i + 1:i + 7].lower()
+        if tail.startswith(("neq", "notin", "nexists", "nabla")):
+            return True
+        return False
+    if nxt == "t":
+        tail = s[i + 2:i + 6].lower()
+        if tail.startswith(("heta", "imes")):  # \theta, \times
+            return True
+        return False
+    return False
+
+
+def _escape_lone_backslashes(s: str) -> str:
+    """Perbaiki escape LaTeX tunggal ("\\frac", "\\sqrt") di dalam string JSON.
+
+    Dalam JSON yang valid, backslash harus ditulis ganda ("\\\\frac"). Model
+    sering menulis tunggal sehingga json.loads gagal (Invalid \\escape) ATAU
+    lolos tapi rusak (\\f → formfeed). Fungsi ini string-aware: hanya menyentuh
+    backslash yang ilegal, atau yang valid tapi jelas perintah LaTeX.
+    Tidak mengubah isi luar string.
+    """
+    valid_next = set('"\\/bfnrtu')
+    out = []
+    in_str = False
+    esc = False
+    i, n = 0, len(s)
+    while i < n:
+        ch = s[i]
+        if in_str:
+            if esc:
+                out.append(ch)
+                esc = False
+            elif ch == "\\":
+                nxt = s[i + 1] if i + 1 < n else ""
+                if nxt in valid_next and not _looks_like_latex_after_bs(s, i):
+                    out.append(ch)
+                    esc = True
+                else:
+                    # backslash liar (mis. \( \) \.) atau perintah LaTeX → gandakan
+                    out.append("\\\\")
+            elif ch == '"':
+                out.append(ch)
+                in_str = False
+            else:
+                out.append(ch)
+            i += 1
+            continue
+        out.append(ch)
+        if ch == '"':
+            in_str = True
+        i += 1
+    return "".join(out)
+
+
 def _loads_lenient(text: str):
     """json.loads ketat dulu, lalu repair string-aware. Raise JSONDecodeError asli bila gagal."""
     try:
@@ -298,8 +383,13 @@ def _loads_lenient(text: str):
         return json.loads(fixed)
     except json.JSONDecodeError:
         pass
-    fixed2 = _strip_trailing_commas_outside_strings(fixed)
-    return json.loads(fixed2)
+    fixed2 = _escape_lone_backslashes(fixed)
+    try:
+        return json.loads(fixed2)
+    except json.JSONDecodeError:
+        pass
+    fixed3 = _strip_trailing_commas_outside_strings(fixed2)
+    return json.loads(fixed3)
 
 
 def _error_window(text: str, pos: int, radius: int = 200) -> str:
@@ -433,7 +523,18 @@ def _normalize_code_html(value: str) -> str:
 _last_ai_error: Optional[str] = None
 
 
-async def _call_gemini(user_prompt: str, api_key: Optional[str] = None, key_source: str = "server") -> Optional[str]:
+def _budget_for_count(n: int) -> tuple[int, float]:
+    """Budget output + timeout per-kandidat berdasarkan jumlah soal.
+    40 soal JSON ≈ 12–20k token; beri ruang agar tidak terpotong (BAD_JSON)."""
+    n = max(3, min(40, int(n or 10)))
+    if n <= 15:
+        return 8192, 25.0
+    if n <= 25:
+        return 16384, 30.0
+    return 32768, 40.0
+
+
+async def _call_gemini(user_prompt: str, api_key: Optional[str] = None, key_source: str = "server", num_questions: int = 10) -> Optional[str]:
     global _last_ai_error
     if not api_key:
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -559,11 +660,12 @@ async def _call_gemini(user_prompt: str, api_key: Optional[str] = None, key_sour
         url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={api_key}"
 
         full_prompt = f"{SYSTEM_BASE}\n\n{user_prompt}"
+        max_tokens, candidate_timeout = _budget_for_count(num_questions)
         payload = {
             "contents": [{"parts": [{"text": full_prompt}]}],
             "generationConfig": {
                 "temperature": 0.7,
-                "maxOutputTokens": 8192
+                "maxOutputTokens": max_tokens
             }
         }
 
@@ -572,10 +674,10 @@ async def _call_gemini(user_prompt: str, api_key: Optional[str] = None, key_sour
             payload["generationConfig"]["responseMimeType"] = "application/json"
 
         try:
-            # Timeout per-candidate 25 dtk: generate normal 10-20 dtk; lebih dari
-            # itu kemungkinan hang/overload — lanjut ke kandidat berikut agar
-            # total failover tetap di bawah timeout frontend (120 dtk).
-            async with httpx.AsyncClient(timeout=25.0) as client:
+            # Timeout per-kandidat: generate normal 10-20 dtk (40 dtk untuk 26-40
+            # soal); lebih dari itu kemungkinan hang/overload — lanjut ke kandidat
+            # berikut agar total failover tetap di bawah timeout frontend (120 dtk).
+            async with httpx.AsyncClient(timeout=candidate_timeout) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -658,7 +760,7 @@ async def _call_gemini(user_prompt: str, api_key: Optional[str] = None, key_sour
     return None
 
 
-async def _call_openrouter(user_prompt: str) -> Optional[str]:
+async def _call_openrouter(user_prompt: str, num_questions: int = 10) -> Optional[str]:
     """Fallback ke OpenRouter / Groq (OpenAI-compatible) agar tetap pintar & kritis jika Gemini down."""
     global _last_ai_error
     api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -683,11 +785,12 @@ async def _call_openrouter(user_prompt: str) -> Optional[str]:
     url = f"{base_url}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", **headers_extra}
     full_prompt = f"{SYSTEM_BASE}\n\n{user_prompt}"
+    or_tokens, _ = _budget_for_count(num_questions)
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": full_prompt}],
         "temperature": 0.7,
-        "max_tokens": 4096,
+        "max_tokens": min(16384, or_tokens),
         "response_format": {"type": "json_object"} if "gpt" in model or "gemini" in model else None,
     }
     # hapus None
@@ -711,18 +814,18 @@ async def _call_openrouter(user_prompt: str) -> Optional[str]:
     return None
 
 
-async def _call_ai(user_prompt: str, gemini_key: Optional[str] = None, key_source: str = "server") -> Optional[str]:
+async def _call_ai(user_prompt: str, gemini_key: Optional[str] = None, key_source: str = "server", num_questions: int = 10) -> Optional[str]:
     """Orchestrator: coba Gemini dulu, baru OpenRouter/Groq fallback."""
     global _last_ai_error
     _last_ai_error = None
-    text = await _call_gemini(user_prompt, api_key=gemini_key, key_source=key_source)
+    text = await _call_gemini(user_prompt, api_key=gemini_key, key_source=key_source, num_questions=num_questions)
     if text:
         return text
     # Key milik user yang invalid -> fail fast, jangan timpa pesan jelas dengan fallback.
     if key_source == "own" and _last_ai_error and TAG_BAD_KEY in _last_ai_error:
         return None
     # fallback kritis - hanya jika Gemini gagal total
-    text2 = await _call_openrouter(user_prompt)
+    text2 = await _call_openrouter(user_prompt, num_questions=num_questions)
     if text2:
         return text2
     # tetap None -> akan di-handle fail-loud di generate_form
@@ -1057,7 +1160,7 @@ async def generate_form(
     description = (payload.description or "").strip()
     user_prompt = _build_user_prompt(payload, effective_num_questions)
 
-    raw_text = await _call_ai(user_prompt, gemini_key=gemini_key, key_source=key_source)
+    raw_text = await _call_ai(user_prompt, gemini_key=gemini_key, key_source=key_source, num_questions=effective_num_questions)
 
     if raw_text is None:
         # Fail loudly (opsi A) — jangan silent fallback bodoh; tanpa auto-retry.
@@ -1109,7 +1212,7 @@ async def generate_form(
         title=gen_title,
         description=gen_desc,
         questions=questions,
-        usage={"model": os.getenv("GEMINI_MODEL", "gemini-3.6-flash"), "prompt_chars": len(payload.prompt), "key_source": key_source}
+        usage={"model": os.getenv("GEMINI_MODEL", "gemini-3.6-flash"), "prompt_chars": len(payload.prompt), "key_source": key_source, "requested": effective_num_questions, "returned": len([q for q in questions if q["type"] != "page_break"])},
     )
 
 

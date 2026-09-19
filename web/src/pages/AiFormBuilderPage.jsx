@@ -145,6 +145,8 @@ export default function AiFormBuilderPage() {
   const [useSections, setUseSections] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [preview, setPreview] = useState(null);
+  // Info hasil parsial: { requested, returned } bila AI mengembalikan kurang dari target.
+  const [partial, setPartial] = useState(null);
   const [error, setError] = useState('');
   const [errorHint, setErrorHint] = useState(null);
   const [errorAction, setErrorAction] = useState(null); // { type: 'key'|'retry', label }
@@ -380,8 +382,8 @@ export default function AiFormBuilderPage() {
     const detectedCount = extractQuestionCountFromPrompt(prompt);
     const resolvedNumQuestions = detectedCount !== null ? detectedCount : numQuestions;
 
-    if (resolvedNumQuestions < 3 || resolvedNumQuestions > 30) {
-      setError('Jumlah soal harus antara 3 hingga 30.');
+    if (resolvedNumQuestions < 3 || resolvedNumQuestions > 40) {
+      setError('Jumlah soal harus antara 3 hingga 40.');
       return;
     }
     if (detectedCount !== null && detectedCount !== numQuestions) {
@@ -391,6 +393,7 @@ export default function AiFormBuilderPage() {
     setError('');
     setErrorHint(null);
     setErrorAction(null);
+    setPartial(null);
     setIsGenerating(true);
     // Judul/deskripsi hanya dikirim bila masih relevan: template utuh (prompt
     // belum diubah) atau user mengetik manual di Judul Kustom. Prompt yang
@@ -409,7 +412,15 @@ export default function AiFormBuilderPage() {
         file_context: attachedFile?.text || undefined,
       });
       setPreview(data);
-      showToast('Form berhasil diracik oleh Formax AI!', 'success');
+      setPartial(null);
+      const returnedCount = (data.questions || []).filter((q) => q.type !== 'page_break').length;
+      const requestedCount = data.usage?.requested ?? Number(resolvedNumQuestions);
+      if (returnedCount < requestedCount) {
+        setPartial({ requested: requestedCount, returned: returnedCount });
+        showToast(`AI meracik ${returnedCount}/${requestedCount} soal — lengkapi via tombol susulan.`, 'info');
+      } else {
+        showToast('Form berhasil diracik oleh Formax AI!', 'success');
+      }
     } catch (err) {
       // Petakan error teknis menjadi pesan ramah + tombol aksi (tanpa auto-retry).
       const mapped = mapAiError(err.message || 'Gagal generate form', { hasOwnKey: !!ownKey });
@@ -428,6 +439,47 @@ export default function AiFormBuilderPage() {
       setShowKeyPanel(true);
     } else if (errorAction.type === 'retry') {
       if (!isGenerating && prompt.trim()) handleGenerate();
+    }
+  };
+
+  // Generate susulan: minta kekurangan soal lalu gabung ke preview yang ada.
+  const handleTopUp = async () => {
+    if (!partial || isGenerating || !prompt.trim()) return;
+    const missing = partial.requested - partial.returned;
+    if (missing <= 0) return;
+    const plain = (s) => String(s ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const existing = (preview?.questions || [])
+      .filter((q) => q.type !== 'page_break' && plain(q.label))
+      .slice(0, 12)
+      .map((q) => plain(q.label).slice(0, 80));
+    setIsGenerating(true);
+    try {
+      const data = await generateAiForm(token, {
+        prompt: `${prompt.trim()}\n\nTambahan: buatkan ${missing} soal LAGI dengan topik & gaya yang sama. JANGAN ulangi soal berikut: ${existing.join(' | ')}`,
+        num_questions: missing,
+        include_correct: includeCorrect,
+        use_sections: false,
+        file_context: attachedFile?.text || undefined,
+      });
+      const extra = data.questions || [];
+      const mergedQuestions = [...(preview?.questions || []), ...extra];
+      const returned = mergedQuestions.filter((q) => q.type !== 'page_break').length;
+      setPreview((prev) => (prev ? { ...prev, questions: mergedQuestions } : data));
+      if (returned < partial.requested) {
+        setPartial({ requested: partial.requested, returned });
+        showToast(`Bertambah jadi ${returned}/${partial.requested} soal.`, 'info');
+      } else {
+        setPartial(null);
+        showToast('Lengkap! Semua soal berhasil diracik.', 'success');
+      }
+    } catch (err) {
+      const mapped = mapAiError(err.message || 'Gagal generate susulan', { hasOwnKey: !!ownKey });
+      setError(mapped.text);
+      setErrorHint(mapped.hint);
+      setErrorAction(mapped.action ? { type: mapped.action, label: mapped.actionLabel } : null);
+      showToast(mapped.text, 'error');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -919,7 +971,7 @@ export default function AiFormBuilderPage() {
                       onChange={(e) => setNumQuestions(Number(e.target.value))}
                       title="Jumlah target soal"
                     >
-                      {[3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30].map((n) => (
+                      {[3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30, 35, 40].map((n) => (
                         <option key={n} value={n}>
                           {n} Soal
                         </option>
@@ -1049,6 +1101,22 @@ export default function AiFormBuilderPage() {
               </div>
 
               {/* Form Artifact Paper */}
+              {partial && (
+                <div className="claude-partial-notice" role="status">
+                  <div className="claude-partial-body">
+                    <strong>Hasil parsial: {partial.returned}/{partial.requested} soal.</strong>
+                    <span> Sebagian soal gugur validasi AI — aman untuk disimpan, atau lengkapi sisanya.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="claude-partial-btn"
+                    onClick={handleTopUp}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? 'Menyiapkan…' : `Generate susulan ${partial.requested - partial.returned} soal`}
+                  </button>
+                </div>
+              )}
               <div className="claude-form-paper" ref={previewPaperRef}>
                 <div className="claude-paper-header">
                   <h1

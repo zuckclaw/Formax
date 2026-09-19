@@ -125,6 +125,8 @@ WORD_TO_NUMBER = {
     'dua puluh': 20, 'twenty': 20,
     'dua puluh lima': 25, 'twenty five': 25,
     'tiga puluh': 30, 'thirty': 30,
+    'tiga puluh lima': 35, 'thirty five': 35,
+    'empat puluh': 40, 'forty': 40,
 }
 
 
@@ -132,7 +134,7 @@ def extract_question_count(prompt: str) -> Optional[int]:
     """
     Mengekstrak jumlah soal/pertanyaan yang diminta eksplisit dalam prompt teks.
     Contoh: '10 soal', '8 butir pertanyaan', '15 questions', 'sepuluh soal'.
-    Returns int antara 3 s/d 30, atau None jika tidak ditemukan.
+    Returns int antara 3 s/d 40, atau None jika tidak ditemukan.
     """
     if not prompt or not isinstance(prompt, str):
         return None
@@ -149,10 +151,10 @@ def extract_question_count(prompt: str) -> Optional[int]:
         if m:
             try:
                 val = int(m.group(1))
-                if 3 <= val <= 30:
+                if 3 <= val <= 40:
                     return val
-                if val > 30:
-                    return 30
+                if val > 40:
+                    return 40
                 if val < 3 and val > 0:
                     return 3
             except ValueError:
@@ -162,7 +164,7 @@ def extract_question_count(prompt: str) -> Optional[int]:
     for word_num, val in sorted(WORD_TO_NUMBER.items(), key=lambda x: -len(x[0])):
         pattern = rf'\b{re.escape(word_num)}\s*(?:butir|nomor|buah)?\s*(?:soal|pertanyaan|question(?:s)?|item(?:s)?)'
         if re.search(pattern, text):
-            return max(3, min(30, val))
+            return max(3, min(40, val))
 
     return None
 

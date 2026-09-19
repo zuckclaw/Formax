@@ -22,31 +22,77 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+// Pembatas eksplisit \(...\) (inline) dan \[...\] (display) ala LaTeX.
+// WAJIB didahulukan dari pencocokan fragmen: seluruh isi dirender utuh
+// agar \(...\) tidak tampil sebagai teks plain.
+const INLINE_DELIM_RE = /\\\((.+?)\\\)/g
+const DISPLAY_DELIM_RE = /\\\[([\s\S]+?)\\\]/g
+
+function renderDelimited(latex, displayMode) {
+  try {
+    const html = katex.renderToString(latex.trim(), { throwOnError: false, displayMode, strict: false })
+    if (!html || html.includes('katex-error')) return null
+    return html
+  } catch {
+    return null
+  }
+}
+
 function enrichTextChunk(text) {
   if (!text) return null
-  const hasLatex = HAS_LATEX.test(text)
-  const hasPow = HAS_POW_SUB.test(text)
+  // Normalisasi delimiter ganda (model kadang menulis \\( \\)): hanya bila
+  // diikuti ( ) [ ] agar \\frac yang benar tidak tersentuh.
+  const norm = text.replace(/\\\\([()\[\]])/g, '\\$1')
+  const hasDelim = norm.includes('\\(') || norm.includes('\\[')
+  const hasLatex = HAS_LATEX.test(norm)
+  const hasPow = HAS_POW_SUB.test(norm)
   // reset lastIndex untuk test global
   HAS_POW_SUB.lastIndex = 0
-  if (!hasLatex && !hasPow) return null
+  if (!hasDelim && !hasLatex && !hasPow) return null
+  text = norm
 
-  // kumpulkan semua fragment dari kedua pola, urut by index
+  // 1. Kumpulkan span delimiter dulu (prioritas tertinggi, render utuh).
   const frags = []
   let m
+  DISPLAY_DELIM_RE.lastIndex = 0
+  while ((m = DISPLAY_DELIM_RE.exec(text)) !== null) {
+    let inner = (m[1] || '').trim()
+    if (inner.length < 1) continue
+    inner = inner.replace(/<br\s*\/?>/gi, ' ')
+    frags.push({ kind: 'display', frag: inner, raw: m[0], start: m.index, end: m.index + m[0].length })
+  }
+  INLINE_DELIM_RE.lastIndex = 0
+  while ((m = INLINE_DELIM_RE.exec(text)) !== null) {
+    if (frags.some(r => m.index >= r.start && m.index < r.end)) continue
+    let inner = (m[1] || '').trim()
+    if (inner.length < 1) continue
+    // <br> mentah di dalam rumus → spasi (KaTeX akan mengartikan < > sebagai simbol)
+    inner = inner.replace(/<br\s*\/?>/gi, ' ')
+    // Rumus multi-baris (pemisah \\ atau environment aligned/matrix/cases)
+    // JANGAN render inline (akan menumpuk vertikal di pil opsi) → promosikan
+    // menjadi display block yang bisa scroll horizontal.
+    const multi = /\\\\|\\begin\{/.test(inner)
+    frags.push({ kind: multi ? 'display' : 'inline', frag: inner, raw: m[0], start: m.index, end: m.index + m[0].length })
+  }
+
+  // 2. Fragmen perintah/pangkat hanya di luar span delimiter.
+  const insideDelim = (idx) => frags.some(r => idx >= r.start && idx < r.end)
   SIMPLE_LATEX.lastIndex = 0
   while ((m = SIMPLE_LATEX.exec(text)) !== null) {
+    if (insideDelim(m.index)) continue
     const f = m[0].trim()
     if (f.length < 3) continue
-    frags.push({ frag: f, raw: m[0], start: m.index, end: m.index + m[0].length })
+    frags.push({ kind: 'frag', frag: f, raw: m[0], start: m.index, end: m.index + m[0].length })
   }
   PLAIN_POW_SUB.lastIndex = 0
   while ((m = PLAIN_POW_SUB.exec(text)) !== null) {
+    if (insideDelim(m.index)) continue
     const f = m[0].trim()
     if (f.length < 3) continue
     // hindari duplikat yang sudah tercakup oleh SIMPLE_LATEX (overlap)
     const overlap = frags.some(r => m.index >= r.start && m.index < r.end)
     if (overlap) continue
-    frags.push({ frag: f, raw: m[0], start: m.index, end: m.index + m[0].length })
+    frags.push({ kind: 'frag', frag: f, raw: m[0], start: m.index, end: m.index + m[0].length })
   }
   if (frags.length === 0) return null
   frags.sort((a, b) => a.start - b.start)
@@ -54,16 +100,29 @@ function enrichTextChunk(text) {
   let has = false
   let out = ''
   let last = 0
-  for (const { frag, raw, start, end } of frags) {
-    const rendered = renderFragment(frag)
+  for (const { kind, frag, raw, start, end } of frags) {
+    let rendered = null
+    if (kind === 'display') {
+      rendered = renderDelimited(frag, true)
+    } else if (kind === 'inline') {
+      rendered = renderDelimited(frag, false)
+    } else {
+      rendered = renderFragment(frag)
+    }
     if (!rendered) continue
     has = true
     if (start > last) out += escapeHtml(text.slice(last, start))
-    out += `<span class="katex-inline-fallback" style="display:inline;vertical-align:baseline;">${rendered}</span>`
+    if (kind === 'display') {
+      out += `<div class="math-display-block">${rendered}</div>`
+    } else {
+      out += `<span class="katex-inline-fallback" style="display:inline;vertical-align:baseline;">${rendered}</span>`
+    }
     last = end
-    // handle trailing spaces yang ikut di raw (jika ada)
-    const trailing = raw.length - frag.length
-    if (trailing > 0) last -= trailing
+    // handle trailing spaces yang ikut di raw (khusus fragmen pola, bukan delimiter)
+    if (kind === 'frag') {
+      const trailing = raw.length - frag.length
+      if (trailing > 0) last -= trailing
+    }
   }
   if (!has) return null
   if (last < text.length) out += escapeHtml(text.slice(last))
@@ -83,6 +142,15 @@ export function prepareMathHtml(html) {
     const converted = prepareCodeHtml(html)
     if (typeof converted === 'string') src = converted
   } catch { /* abaikan, lanjut dengan html asli */ }
+  // <br> di dalam span rumus akan memecah delimiter saat split tag di bawah
+  // (delimiter jadi tak lengkap dan rumus tampil mentah). Ganti dengan spasi
+  // dulu — kecuali di dalam <pre> (kode program, jangan disentuh).
+  try {
+    src = src.replace(/(<pre[\s\S]*?<\/pre\s*>|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/gi, (m) => {
+      if (/^<pre/i.test(m)) return m
+      return m.replace(/<br\s*\/?>/gi, ' ')
+    })
+  } catch { /* abaikan */ }
   const needsMath = src.includes('\\') || HAS_POW_SUB.test(src)
   HAS_POW_SUB.lastIndex = 0
   if (_cache.has(html)) return _cache.get(html)

@@ -182,6 +182,8 @@ const WORD_TO_NUMBER_MAP = {
   'dua puluh': 20, 'twenty': 20,
   'dua puluh lima': 25, 'twenty five': 25,
   'tiga puluh': 30, 'thirty': 30,
+  'tiga puluh lima': 35, 'thirty five': 35,
+  'empat puluh': 40, 'forty': 40,
 };
 
 /**
@@ -199,7 +201,7 @@ export function extractQuestionCountFromPrompt(promptText) {
   if (match) {
     const rawNum = parseInt(match[1] || match[2], 10);
     if (!isNaN(rawNum) && rawNum > 0) {
-      return Math.max(3, Math.min(30, rawNum));
+      return Math.max(3, Math.min(40, rawNum));
     }
   }
 
@@ -207,7 +209,7 @@ export function extractQuestionCountFromPrompt(promptText) {
   for (const [word, num] of Object.entries(WORD_TO_NUMBER_MAP)) {
     const wordPattern = new RegExp(`\\b${word}\\s*(?:butir|nomor|buah)?\\s*(?:soal|pertanyaan|questions?|items?)`, 'i');
     if (wordPattern.test(lower)) {
-      return Math.max(3, Math.min(30, num));
+      return Math.max(3, Math.min(40, num));
     }
   }
 

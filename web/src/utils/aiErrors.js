@@ -79,6 +79,24 @@ export function mapAiError(err, ctx = {}) {
     };
   }
 
+  if (/antara 3 hingga 40|ge=3|le=40|greater than or equal|less than or equal/i.test(raw)) {
+    return {
+      text: 'Jumlah soal harus antara 3 hingga 40.',
+      hint: 'Pilih jumlah lewat pil di toolbar, atau tulis angkanya di prompt (mis. "buatkan 35 soal").',
+      action: null,
+      actionLabel: null,
+    };
+  }
+
+  if (/Timeout|timed out|kehabisan waktu/i.test(raw)) {
+    return {
+      text: 'Generate kehabisan waktu (khususnya untuk 25+ soal).',
+      hint: 'Klik Coba lagi — atau turunkan ke 20–25 soal dulu lalu gunakan tombol susulan untuk sisanya.',
+      action: 'retry',
+      actionLabel: 'Coba lagi',
+    };
+  }
+
   if (/timeout|Gagal terhubung ke server|network|Failed to fetch|Load failed/i.test(raw)) {
     return {
       text: 'Gagal terhubung ke server.',
