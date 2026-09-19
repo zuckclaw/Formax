@@ -858,15 +858,15 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
           </div>
           <nav className="db-nav" aria-hidden="true">
             {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="skel skel-line full" style={{ height: 40, borderRadius: 10 }} />
+              <div key={n} className="db-static-ph" style={{ height: 40, borderRadius: 10 }} />
             ))}
           </nav>
           <div className="db-sidebar-footer" aria-hidden="true">
             <div className="db-user" style={{ pointerEvents: 'none' }}>
-              <div className="skel skel-avatar" />
+              <div className="db-static-ph" style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />
               <div className="skel-user-text">
-                <div className="skel skel-line" />
-                <div className="skel skel-line" />
+                <div className="db-static-ph" style={{ width: 80, height: 12, borderRadius: 6 }} />
+                <div className="db-static-ph" style={{ width: 110, height: 10, borderRadius: 6 }} />
               </div>
             </div>
           </div>

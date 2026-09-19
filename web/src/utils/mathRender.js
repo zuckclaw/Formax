@@ -59,7 +59,7 @@ function enrichTextChunk(text) {
     if (!rendered) continue
     has = true
     if (start > last) out += escapeHtml(text.slice(last, start))
-    out += `<span class="katex-inline-fallback" style="display:inline-block;vertical-align:middle;margin:0 2px;">${rendered}</span>`
+    out += `<span class="katex-inline-fallback" style="display:inline;vertical-align:baseline;">${rendered}</span>`
     last = end
     // handle trailing spaces yang ikut di raw (jika ada)
     const trailing = raw.length - frag.length

@@ -6332,15 +6332,13 @@
 }
 
 /* Skeleton user di sidebar saat profil belum termuat */
-.skel-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
 .skel-user-text { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
-.skel-user-text .skel-line:first-child { width: 80px; }
-.skel-user-text .skel-line:last-child { width: 110px; height: 10px; }
+
+/* Placeholder statis sidebar saat loading (tanpa shimmer) */
+.db-static-ph {
+  background: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
 
 [data-theme='dark'] .skel,
 [data-theme='dark'] .skel-card-preview,

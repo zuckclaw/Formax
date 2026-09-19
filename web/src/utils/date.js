@@ -10,3 +10,19 @@ export function parseServerTime(str) {
   const d = new Date(iso);
   return isNaN(d.getTime()) ? null : d;
 }
+
+export function formatDateFriendly(dateStr) {
+  const d = parseServerTime(dateStr);
+  if (!d) return null;
+  try {
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d) + ' WIB';
+  } catch {
+    return d.toLocaleString('id-ID');
+  }
+}

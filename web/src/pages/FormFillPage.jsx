@@ -18,7 +18,7 @@ import { safeHtml } from '../utils/safeHtml';
 import { prepareCodeHtml, ensureVisibleCodeHtml } from '../utils/codeRender';
 import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { getValidToken } from '../utils/authStorage';
-import { parseServerTime } from '../utils/date';
+import { parseServerTime, formatDateFriendly } from '../utils/date';
 import { enhanceVideoContainers } from '../utils/videoEmbed';
 import { themeStyle } from '../utils/formTheme';
 
@@ -1013,7 +1013,8 @@ export default function FormFillPage() {
       case 'single_choice':
         return (
           <div className="options-list">
-            {(q.options || []).map((opt) => {
+            {(q.options || []).map((opt, optIdx) => {
+              const letter = optIdx < 26 ? String.fromCharCode(65 + optIdx) : optIdx + 1;
               const optClean = stripHtml(opt.label).trim();
               const ansClean = stripHtml(currentAnswer.answer_text || '').trim();
               const isSelected =
@@ -1027,7 +1028,6 @@ export default function FormFillPage() {
                   title={isSelected ? 'Klik lagi untuk membatalkan pilihan ini' : 'Pilih opsi ini'}
                   onClick={() => {
                     if (isSelected) {
-                      // Klik 2x / klik opsi yang sudah terpilih -> batalkan pilihan
                       handleAnswerChange(q.id, {
                         answer_text: '',
                         answer_options: [],
@@ -1040,7 +1040,9 @@ export default function FormFillPage() {
                     }
                   }}
                 >
-                  <div className="option-radio">{isSelected && <div className="option-radio-dot" />}</div>
+                  <div className={`option-letter-badge ${isSelected ? 'selected' : ''}`}>
+                    {letter}
+                  </div>
                   <OptionLabelWithVideo html={opt.label} />
                   {isSelected && (
                     <svg className="option-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1314,15 +1316,20 @@ export default function FormFillPage() {
             {userProfile ? (
               <div className="ff-gate-account-box">
                 <div className="ff-gate-account-icon">
-                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
                 <div className="ff-gate-account-info">
                   <span className="ff-gate-account-label">Mengisi sebagai</span>
-                  <span className="ff-gate-account-email" title={userProfile.email || userProfile.full_name}>
-                    {userProfile.email || userProfile.full_name || 'Pengguna'}
+                  <span className="ff-gate-account-name" title={userProfile.full_name || userProfile.username || 'Pengguna'}>
+                    {userProfile.full_name || userProfile.username || 'Pengguna'}
                   </span>
+                  {userProfile.email && (
+                    <span className="ff-gate-account-email" title={userProfile.email}>
+                      {userProfile.email}
+                    </span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1746,25 +1753,88 @@ export default function FormFillPage() {
           style={{ zoom: zoomLevel / 100, '--q-scale': zoomLevel / 100 }}
           onClick={handleContentImageClick}
         >
-          {form?.banner_url && (
-            <div className="form-fill-banner">
-              <NgrokImage src={form.banner_url} alt="Banner form" className="form-fill-banner-img" />
-            </div>
-          )}
-          <div className="form-header-details">
-            <h2 className="form-title" dangerouslySetInnerHTML={richHtml(form?.title)} />
-            {form?.description && <FormDescriptionWithAudio html={form.description} />}
-          </div>
+          {/* Main Form Header Card */}
+          <div className="form-main-header-card">
+            {form?.banner_url && (
+              <div className="form-fill-banner">
+                <NgrokImage src={form.banner_url} alt="Banner form" className="form-fill-banner-img" />
+              </div>
+            )}
 
-          {/* Warning Banner */}
-          {form?.end_date && (
-            <div className="form-notice-banner">
-              <svg className="notice-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span>Form akan otomatis terkirim saat waktu habis</span>
+            <div className="form-header-body">
+              <h2 className="form-title" dangerouslySetInnerHTML={richHtml(form?.title)} />
+              {form?.description && <FormDescriptionWithAudio html={form.description} />}
+
+              {/* Information Schedule Box */}
+              <div className="form-schedule-card">
+                <div className="form-schedule-item">
+                  <div className="schedule-icon-box">
+                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" strokeWidth="2" strokeLinecap="round" />
+                      <line x1="8" y1="2" x2="8" y2="6" strokeWidth="2" strokeLinecap="round" />
+                      <line x1="3" y1="10" x2="21" y2="10" strokeWidth="2" />
+                    </svg>
+                  </div>
+                  <div className="schedule-info">
+                    <span className="schedule-label">Waktu Pengisian</span>
+                    <span className="schedule-val">
+                      {form?.start_date && form?.end_date
+                        ? `${formatDateFriendly(form.start_date)} — ${formatDateFriendly(form.end_date)}`
+                        : form?.start_date
+                        ? `Dibuka sejak ${formatDateFriendly(form.start_date)}`
+                        : form?.end_date
+                        ? `Batas s.d. ${formatDateFriendly(form.end_date)}`
+                        : form?.created_at
+                        ? `Aktif (Dibuat ${formatDateFriendly(form.created_at)})`
+                        : 'Terbuka untuk Umum'}
+                    </span>
+                  </div>
+                </div>
+
+                {(form?.time_limit || form?.duration_minutes || form?.settings?.duration) && (
+                  <div className="form-schedule-item">
+                    <div className="schedule-icon-box urgent">
+                      <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" strokeWidth="2" />
+                        <polyline points="12 6 12 12 16 14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div className="schedule-info">
+                      <span className="schedule-label">Durasi Waktu</span>
+                      <span className="schedule-val">
+                        {form.time_limit || form.duration_minutes || form.settings?.duration} Menit
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="form-schedule-item">
+                  <div className="schedule-icon-box accent">
+                    <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <div className="schedule-info">
+                    <span className="schedule-label">Jumlah Soal</span>
+                    <span className="schedule-val">
+                      {totalQuestions} Pertanyaan {totalPages > 1 ? `(${totalPages} Bagian)` : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning Banner */}
+              {form?.end_date && (
+                <div className="form-notice-banner">
+                  <svg className="notice-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>Form akan otomatis terkirim saat waktu habis</span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Section Header — compact */}
           {currentSection.pb && (
@@ -1795,13 +1865,16 @@ export default function FormFillPage() {
             const isReqError = q.is_required && validationErrors.has(q.id);
             return (
               <div key={q.id} className={`question-card ${isReqError ? 'required-error' : ''}`} id={`q-${q.id}`}>
-                <div className="question-card-header">
-                  <div className="question-label">
-                    <span className="question-number">{displayNumber}.</span>
-                    <QuestionLabelWithAudio html={q.label} />
+                {/* Question Topbar */}
+                <div className="question-card-topbar">
+                  <div className="question-number-badge">
+                    <span>{displayNumber}.</span>
                     {q.is_required && <span className="required-star" title="Wajib diisi">*</span>}
                   </div>
+
                   <div className="question-header-right">
+                    {points !== null && <span className="points-badge">{points} poin</span>}
+                    <span className="question-type-tag">{getTypeLabel(q.type)}</span>
                     <button
                       className={`q-bookmark-btn ${bookmarked.has(q.id) ? 'active' : ''}`}
                       onClick={() => toggleBookmark(q.id)}
@@ -1813,9 +1886,12 @@ export default function FormFillPage() {
                         <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
                       </svg>
                     </button>
-                    <span className="question-type-tag">{getTypeLabel(q.type)}</span>
-                    {points !== null && <span className="points-badge">{points} poin</span>}
                   </div>
+                </div>
+
+                {/* Question Prompt Label Row (100% Full Width) */}
+                <div className="question-label-row">
+                  <QuestionLabelWithAudio html={q.label} />
                 </div>
 
                 {/* Context Box if available (e.g. reading passage box from design mock) */}
