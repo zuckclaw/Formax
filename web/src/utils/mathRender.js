@@ -38,6 +38,20 @@ function renderDelimited(latex, displayMode) {
   }
 }
 
+// Entitas HTML di dalam rumus (warisan AI/paste Word, mis. &nbsp;) dibaca
+// KaTeX sebagai karakter mentah — "&" berarti pemisah kolom alignment
+// sehingga rumus pecah tak terbaca. Bersihkan SEBELUM render; teks di luar
+// rumus tidak disentuh.
+function cleanMathEntities(latex) {
+  return String(latex ?? '')
+    .replace(/&nbsp;/gi, '\\ ')
+    .replace(/&amp;/gi, '\\&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&#x27;|&apos;/gi, "'")
+}
+
 function enrichTextChunk(text) {
   if (!text) return null
   // Normalisasi delimiter ganda (model kadang menulis \\( \\)): hanya bila
@@ -102,12 +116,14 @@ function enrichTextChunk(text) {
   let last = 0
   for (const { kind, frag, raw, start, end } of frags) {
     let rendered = null
+    // Entitas HTML di dalam rumus dibersihkan dulu (lihat cleanMathEntities).
+    const clean = cleanMathEntities(frag)
     if (kind === 'display') {
-      rendered = renderDelimited(frag, true)
+      rendered = renderDelimited(clean, true)
     } else if (kind === 'inline') {
-      rendered = renderDelimited(frag, false)
+      rendered = renderDelimited(clean, false)
     } else {
-      rendered = renderFragment(frag)
+      rendered = renderFragment(clean)
     }
     if (!rendered) continue
     has = true
@@ -115,7 +131,7 @@ function enrichTextChunk(text) {
     if (kind === 'display') {
       out += `<div class="math-display-block">${rendered}</div>`
     } else {
-      out += `<span class="katex-inline-fallback" style="display:inline;vertical-align:baseline;">${rendered}</span>`
+      out += `<span class="katex-inline-fallback" style="display:inline-block;vertical-align:middle;white-space:nowrap;margin:0 2px;">${rendered}</span>`
     }
     last = end
     // handle trailing spaces yang ikut di raw (khusus fragmen pola, bukan delimiter)

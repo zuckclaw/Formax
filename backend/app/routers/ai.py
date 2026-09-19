@@ -117,7 +117,7 @@ def _build_user_prompt(req: AiGenerateRequest, effective_num_questions: int) -> 
     
     # Check if prompt contains math/science related terms
     is_math = bool(re.search(r'(matematika|math|aljabar|kalkulus|geometri|trigonometri|fisika|rumus|persamaan|equation|hitung|kuadrat|pecahan|integral|turunan)', req.prompt, re.IGNORECASE))
-    math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX! RUMUS SATU BARIS: di dalam \\(...\\) DILARANG memakai pemisah baris \\\\, environment aligned/matrix/cases/pmatrix, atau tag <br> — tulis tiap rumus opsi dalam SATU BARIS utuh." if is_math else ""
+    math_hint = "PENTING SINTAKS MATEMATIKA: Bungkus SEMUA rumus, persamaan, variabel (seperti x, y), pecahan, eksponen, atau simbol matematika dengan notasi LaTeX \\(...\\) (contoh: \\(f(x) = ax^2 + bx + c\\), \\(\\frac{1}{2}\\), \\(\\sqrt{b^2 - 4ac}\\)) agar otomatis ter-render oleh KaTeX! RUMUS SATU BARIS: di dalam \\(...\\) DILARANG memakai pemisah baris \\\\, environment aligned/matrix/cases/pmatrix, atau tag <br> — tulis tiap rumus opsi dalam SATU BARIS utuh. DILARANG menulis entitas HTML di dalam rumus (jangan tulis &nbsp; &amp; &lt; — pakai spasi biasa)." if is_math else ""
 
     # Check if prompt asks for coding questions (HTML/CSS/JS/Python/dll)
     is_code = bool(re.search(r'(html|css|javascript|js\b|python|php|java\b|tag\b|elemen|koding|coding|program|script|div\b|kode\b|informatika|pemrograman|web\b|tailwind|react|vue)', req.prompt, re.IGNORECASE))
