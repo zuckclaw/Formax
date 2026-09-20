@@ -11,13 +11,17 @@ part of '../result_page.dart';
 
 extension _ResultList on _ResultPageState {
   Widget _buildJoinTokenCard(String token) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F3FF),
+        color: isDark ? const Color(0xFF23233F) : const Color(0xFFF5F3FF),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFC4B5FD)),
+        border: Border.all(
+            color: isDark
+                ? const Color(0xFF2D2D4A)
+                : const Color(0xFFC4B5FD)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -26,40 +30,53 @@ extension _ResultList on _ResultPageState {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEEF2FF),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF60A5FA).withValues(alpha: 0.12)
+                      : const Color(0xFFEEF2FF),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.security,
                   size: 18,
-                  color: Color(0xFF4338CA),
+                  color: isDark
+                      ? const Color(0xFF60A5FA)
+                      : const Color(0xFF4338CA),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'Token akses form',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF312E81),
+                        color: isDark
+                            ? const Color(0xFFEEF2FF)
+                            : const Color(0xFF312E81),
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Gunakan token untuk membuka akses form',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF2563EB)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? const Color(0xFF60A5FA)
+                              : const Color(0xFF2563EB)),
                     ),
                   ],
                 ),
               ),
               PopupMenuButton<String>(
                 tooltip: 'Menu token',
-                icon: const Icon(Icons.more_vert, color: Color(0xFF312E81)),
+                icon: Icon(Icons.more_vert,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF312E81)),
                 onSelected: (value) {
                   if (value == 'copy') {
                     _copyJoinToken(token);
@@ -82,20 +99,27 @@ extension _ResultList on _ResultPageState {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFE0E7FF),
+              color: isDark
+                  ? const Color(0xFF2A2A4A)
+                  : const Color(0xFFE0E7FF),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFB8C5FF)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF3A3A5C)
+                      : const Color(0xFFB8C5FF)),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     token,
-                    style: const TextStyle(
+                    style: TextStyle(
                       letterSpacing: 1.2,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E1B4B),
+                      color: isDark
+                          ? const Color(0xFFEEF2FF)
+                          : const Color(0xFF1E1B4B),
                     ),
                   ),
                 ),
@@ -104,14 +128,18 @@ extension _ResultList on _ResultPageState {
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC7D2FE),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF60A5FA).withValues(alpha: 0.15)
+                          : const Color(0xFFC7D2FE),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.copy_all_rounded,
                       size: 18,
-                      color: Color(0xFF312E81),
+                      color: isDark
+                          ? const Color(0xFF60A5FA)
+                          : const Color(0xFF312E81),
                     ),
                   ),
                 ),

@@ -85,26 +85,221 @@ class _EditorCanvasState extends State<EditorCanvas> {
     return Padding(
       key: key,
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: PageHeaderCard(
-        page: page,
-        isActive: isActive,
-        sectionIndex: pageIndex + 1,
-        totalSections: totalPages,
-        onTap: () {
-          widget.state.setActiveQuestion(null, page.id);
-        },
-        onChanged: () {
-          if (pageIndex == 0) {
-            // Sync the first page's title/description to the form's title/description
-            widget.state.formTitle = page.title;
-            widget.state.formDescription = page.description;
-          }
-          widget.state.triggerUpdate();
-        },
-        onDelete: () {
-          widget.state.deletePage(page.id);
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PageHeaderCard(
+            page: page,
+            isActive: isActive,
+            sectionIndex: pageIndex + 1,
+            totalSections: totalPages,
+            onTap: () {
+              widget.state.setActiveQuestion(null, page.id);
+            },
+            onChanged: () {
+              if (pageIndex == 0) {
+                // Sync the first page's title/description to the form's title/description
+                widget.state.formTitle = page.title;
+                widget.state.formDescription = page.description;
+              }
+              widget.state.triggerUpdate();
+            },
+            onDelete: () {
+              widget.state.deletePage(page.id);
+            },
+          ),
+          // Panel pilih banyak soal — tepat di bawah container
+          // judul & deskripsi form (kartu header pertama).
+          if (pageIndex == 0) _buildBulkPanel(),
+        ],
       ),
+    );
+  }
+
+  /// Panel bulk select di bawah judul/deskripsi form.
+  Widget _buildBulkPanel() {
+    final state = widget.state;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final total = state.pages.fold<int>(0, (n, p) => n + p.questions.length);
+    final selected = state.selectedQuestionIds.length;
+    final allSelected = total > 0 && selected >= total;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF23233F) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: state.bulkSelectMode
+              ? const Color(0xFFDC2626)
+              : (isDark
+                  ? const Color(0xFF2D2D4A)
+                  : const Color(0xFFE2E8F0)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: state.bulkSelectMode
+          ? Row(
+              children: [
+                TextButton.icon(
+                  onPressed: total == 0
+                      ? null
+                      : () {
+                          if (allSelected) {
+                            state.selectedQuestionIds.clear();
+                            state.triggerUpdate();
+                          } else {
+                            state.selectAllQuestions();
+                          }
+                        },
+                  icon: Icon(allSelected
+                      ? Icons.deselect_outlined
+                      : Icons.select_all_outlined),
+                  label: Text(allSelected ? 'Batal pilih' : 'Pilih semua'),
+                ),
+                Expanded(
+                  child: Text(
+                    '$selected dari $total dipilih',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? const Color(0xFFEEF2FF)
+                          : Colors.black87,
+                    ),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: selected == 0 ? null : () => _confirmBulkDelete(),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Hapus'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  tooltip: 'Tutup mode seleksi',
+                  onPressed: () => state.setBulkSelectMode(false),
+                ),
+              ],
+            )
+          : InkWell(
+              onTap: () => state.setBulkSelectMode(true),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.checklist_outlined,
+                        size: 20,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pilih banyak soal',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? const Color(0xFFEEF2FF)
+                                  : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            'Centang beberapa soal lalu hapus sekaligus',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : Colors.black38,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  /// Konfirmasi + eksekusi hapus massal soal terpilih.
+  Future<void> _confirmBulkDelete() async {
+    final count = widget.state.selectedQuestionIds.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 10),
+            Text('Hapus Soal?'),
+          ],
+        ),
+        content: Text(
+          '$count soal akan dihapus permanen dan tidak bisa dikembalikan.',
+          style: const TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Ya, Hapus ($count)'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final removed = widget.state.deleteSelectedQuestions();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$removed soal dihapus')),
     );
   }
 

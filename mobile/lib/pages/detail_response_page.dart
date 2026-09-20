@@ -287,7 +287,7 @@ class DetailResponsePage extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: colorScheme.onSurface),
               ),
               const SizedBox(width: 14),
-              _buildMethodChip(),
+              Builder(builder: (context) => _buildMethodChip(context)),
             ],
           ),
           if (scoreText != null) ...[
@@ -385,13 +385,16 @@ class DetailResponsePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMethodChip() {
+  Widget _buildMethodChip(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE0E7FF),
+        color: isDark ? const Color(0xFF1E3A5F) : const Color(0xFFE0E7FF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFC7D2FE)),
+        border: Border.all(
+            color:
+                isDark ? const Color(0xFF3B82F6) : const Color(0xFFC7D2FE)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -399,15 +402,15 @@ class DetailResponsePage extends StatelessWidget {
           Icon(
             isAuto ? Icons.smart_toy_outlined : Icons.person_outline,
             size: 13,
-            color: const Color(0xFF2563EB),
+            color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
           ),
           const SizedBox(width: 4),
           Text(
             isAuto ? 'Otomatis' : 'Manual',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF2563EB),
+              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
             ),
           ),
         ],
@@ -445,16 +448,20 @@ class DetailResponsePage extends StatelessWidget {
                   height: 22,
                   margin: const EdgeInsets.only(right: 8, top: 1),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: colorScheme.brightness == Brightness.dark
+                        ? const Color(0xFF1E3A5F)
+                        : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Center(
                     child: Text(
                       '$number',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E40AF),
+                        color: colorScheme.brightness == Brightness.dark
+                            ? const Color(0xFF60A5FA)
+                            : const Color(0xFF1E40AF),
                       ),
                     ),
                   ),
@@ -469,7 +476,8 @@ class DetailResponsePage extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isCorrect != null) _buildCorrectBadge(isCorrect),
+                if (isCorrect != null)
+                  _buildCorrectBadge(context, isCorrect),
               ],
             ),
           ),
@@ -478,7 +486,10 @@ class DetailResponsePage extends StatelessWidget {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              // Kotak jawaban: teks onSurface → bg harus adaptif tema.
+              color: colorScheme.brightness == Brightness.dark
+                  ? const Color(0xFF2A2A4A)
+                  : const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -490,9 +501,9 @@ class DetailResponsePage extends StatelessWidget {
                         answer == fileUrl))
                   Text(
                     answer,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF1F2937),
+                      color: Theme.of(context).colorScheme.onSurface,
                       height: 1.5,
                     ),
                   ),
@@ -500,9 +511,11 @@ class DetailResponsePage extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Kunci Jawaban: $correctAnswer',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF047857),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF86EFAC)
+                          : const Color(0xFF047857),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -521,33 +534,42 @@ class DetailResponsePage extends StatelessWidget {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDBEAFE),
+                        color: colorScheme.brightness == Brightness.dark
+                            ? const Color(0xFF1E3A5F)
+                            : const Color(0xFFDBEAFE),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.attach_file,
                             size: 16,
-                            color: Color(0xFF1D4ED8),
+                            color: colorScheme.brightness == Brightness.dark
+                                ? const Color(0xFF60A5FA)
+                                : const Color(0xFF1D4ED8),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               _fileNameFromUrl(fileUrl),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF1D4ED8),
+                                color: colorScheme.brightness ==
+                                        Brightness.dark
+                                    ? const Color(0xFF60A5FA)
+                                    : const Color(0xFF1D4ED8),
                                 fontWeight: FontWeight.w600,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Icon(
+                          Icon(
                             Icons.open_in_new,
                             size: 14,
-                            color: Color(0xFF1D4ED8),
+                            color: colorScheme.brightness == Brightness.dark
+                                ? const Color(0xFF60A5FA)
+                                : const Color(0xFF1D4ED8),
                           ),
                         ],
                       ),
@@ -562,14 +584,21 @@ class DetailResponsePage extends StatelessWidget {
     );
   }
 
-  Widget _buildCorrectBadge(bool isCorrect) {
+  Widget _buildCorrectBadge(BuildContext context, bool isCorrect) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isCorrect ? const Color(0xFFD1FAE5) : const Color(0xFFFEE2E2),
+        color: isCorrect
+            ? (isDark ? const Color(0x2E16A34A) : const Color(0xFFD1FAE5))
+            : (isDark ? const Color(0x2EEF4444) : const Color(0xFFFEE2E2)),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isCorrect ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
+          color: isCorrect
+              ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF86EFAC))
+              : (isDark
+                  ? const Color(0xFFFCA5A5).withValues(alpha: 0.3)
+                  : const Color(0xFFFCA5A5)),
         ),
       ),
       child: Row(
@@ -579,8 +608,8 @@ class DetailResponsePage extends StatelessWidget {
             isCorrect ? Icons.check_circle : Icons.cancel,
             size: 12,
             color: isCorrect
-                ? const Color(0xFF059669)
-                : const Color(0xFFDC2626),
+                ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF059669))
+                : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626)),
           ),
           const SizedBox(width: 3),
           Text(
@@ -589,8 +618,10 @@ class DetailResponsePage extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: isCorrect
-                  ? const Color(0xFF059669)
-                  : const Color(0xFFDC2626),
+                  ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF059669))
+                  : (isDark
+                      ? const Color(0xFFFCA5A5)
+                      : const Color(0xFFDC2626)),
             ),
           ),
         ],

@@ -215,10 +215,12 @@ class _DraftPageState extends State<DraftPage> {
         const SizedBox(height: 20),
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.edit_note_rounded,
               size: 18,
-              color: Color(0xFF92400E),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFFDE68A)
+                  : const Color(0xFF92400E),
             ),
             const SizedBox(width: 6),
             Text(
@@ -251,6 +253,7 @@ class _DraftPageState extends State<DraftPage> {
   }
 
   Widget _buildDraftCard(FormModel form) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () => _openDraft(form),
       borderRadius: BorderRadius.circular(12),
@@ -259,7 +262,10 @@ class _DraftPageState extends State<DraftPage> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFDE68A)),
+          border: Border.all(
+              color: isDark
+                  ? const Color(0xFF3A3A5C)
+                  : const Color(0xFFFDE68A)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -274,12 +280,16 @@ class _DraftPageState extends State<DraftPage> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: isDark
+                    ? const Color(0x2ECA8A04)
+                    : const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.edit_note,
-                color: Color(0xFF92400E),
+                color: isDark
+                    ? const Color(0xFFFDE68A)
+                    : const Color(0xFF92400E),
                 size: 24,
               ),
             ),
@@ -301,17 +311,21 @@ class _DraftPageState extends State<DraftPage> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.schedule_rounded,
                         size: 13,
-                        color: Color(0xFFB45309),
+                        color: isDark
+                            ? const Color(0xFFFDE68A)
+                            : const Color(0xFFB45309),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Diperbarui ${_formatDate(form.createdAt)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF92400E),
+                          color: isDark
+                              ? const Color(0xFFFDE68A)
+                              : const Color(0xFF92400E),
                         ),
                       ),
                     ],
@@ -325,15 +339,19 @@ class _DraftPageState extends State<DraftPage> {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
+                          color: isDark
+                              ? const Color(0x2ECA8A04)
+                              : const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Draft',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF92400E),
+                            color: isDark
+                                ? const Color(0xFFFDE68A)
+                                : const Color(0xFF92400E),
                           ),
                         ),
                       ),

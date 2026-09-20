@@ -36,8 +36,10 @@ extension _FillFormNavigation on _FillFormPageState {
                 icon: const Icon(Icons.arrow_back, size: 18),
                 label: const Text('Sebelumnya'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF374151),
-                  side: const BorderSide(color: Color(0xFFD1D5DB)),
+                  foregroundColor:
+                      Theme.of(context).colorScheme.onSurface,
+                  side: BorderSide(
+                      color: Theme.of(context).colorScheme.outline),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -144,9 +146,9 @@ extension _FillFormNavigation on _FillFormPageState {
               children: [
                 Text(
                   '${missing.length} soal wajib belum dijawab. Lengkapi dulu ya:',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -167,9 +169,9 @@ extension _FillFormNavigation on _FillFormPageState {
                             Expanded(
                               child: Text(
                                 _shortLabel(q),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.black87,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                             ),
@@ -236,7 +238,9 @@ extension _FillFormNavigation on _FillFormPageState {
           children: [
             Text(
               'Kamu telah menjawab $_answeredCount dari ${_formData?.questions.length ?? 0} pertanyaan.',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             const Text(

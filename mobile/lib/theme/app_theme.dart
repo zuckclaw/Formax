@@ -65,7 +65,10 @@ class AppTheme {
         outline: AppColors.darkBorderMedium,
         outlineVariant: AppColors.darkBorder,
         primary: AppColors.darkAccent,
-        onPrimary: AppColors.darkBgCard,
+        // Teks di atas tombol berwarna (Publish/Submit/Simpan) SELALU putih,
+        // parity web (btn gradient biru + teks putih) — bukan navy.
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
         secondary: AppColors.darkAccent,
         surfaceContainerHighest: AppColors.darkBgHover,
         surfaceContainer: AppColors.darkBgSecondary,

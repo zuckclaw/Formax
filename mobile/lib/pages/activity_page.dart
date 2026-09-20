@@ -747,26 +747,44 @@ class _ActivityResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (result.isCheated)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEE2E2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Terdeteksi curang (keluar dari mode full screen).',
-                      style: TextStyle(color: Color(0xFFDC2626), fontSize: 13),
+            Builder(builder: (context) {
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0x2EEF4444)
+                      : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: isDark
+                      ? Border.all(
+                          color: const Color(0xFFFCA5A5)
+                              .withValues(alpha: 0.3))
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: isDark
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFFDC2626)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Terdeteksi curang (keluar dari mode full screen).',
+                        style: TextStyle(
+                            color: isDark
+                                ? const Color(0xFFFCA5A5)
+                                : const Color(0xFFDC2626),
+                            fontSize: 13),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            }),
           // Score card
           Container(
             padding: const EdgeInsets.all(20),

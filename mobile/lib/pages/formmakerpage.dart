@@ -229,7 +229,6 @@ class _FormMakerPageState extends State<FormMakerPage>
           child: Scaffold(
             backgroundColor: _currentBgColor,
             appBar: _buildAppBar(),
-            bottomNavigationBar: _buildBulkBar(),
             body: _isPreviewMode
                 ? PreviewCanvas(state: _builderState)
                 : TabBarView(
@@ -387,122 +386,6 @@ class _FormMakerPageState extends State<FormMakerPage>
     );
   }
 
-  /// Konfirmasi + eksekusi hapus massal soal terpilih.
-  Future<void> _confirmBulkDelete() async {
-    final count = _builderState.selectedQuestionIds.length;
-    if (count == 0) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded,
-                color: Color(0xFFDC2626), size: 22),
-            SizedBox(width: 10),
-            Text('Hapus Soal?'),
-          ],
-        ),
-        content: Text(
-          '$count soal akan dihapus permanen dan tidak bisa dikembalikan.',
-          style: const TextStyle(fontSize: 14, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text('Ya, Hapus ($count)'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final removed = _builderState.deleteSelectedQuestions();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$removed soal dihapus')),
-    );
-  }
-
-  /// Bar bawah mode seleksi: pilih semua + jumlah + hapus.
-  Widget? _buildBulkBar() {
-    if (_isPreviewMode ||
-        _tabController.index != 0 ||
-        !_builderState.bulkSelectMode) {
-      return null;
-    }
-    final total = _builderState.pages
-        .fold<int>(0, (n, p) => n + p.questions.length);
-    final selected = _builderState.selectedQuestionIds.length;
-    final allSelected = total > 0 && selected >= total;
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: _cardColor,
-          border: Border(top: BorderSide(color: _subTextColor.withValues(alpha: 0.2))),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            TextButton.icon(
-              onPressed: () {
-                if (allSelected) {
-                  _builderState.selectedQuestionIds.clear();
-                  _builderState.triggerUpdate();
-                } else {
-                  _builderState.selectAllQuestions();
-                }
-              },
-              icon: Icon(allSelected
-                  ? Icons.deselect_outlined
-                  : Icons.select_all_outlined),
-              label: Text(allSelected ? 'Batal pilih' : 'Pilih semua'),
-            ),
-            const Spacer(),
-            Text(
-              '$selected dipilih',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _textColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
-              onPressed:
-                  selected == 0 ? null : () => _confirmBulkDelete(),
-              icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('Hapus'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Buka lembar impor DOCX (parity web). Butuh draft tersimpan karena
   /// endpoint preview/confirm backend bekerja per form_id milik sendiri.
   Future<void> _openDocxImport() async {
@@ -596,34 +479,6 @@ class _FormMakerPageState extends State<FormMakerPage>
               ),
             ),
       actions: [
-        // Mode seleksi massal (parity web bulk select + hapus banyak soal).
-        if (!_isPreviewMode && _tabController.index == 0)
-          IconButton(
-            icon: Icon(
-              _builderState.bulkSelectMode
-                  ? Icons.checklist_rtl
-                  : Icons.checklist_outlined,
-              color: _builderState.bulkSelectMode
-                  ? const Color(0xFFDC2626)
-                  : _appBarIconColor,
-            ),
-            tooltip: _builderState.bulkSelectMode
-                ? 'Keluar mode seleksi'
-                : 'Pilih banyak soal',
-            onPressed: () {
-              _builderState.setBulkSelectMode(!_builderState.bulkSelectMode);
-            },
-          ),
-        if (!_isPreviewMode &&
-            _tabController.index == 0 &&
-            _builderState.bulkSelectMode)
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: _appBarIconColor),
-            tooltip: 'Hapus soal terpilih',
-            onPressed: _builderState.selectedQuestionIds.isEmpty
-                ? null
-                : () => _confirmBulkDelete(),
-          ),
         IconButton(
           icon: Icon(
             _isPreviewMode ? Icons.edit_outlined : Icons.visibility_outlined,
@@ -640,13 +495,15 @@ class _FormMakerPageState extends State<FormMakerPage>
         ),
         if (!_isPreviewMode && !isEdit)
           IconButton(
-            icon: Icon(Icons.save_outlined, color: _appBarIconColor),
+            // Sama dengan ikon tab Draft di bottom navbar.
+            icon: Icon(Icons.drafts_outlined, color: _appBarIconColor),
             onPressed: _builderState.isSaving ? null : _saveDraft,
             tooltip: 'Simpan Draft',
           ),
         if (!_isPreviewMode)
           IconButton(
-            icon: Icon(Icons.account_balance, color: _appBarIconColor),
+            // Sama dengan ikon tab Template di bottom navbar.
+            icon: Icon(Icons.description_outlined, color: _appBarIconColor),
             tooltip: 'Simpan sebagai Template',
             onPressed: _builderState.isSaving ? null : _saveAsTemplate,
           ),

@@ -1127,51 +1127,70 @@ class _FillFormPageState extends State<FillFormPage>
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Token Diperlukan',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Form "${RichTextView.stripHtml(_formData?.title ?? '')}" membutuhkan token untuk diakses.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 24),
-              TextField(
-                controller: _joinTokenController,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  letterSpacing: 4,
-                  fontWeight: FontWeight.bold,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Masukkan Token',
-                  hintStyle: const TextStyle(
-                    letterSpacing: 1,
-                    fontWeight: FontWeight.normal,
+              Builder(builder: (context) {
+                final isDark =
+                    Theme.of(context).brightness == Brightness.dark;
+                return TextField(
+                  controller: _joinTokenController,
+                  textAlign: TextAlign.center,
+                  // Warna ketikan eksplisit: hitam di terang, terang di gelap.
+                  style: TextStyle(
+                    fontSize: 18,
+                    letterSpacing: 4,
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? const Color(0xFFEEF2FF)
+                        : const Color(0xFF111827),
                   ),
-                  errorText: _joinTokenError,
-                  filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF1E66D0),
-                      width: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Masukkan Token',
+                    hintStyle: TextStyle(
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.normal,
+                      color: isDark
+                          ? const Color(0xFF7A8599)
+                          : const Color(0xFF9CA3AF),
+                    ),
+                    errorText: _joinTokenError,
+                    filled: true,
+                    fillColor: isDark
+                        ? const Color(0xFF2A2A4A)
+                        : const Color(0xFFF9FAFB),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF3A3A5C)
+                              : const Color(0xFFD1D5DB)),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.all(Radius.circular(12)),
+                      borderSide: BorderSide(
+                        color: Color(0xFF1E66D0),
+                        width: 2,
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -1379,21 +1398,21 @@ class _FillFormPageState extends State<FillFormPage>
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Jawaban Terkirim!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Terima kasih telah mengisi form ini.\nJawaban kamu sudah berhasil disimpan.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
-                color: Color(0xFF6B7280),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
             ),
