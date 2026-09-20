@@ -54,10 +54,9 @@ class _ScanQRPageState extends State<ScanQRPage> {
         );
       } on TimeoutException {
         if (!mounted) return;
-        setState(() {
-          _errorText = 'Koneksi timeout — coba lagi';
-          _isProcessing = false;
-        });
+        // Fail-closed: validasi tak kunjung kembali (backend mati) →
+        // sesi tak bisa dibuktikan → keluar ke Login.
+        await ApiService.forceLogout();
         return;
       } catch (e) {
         if (!mounted) return;
@@ -83,6 +82,13 @@ class _ScanQRPageState extends State<ScanQRPage> {
           setState(() => _errorText = 'Form tidak ditemukan');
         }
       } else {
+        // Fail-closed: sesi invalid / backend mati → keluar ke Login.
+        final m = Map<String, dynamic>.from(result);
+        if (ApiService.isAuthInvalidResult(m) ||
+            ApiService.isConnectionFailureResult(m)) {
+          await ApiService.forceLogout();
+          return;
+        }
         setState(() => _errorText = (result['message']?.toString() ?? 'Link tidak valid'));
       }
 

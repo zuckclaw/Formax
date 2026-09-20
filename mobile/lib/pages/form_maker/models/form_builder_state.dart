@@ -37,6 +37,62 @@ class FormBuilderState extends ChangeNotifier {
   String? activePageId;
   bool isSaving = false;
 
+  // ── Bulk Select (parity web mode seleksi jamak) ──────────────────────
+  bool bulkSelectMode = false;
+  final Set<String> selectedQuestionIds = {};
+
+  void setBulkSelectMode(bool value) {
+    bulkSelectMode = value;
+    if (!value) selectedQuestionIds.clear();
+    activeQuestionId = null;
+    notifyListeners();
+  }
+
+  void toggleQuestionSelected(String questionId) {
+    if (selectedQuestionIds.contains(questionId)) {
+      selectedQuestionIds.remove(questionId);
+    } else {
+      selectedQuestionIds.add(questionId);
+    }
+    notifyListeners();
+  }
+
+  void selectAllQuestions() {
+    selectedQuestionIds.clear();
+    for (final p in pages) {
+      for (final q in p.questions) {
+        selectedQuestionIds.add(q.id);
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Hapus semua soal terpilih sekaligus. Kembalikan jumlah yang dihapus.
+  /// Halaman yang kehabisan soal mendapat satu soal default (konsisten
+  /// dengan deleteQuestion).
+  int deleteSelectedQuestions() {
+    if (selectedQuestionIds.isEmpty) return 0;
+    var removed = 0;
+    for (final page in pages) {
+      final before = page.questions.length;
+      page.questions
+          .removeWhere((q) => selectedQuestionIds.contains(q.id));
+      removed += before - page.questions.length;
+      if (page.questions.isEmpty) {
+        page.questions.add(
+          QuestionData(
+            type: QuestionType.multipleChoice,
+            options: [QuestionOptionData(label: 'Opsi 1')],
+          ),
+        );
+      }
+    }
+    selectedQuestionIds.clear();
+    activeQuestionId = null;
+    notifyListeners();
+    return removed;
+  }
+
   FormBuilderState({
     this.formTitle = '',
     this.formDescription = '',

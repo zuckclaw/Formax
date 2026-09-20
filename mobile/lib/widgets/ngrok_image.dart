@@ -191,7 +191,7 @@ class NgrokImage extends StatelessWidget {
       width: width,
       height: height,
       alignment: Alignment.center,
-      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+      color: isDark ? const Color(0xFF23233F) : const Color(0xFFF1F5F9),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

@@ -10,6 +10,7 @@ part of '../home_page.dart';
 
 extension _HomeShell on _HomePageState {
   Widget _buildBottomNav() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return BottomNavigationBar(
       currentIndex: _selectedIndex,
       onTap: (i) {
@@ -19,7 +20,9 @@ extension _HomeShell on _HomePageState {
         }
         _selectNavTab(i);
       },
-      selectedItemColor: const Color(0xFF3B82F6),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      selectedItemColor:
+          isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
       unselectedItemColor: const Color(0xFF94A3B8),
       showUnselectedLabels: true,
       type: BottomNavigationBarType.fixed,
@@ -96,10 +99,12 @@ extension _HomeShell on _HomePageState {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Form4x',
                   style: TextStyle(
-                    color: Color(0xFF1E40AF),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFF1F5FF)
+                        : const Color(0xFF1E40AF),
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -129,6 +134,20 @@ extension _HomeShell on _HomePageState {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ScanQRPage()),
+            );
+          }, false),
+          _drawerItem(Icons.help_outline, 'Cara Pakai', () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CaraPakaiPage()),
+            );
+          }, false),
+          _drawerItem(Icons.info_outline, 'Tentang', () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TentangPage()),
             );
           }, false),
           const Spacer(),
@@ -197,14 +216,20 @@ extension _HomeShell on _HomePageState {
     VoidCallback onTap,
     bool isSelected,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1E40AF);
     return InkWell(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
+          color: isSelected
+              ? (isDark
+                  ? const Color(0xFF60A5FA).withValues(alpha: 0.12)
+                  : const Color(0xFFEFF6FF))
+              : Colors.transparent,
           border: Border(
             right: BorderSide(
-              color: isSelected ? const Color(0xFF1E40AF) : Colors.transparent,
+              color: isSelected ? accent : Colors.transparent,
               width: 3,
             ),
           ),
@@ -214,9 +239,7 @@ extension _HomeShell on _HomePageState {
           children: [
             Icon(
               icon,
-              color: isSelected
-                  ? const Color(0xFF1E40AF)
-                  : const Color(0xFF6B7280),
+              color: isSelected ? accent : const Color(0xFF6B7280),
             ),
             const SizedBox(width: 14),
             Text(
@@ -225,7 +248,7 @@ extension _HomeShell on _HomePageState {
                 fontSize: 15,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected
-                    ? const Color(0xFF1E40AF)
+                    ? accent
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),

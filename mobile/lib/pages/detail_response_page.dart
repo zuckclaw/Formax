@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/api_service.dart';
+
 class DetailResponsePage extends StatelessWidget {
   final String name;
   final String email;
@@ -13,6 +15,9 @@ class DetailResponsePage extends StatelessWidget {
   final bool isCheated;
   final String? scoreText;
   final String formTitle;
+
+  /// ID submission (untuk hapus respons). Kosong = tombol hapus disembunyikan.
+  final String submissionId;
 
   /// List jawaban: [{'question','answer','isCorrect','correctAnswer','fileUrl'}]
   final List<Map<String, dynamic>> answers;
@@ -26,6 +31,7 @@ class DetailResponsePage extends StatelessWidget {
     this.isCheated = false,
     this.scoreText,
     required this.formTitle,
+    this.submissionId = '',
     this.answers = const [],
   });
 
@@ -113,6 +119,15 @@ class DetailResponsePage extends StatelessWidget {
           ),
         ),
         centerTitle: false,
+        actions: [
+          // Hapus respons individu (parity web "Hapus Respons").
+          if (submissionId.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
+              tooltip: 'Hapus respons',
+              onPressed: () => _confirmDelete(context),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -152,6 +167,71 @@ class DetailResponsePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Konfirmasi + eksekusi hapus respons (parity web confirmDeleteSubmission).
+  /// Berhasil → pop(true) agar daftar me-reload; responden bisa mengerjakan ulang.
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 10),
+            Text('Hapus Respons?'),
+          ],
+        ),
+        content: Text(
+          'Jawaban $name akan dihapus permanen dan tidak bisa dikembalikan. Responden dapat mengerjakan ulang form ini.',
+          style: const TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Ya, Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final res = await ApiService.deleteSubmission(submissionId);
+    if (!context.mounted) return;
+    if (res['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Respons berhasil dihapus')),
+      );
+      Navigator.pop(context, true);
+    } else {
+      final m = Map<String, dynamic>.from(res);
+      if (ApiService.isAuthInvalidResult(m) ||
+          ApiService.isConnectionFailureResult(m)) {
+        await ApiService.forceLogout();
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(res['message']?.toString() ?? 'Gagal menghapus respons'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildInfoCard(BuildContext context, String displayName) {
@@ -212,64 +292,93 @@ class DetailResponsePage extends StatelessWidget {
           ),
           if (scoreText != null) ...[
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD1FAE5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF86EFAC)),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    scoreText!,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF065F46),
+            Builder(builder: (context) {
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0x2E16A34A)
+                      : const Color(0xFFD1FAE5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF4ADE80)
+                          : const Color(0xFF86EFAC)),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      scoreText!,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? const Color(0xFF86EFAC)
+                            : const Color(0xFF065F46),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Total Nilai',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF047857)),
-                  ),
-                ],
-              ),
-            ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Total Nilai',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF86EFAC)
+                              : const Color(0xFF047857)),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
           if (isCheated) ...[
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEE2E2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFCA5A5)),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    size: 18,
-                    color: Color(0xFFB91C1C),
-                  ),
-                  SizedBox(width: 8),
+            Builder(builder: (context) {
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0x2EEF4444)
+                      : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFFFCA5A5).withValues(alpha: 0.3)
+                          : const Color(0xFFFCA5A5)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: isDark
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFB91C1C),
+                    ),
+                    const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Responden ini terdeteksi curang karena keluar dari mode full screen saat mengisi form.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF991B1B),
+                        color: isDark
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFF991B1B),
                         height: 1.4,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
+            );
+            }),
           ],
         ],
       ),
@@ -290,7 +399,7 @@ class DetailResponsePage extends StatelessWidget {
           Icon(
             isAuto ? Icons.smart_toy_outlined : Icons.person_outline,
             size: 13,
-            color: const Color(0xFF4F46E5),
+            color: const Color(0xFF2563EB),
           ),
           const SizedBox(width: 4),
           Text(
@@ -298,7 +407,7 @@ class DetailResponsePage extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF4F46E5),
+              color: Color(0xFF2563EB),
             ),
           ),
         ],

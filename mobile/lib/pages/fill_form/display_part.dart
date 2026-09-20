@@ -11,22 +11,29 @@ part of '../fillformpage.dart';
 extension _FillFormDisplay on _FillFormPageState {
   Widget _buildBookmarkIndicator() {
     final count = _bookmarkedQids.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: const Color(0xFFFEF9C3),
+      color: isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF9C3),
       child: Row(
         children: [
-          const Icon(Icons.bookmark, size: 16, color: Color(0xFFB45309)),
+          Icon(Icons.bookmark,
+              size: 16,
+              color: isDark
+                  ? const Color(0xFFFDE68A)
+                  : const Color(0xFFB45309)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               count == 0
                   ? 'Belum ada soal yang ditandai'
                   : 'Menampilkan $count soal yang ditandai',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF92400E),
+                color: isDark
+                    ? const Color(0xFFFDE68A)
+                    : const Color(0xFF92400E),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -36,7 +43,9 @@ extension _FillFormDisplay on _FillFormPageState {
             icon: const Icon(Icons.close, size: 16),
             label: const Text('Tutup'),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF92400E),
+              foregroundColor: isDark
+                  ? const Color(0xFFFDE68A)
+                  : const Color(0xFF92400E),
               visualDensity: VisualDensity.compact,
             ),
           ),
@@ -155,53 +164,6 @@ extension _FillFormDisplay on _FillFormPageState {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  /// Banner info mode pratinjau pemilik — menjelaskan mengapa tombol
-  /// Submit tidak ada dan mengapa pratinjau tidak masuk Aktivitas Saya.
-  Widget _buildOwnerPreviewBanner() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.visibility_outlined,
-              color: Color(0xFF1E66D0), size: 22),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pratinjau pemilik',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E40AF),
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Ini form buatanmu. Kamu melihatnya sebagai pratinjau — '
-                  'jawaban tidak dikirim dan tidak tercatat di Aktivitas Saya. '
-                  'Untuk menguji pengisian, buka link ini tanpa login atau '
-                  'dengan akun lain.',
-                  style: TextStyle(
-                      color: Color(0xFF1E40AF), fontSize: 12, height: 1.4),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

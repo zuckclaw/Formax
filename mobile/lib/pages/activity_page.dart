@@ -20,11 +20,21 @@ class _ActivityPageState extends State<ActivityPage> {
   bool _loading = true;
   String? _error;
   String _filter = 'all'; // all | selesai | proses | curang
+  // Parity web: pencarian judul + toggle grid/table.
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  bool _isTableView = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -56,15 +66,23 @@ class _ActivityPageState extends State<ActivityPage> {
   }
 
   List<MyActivityModel> get _filtered {
+    Iterable<MyActivityModel> list = _items;
+    if (_searchQuery.isNotEmpty) {
+      list = list.where((e) {
+        final title = e.formTitle.toLowerCase();
+        final owner = (e.ownerName ?? '').toLowerCase();
+        return title.contains(_searchQuery) || owner.contains(_searchQuery);
+      });
+    }
     switch (_filter) {
       case 'selesai':
-        return _items.where((e) => e.isCompleted && !e.isCheated).toList();
+        return list.where((e) => e.isCompleted && !e.isCheated).toList();
       case 'proses':
-        return _items.where((e) => !e.isCompleted).toList();
+        return list.where((e) => !e.isCompleted).toList();
       case 'curang':
-        return _items.where((e) => e.isCheated).toList();
+        return list.where((e) => e.isCheated).toList();
       default:
-        return _items;
+        return list.toList();
     }
   }
 
@@ -134,6 +152,14 @@ class _ActivityPageState extends State<ActivityPage> {
         ),
         actions: [
           IconButton(
+            onPressed: () => setState(() => _isTableView = !_isTableView),
+            icon: Icon(_isTableView
+                ? Icons.grid_view_rounded
+                : Icons.table_chart_outlined),
+            tooltip:
+                _isTableView ? 'Tampilan kartu' : 'Tampilan tabel',
+          ),
+          IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh),
             tooltip: 'Muat Ulang',
@@ -172,10 +198,40 @@ class _ActivityPageState extends State<ActivityPage> {
         children: [
           _buildStats(),
           const SizedBox(height: 16),
+          // Pencarian judul/pemilik (parity web search box).
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Cari judul form atau pemilik...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+            ),
+            onChanged: (v) =>
+                setState(() => _searchQuery = v.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 12),
           _buildFilterRow(),
           const SizedBox(height: 12),
           if (_items.isEmpty)
             _buildEmptyState()
+          else if (_isTableView)
+            _buildTableView()
           else
             ..._filtered.map(
               (e) => Padding(
@@ -330,13 +386,168 @@ class _ActivityPageState extends State<ActivityPage> {
     );
   }
 
+  /// Tampilan tabel spreadsheet (parity web table view).
+  Widget _buildTableView() {
+    final rows = _filtered;
+    if (rows.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(
+          child: Text(
+            'Tidak ada aktivitas dengan filter ini',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+    final cs = Theme.of(context).colorScheme;
+    Widget headerCell(String text, {double width = 140}) {
+      return SizedBox(
+        width: width,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget bodyCell(Widget child, {double width = 140}) {
+      return SizedBox(
+        width: width,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: child,
+        ),
+      );
+    }
+
+    String statusOf(MyActivityModel e) => e.isCheated
+        ? 'Curang'
+        : (e.isCompleted ? 'Selesai' : 'Proses');
+
+    Color statusColorOf(MyActivityModel e) => e.isCheated
+        ? const Color(0xFFDC2626)
+        : (e.isCompleted
+            ? const Color(0xFF059669)
+            : const Color(0xFFD97706));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(minWidth: MediaQuery.of(context).size.width - 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  headerCell('No', width: 44),
+                  headerCell('Form', width: 180),
+                  headerCell('Pemilik', width: 130),
+                  headerCell('Status', width: 100),
+                  headerCell('Progress', width: 110),
+                  headerCell('', width: 52),
+                ],
+              ),
+              Divider(height: 1, color: cs.outlineVariant),
+              for (var i = 0; i < rows.length; i++) ...[
+                InkWell(
+                  onTap: () => rows[i].isCompleted
+                      ? _openResult(rows[i])
+                      : _openResume(rows[i]),
+                  child: Row(
+                    children: [
+                      bodyCell(Text('${i + 1}',
+                          style: const TextStyle(fontSize: 12)),
+                          width: 44),
+                      bodyCell(
+                        Text(
+                          rows[i].formTitle.isEmpty
+                              ? 'Form tanpa judul'
+                              : rows[i].formTitle,
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        width: 180,
+                      ),
+                      bodyCell(
+                        Text(
+                          rows[i].ownerName ?? '-',
+                          style: TextStyle(
+                              fontSize: 12, color: cs.onSurfaceVariant),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        width: 130,
+                      ),
+                      bodyCell(
+                        Text(
+                          statusOf(rows[i]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: statusColorOf(rows[i]),
+                          ),
+                        ),
+                        width: 100,
+                      ),
+                      bodyCell(
+                        Text(
+                          '${rows[i].answeredCount}/${rows[i].totalQuestions}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        width: 110,
+                      ),
+                      bodyCell(
+                        Icon(
+                          rows[i].isCompleted
+                              ? Icons.visibility_outlined
+                              : Icons.play_arrow,
+                          size: 18,
+                          color: const Color(0xFF1E66D0),
+                        ),
+                        width: 52,
+                      ),
+                    ],
+                  ),
+                ),
+                if (i < rows.length - 1)
+                  Divider(height: 1, color: cs.outlineVariant),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActivityTile(MyActivityModel item) {
     final isCheated = item.isCheated;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Parity web dark: rgba bg + teks terang.
     final (String stLabel, Color stColor, Color stBg) = isCheated
-        ? ('Curang', const Color(0xFFDC2626), const Color(0xFFFEE2E2))
+        ? ('Curang', isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+            isDark ? const Color(0x2EEF4444) : const Color(0xFFFEE2E2))
         : item.isCompleted
-        ? ('Selesai', const Color(0xFF059669), const Color(0xFFD1FAE5))
-        : ('Proses', const Color(0xFFD97706), const Color(0xFFFEF3C7));
+        ? ('Selesai', isDark ? const Color(0xFF86EFAC) : const Color(0xFF059669),
+            isDark ? const Color(0x2E16A34A) : const Color(0xFFD1FAE5))
+        : ('Proses', isDark ? const Color(0xFFFDE68A) : const Color(0xFFD97706),
+            isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF3C7));
 
     return Card(
       elevation: 0,
@@ -706,7 +917,7 @@ class _ActivityResultScreen extends StatelessWidget {
                                 'Kunci jawaban: ${a.correctAnswer}',
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF4F46E5),
+                                  color: Color(0xFF2563EB),
                                 ),
                               ),
                             ),

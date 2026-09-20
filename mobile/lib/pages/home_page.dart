@@ -19,6 +19,8 @@ import 'join_link_page.dart';
 import 'activity_page.dart';
 import 'scan_qr_page.dart';
 import 'profile_page.dart';
+import 'tentang_page.dart';
+import 'cara_pakai_page.dart';
 
 // Part: widget tab Dashboard — Tahap 4a.
 // Sama-sama satu library, call-site tidak berubah.
@@ -39,7 +41,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   String _fullName = 'User';
 
@@ -61,11 +63,30 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refreshDashboard();
     _loadUserProfile();
     // FIX: Template tidak di-load otomatis saat refresh/app start.
     // Hanya di-load saat user masuk tab Template atau setelah konfirmasi simpan.
     _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Fail-closed saat kembali dari background (Case 4): sesi yang mati
+    // selagi app ditinggal (backend down / token dicabut) → force logout.
+    if (state == AppLifecycleState.resumed) _revalidateSession();
+  }
+
+  /// Validasi ulang sesi; false (alasan APAPUN) → keluar ke Login.
+  Future<void> _revalidateSession() async {
+    try {
+      final ok = await ApiService.hasValidSession();
+      if (!ok && mounted) await ApiService.forceLogout();
+    } catch (_) {
+      if (mounted) await ApiService.forceLogout();
+    }
   }
 
   Future<void> _refreshDashboard() async {
@@ -91,6 +112,17 @@ class _HomePageState extends State<HomePage> {
         recentCompleter.complete(recents);
         draftCompleter.complete(drafts);
       } else {
+        // Fail-closed (Case 3): sesi invalid (expired → hook global sudah
+        // menendang) atau backend tak terjangkau → JANGAN tampilkan
+        // dashboard kosong seolah anonim. Bersihkan + keluar ke Login.
+        final m = Map<String, dynamic>.from(res);
+        if (ApiService.isAuthInvalidResult(m) ||
+            ApiService.isConnectionFailureResult(m)) {
+          recentCompleter.complete([]);
+          draftCompleter.complete([]);
+          await ApiService.forceLogout();
+          return;
+        }
         recentCompleter.complete([]);
         draftCompleter.complete([]);
       }
@@ -275,6 +307,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocus.dispose();
@@ -325,6 +358,14 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _fullName = profile['full_name'] as String? ?? 'User';
       });
+      return;
+    }
+    // Fail-closed: profil tak bisa dimuat karena sesi invalid / backend
+    // mati → keluar (401-expired sudah ditendang hook global; di sini
+    // tangani kegagalan koneksi).
+    final m = Map<String, dynamic>.from(result);
+    if (ApiService.isConnectionFailureResult(m) && mounted) {
+      await ApiService.forceLogout();
     }
   }
 

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../services/api_service.dart';
 import '../widgets/ngrok_image.dart';
@@ -43,7 +43,8 @@ class FillFormPage extends StatefulWidget {
   State<FillFormPage> createState() => _FillFormPageState();
 }
 
-class _FillFormPageState extends State<FillFormPage> {
+class _FillFormPageState extends State<FillFormPage>
+    with WidgetsBindingObserver {
   // States
   bool _isLoading = true;
   String? _errorMsg;
@@ -51,6 +52,16 @@ class _FillFormPageState extends State<FillFormPage> {
   String? _submissionId;
   bool _isSubmitted = false;
   bool _isSubmitting = false;
+
+  // Anti-cheat fullscreen (parity web require_fullscreen):
+  // - Form dengan require_fullscreen wajib mulai via intro "Mulai" (immersive).
+  // - Keluar aplikasi (AppLifecycle paused/inactive/detached) saat ujian
+  //   berjalan → tandai curang SEKALI via POST flag-cheated (seperti web
+  //   fullscreenchange/visibilitychange → flagCheated).
+  bool _isCheated = false;
+  bool _cheatedFlagSent = false;
+  bool _fullscreenStarted = false;
+  bool _showFullscreenIntro = false;
 
   // Answers: { questionId: { "answer_text": ..., "answer_options": [...] } }
   final Map<String, Map<String, dynamic>> _answers = {};
@@ -69,38 +80,6 @@ class _FillFormPageState extends State<FillFormPage> {
   bool _showJoinTokenDialog = false;
   final TextEditingController _joinTokenController = TextEditingController();
   String? _joinTokenError;
-
-  // Mode pratinjau pemilik: pembuka form adalah owner-nya. Ditampilkan
-  // read-only tanpa join/submit sehingga tidak tercatat sebagai responden
-  // (tidak muncul di Aktivitas Saya, tidak makan kuota max_submissions,
-  // tidak mengunci edit soal via 409). Parity perilaku web: owner yang
-  // membuka link sendiri tidak menjadi "aktivitas pengisian".
-  bool _isOwnerPreview = false;
-
-  /// True jika user login saat ini adalah pemilik [formData].
-  /// Menggunakan ekstraksi JWT lokal terlebih dahulu (0 ms, hemat bandwidth),
-  /// fallback ke ApiService.getMe() jika token tidak dapat di-parse.
-  Future<bool> _isOwnerOf(FormData formData, String? token) async {
-    try {
-      if (token == null) return false;
-      final ownerId = formData.ownerId;
-      if (ownerId == null || ownerId.isEmpty) return false;
-
-      // 1. Ekstrak user id lokal dari token (instan, tanpa round-trip jaringan)
-      final localUserId = ApiService.getUserIdFromToken(token);
-      if (localUserId != null && localUserId.isNotEmpty) {
-        return localUserId == ownerId;
-      }
-
-      // 2. Fallback jika parsing lokal gagal
-      final me = await ApiService.getMe();
-      if (me['success'] != true || me['data'] is! Map) return false;
-      final myId = (me['data'] as Map)['id']?.toString();
-      return myId != null && myId.isNotEmpty && myId == ownerId;
-    } catch (_) {
-      return false;
-    }
-  }
 
   // Countdown timer (form dengan end_date/jadwal)
   Timer? _countdownTimer;
@@ -123,11 +102,72 @@ class _FillFormPageState extends State<FillFormPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadForm();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Mobile setara web visibilitychange/fullscreenchange: user keluar
+    // aplikasi (home, recent-app, pindah aplikasi, layar mati) saat ujian
+    // fullscreen berjalan dianggap keluar fullscreen → tandai curang.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _handleAntiCheatTrigger();
+    }
+  }
+
+  /// Tandai curang sekali (parity web handleFullscreenExit).
+  Future<void> _handleAntiCheatTrigger() async {
+    if (_cheatedFlagSent || _isSubmitted || _isSubmitting) return;
+    if (_formData?.requireFullscreen != true) return;
+    if (!_fullscreenStarted || _submissionId == null) return;
+    _cheatedFlagSent = true;
+    if (mounted) setState(() => _isCheated = true);
+    try {
+      await ApiService.flagCheated(_submissionId!);
+    } catch (_) {
+      // best-effort seperti web (.catch(() => {})) — banner lokal tetap tampil
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Keluar aplikasi terdeteksi — submission ditandai curang. Kamu tetap bisa melanjutkan.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  /// Masuk mode layar penuh imersif (parity web enterFullscreen).
+  Future<void> _enterFullscreen() async {
+    setState(() {
+      _fullscreenStarted = true;
+      _showFullscreenIntro = false;
+    });
+    try {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } catch (_) {
+      // best-effort — lanjut walau System UI gagal disembunyikan
+    }
+  }
+
+  /// Keluar mode imersif — dipanggil saat submit / dispose.
+  Future<void> _exitFullscreenMode() async {
+    try {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _exitFullscreenMode();
     _joinTokenController.dispose();
     _countdownTimer?.cancel();
     for (var c in _textCtrls.values) {
@@ -174,8 +214,6 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   Future<void> _autoSubmitOnTimeout() async {
-    // Mode pratinjau pemilik: tidak ada submission → abaikan timer.
-    if (_isOwnerPreview) return;
     if (_hasAttemptedAutoSubmit || _isSubmitted || _isSubmitting) return;
     _hasAttemptedAutoSubmit = true;
 
@@ -254,11 +292,17 @@ class _FillFormPageState extends State<FillFormPage> {
     }
 
     try {
-      // Login optional: kalau ada token dipakai, kalau tidak pakai identitas anonim
+      // FAIL-CLOSED (anti-anonim, parity web PrivateRoute /f/:slug):
+      // halaman form WAJIB dibuka dengan sesi login. Tanpa token →
+      // bersihkan state + kembali ke Login, JANGAN lanjut sebagai anonim.
       final token = await ApiService.getToken();
+      if (token == null || token.isEmpty) {
+        await ApiService.forceLogout();
+        return;
+      }
       final respondentKey = await ApiService.getRespondentKey();
 
-      // 1. Fetch form data by slug (publik — boleh tanpa login)
+      // 1. Fetch form data by slug
       final formResponse = await ApiService.client.get(
         Uri.parse('${ApiService.baseUrl}/forms/public/${widget.slug}'),
         headers: ApiService.defaultHeaders(
@@ -273,6 +317,13 @@ class _FillFormPageState extends State<FillFormPage> {
         final detail = (decoded is Map && decoded['detail'] != null)
             ? decoded['detail'].toString()
             : 'Form tidak ditemukan (${formResponse.statusCode})';
+        // 401/403 sesi invalid (backend: "Token tidak valid atau
+        // kadaluarsa") → sesi mati → force logout, bukan error biasa.
+        if (_isSessionAuthFailure(
+            formResponse.statusCode, decoded, detail)) {
+          await ApiService.forceLogout();
+          return;
+        }
         setState(() {
           _errorMsg = detail;
           _isLoading = false;
@@ -289,28 +340,50 @@ class _FillFormPageState extends State<FillFormPage> {
       if (!mounted) return;
       setState(() {
         _formData = formData;
-        _isOwnerPreview = false;
       });
       _startCountdown();
 
-      // 2. Pemilik form → mode pratinjau (TANPA join): tidak membuat
-      // submission sehingga tidak tercatat di Aktivitas Saya.
-      if (await _isOwnerOf(formData, token)) {
-        if (!mounted) return;
-        setState(() => _isOwnerPreview = true);
-        _startCountdown();
-        return;
-      }
-
+      // Parity web: pemilik BOLEH mengisi form sendiri (join + submit normal).
+      // Backend tidak melarang owner join, jadi mobile jangan memblokir.
       // 3. Try joining the form (auto-join if no token required)
       await _joinForm(token, null);
       _startCountdown();
     } catch (e) {
       if (!mounted) return;
+      // Fail-closed: backend tak terjangkau (mati/timeout/refused) saat
+      // membuka form → sesi tak bisa divalidasi → force logout.
+      if (_isTransportFailure(e)) {
+        await ApiService.forceLogout();
+        return;
+      }
       setState(() => _errorMsg = 'Terjadi kesalahan: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// True jika error adalah kegagalan transport (backend down/timeout).
+  static bool _isTransportFailure(Object e) {
+    final s = e.toString().toLowerCase();
+    return e is TimeoutException ||
+        s.contains('socketexception') ||
+        s.contains('failed host lookup') ||
+        s.contains('connection refused') ||
+        s.contains('connection closed') ||
+        s.contains('network is unreachable') ||
+        s.contains('connection timed out');
+  }
+
+  /// True jika status/detail menunjukkan SESI invalid (bukan error form).
+  /// Cermin matcher backend 401 "Token tidak valid atau kadaluarsa".
+  static bool _isSessionAuthFailure(
+      int statusCode, dynamic decoded, String detail) {
+    if (statusCode != 401 && statusCode != 403) return false;
+    final d = detail.toLowerCase();
+    return d.contains('tidak valid') ||
+        d.contains('kadaluarsa') ||
+        d.contains('unauthorized') ||
+        d.contains('silakan login');
   }
 
   Future<void> _joinForm(String? token, String? joinToken) async {
@@ -344,6 +417,20 @@ class _FillFormPageState extends State<FillFormPage> {
           _joinTokenError = null;
         });
 
+        // Parity web: submission yang sudah ditandai curang tetap tampil + banner.
+        if (subJson['is_cheated'] == true) {
+          if (!mounted) return;
+          setState(() {
+            _isCheated = true;
+            _cheatedFlagSent = true;
+          });
+        } else if (_formData?.requireFullscreen == true &&
+            subJson['submitted_at'] == null) {
+          // Parity web: form fullscreen wajib mulai via intro overlay.
+          if (!mounted) return;
+          setState(() => _showFullscreenIntro = true);
+        }
+
         // Check if already submitted
         if (subJson['submitted_at'] != null) {
           if (!mounted) return;
@@ -356,6 +443,14 @@ class _FillFormPageState extends State<FillFormPage> {
             : 'Gagal memulai form (${response.statusCode})';
         final lowerDetail = detail.toLowerCase();
 
+        // Fail-closed DULU: 401/403 sesi ("Token tidak valid atau
+        // kadaluarsa") bukan join-token form ("Token salah atau belum
+        // diisi"). Sesi mati → logout, jangan tampilkan dialog token.
+        if (_isSessionAuthFailure(
+            response.statusCode, decoded, detail)) {
+          await ApiService.forceLogout();
+          return;
+        }
         if (lowerDetail.contains('token') || (_formData?.requireJoinToken == true)) {
           setState(() {
             _showJoinTokenDialog = true;
@@ -369,13 +464,17 @@ class _FillFormPageState extends State<FillFormPage> {
       }
     } catch (e) {
       if (!mounted) return;
+      // Fail-closed: join gagal karena transport → force logout.
+      if (_isTransportFailure(e)) {
+        await ApiService.forceLogout();
+        return;
+      }
       setState(() => _errorMsg = 'Gagal terhubung ke server');
     }
   }
 
   Future<bool> _saveAnswer(String questionId) async {
-    // Mode pratinjau pemilik: jawaban hanya lokal, tidak autosave ke server.
-    if (_isOwnerPreview || _submissionId == null) return false;
+    if (_submissionId == null) return false;
 
     final token = await ApiService.getToken();
     final answer = _answers[questionId];
@@ -404,18 +503,6 @@ class _FillFormPageState extends State<FillFormPage> {
   }
 
   Future<void> _submitForm() async {
-    // Mode pratinjau pemilik: tidak ada submission → tidak bisa submit.
-    if (_isOwnerPreview) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Mode pratinjau pemilik — jawaban tidak dikirim. Uji pengisian tanpa login atau dengan akun lain.'),
-          ),
-        );
-      }
-      return;
-    }
     if (_submissionId == null) {
       if (mounted) setState(() => _isSubmitted = true);
       return;
@@ -445,6 +532,8 @@ class _FillFormPageState extends State<FillFormPage> {
       if (!mounted) return;
       if (response.statusCode == 200) {
         _countdownTimer?.cancel();
+        // Parity web: keluar fullscreen setelah submit selesai.
+        await _exitFullscreenMode();
         setState(() => _isSubmitted = true);
       } else {
         final decoded = _safeJsonDecode(response.body);
@@ -709,8 +798,7 @@ class _FillFormPageState extends State<FillFormPage> {
         IconButton(
           tooltip: _showBookmarkedOnly
               ? 'Tampilkan semua soal'
-              : 'Tampilkan soal yang ditandai',
-          icon: Icon(
+              : 'Tampilkan soal yang ditandai',          icon: Icon(
             _showBookmarkedOnly ? Icons.filter_alt : Icons.bookmarks_outlined,
             color: _showBookmarkedOnly
                 ? const Color(0xFFB45309)
@@ -735,7 +823,104 @@ class _FillFormPageState extends State<FillFormPage> {
             });
           },
         ),
+        // Info akun (parity web profile popover: nama, email, status).
+        IconButton(
+          tooltip: 'Info akun',
+          icon: const Icon(Icons.account_circle_outlined,
+              color: Color(0xFF374151)),
+          onPressed: _showAccountSheet,
+        ),
       ],
+    );
+  }
+
+  /// Bottom sheet info akun responden (nama, email, status login).
+  Future<void> _showAccountSheet() async {
+    final res = await ApiService.getMe();
+    if (!mounted) return;
+    String name = 'Pengguna';
+    String email = '-';
+    if (res['success'] == true && res['data'] is Map) {
+      final data = Map<String, dynamic>.from(res['data'] as Map);
+      name = (data['full_name'] ?? 'Pengguna').toString();
+      email = (data['email'] ?? '-').toString();
+    }
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: const Color(0xFF1E40AF),
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified_outlined,
+                          size: 14, color: Color(0xFF059669)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Masuk sebagai responden',
+                        style: TextStyle(
+                            fontSize: 12, color: Color(0xFF059669)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -827,13 +1012,20 @@ class _FillFormPageState extends State<FillFormPage> {
       return _buildJoinTokenForm();
     }
 
+    // Parity web: form fullscreen wajib mulai via intro overlay.
+    if (_showFullscreenIntro &&
+        _formData?.requireFullscreen == true &&
+        !_isSubmitted) {
+      return _buildFullscreenIntro();
+    }
+
     // Already submitted
     if (_isSubmitted) {
       return _buildSubmittedState();
     }
 
-    // Form content (responden join ATAU pemilik pratinjau)
-    if (_formData != null && (_submissionId != null || _isOwnerPreview)) {
+    // Form content (responden join — termasuk pemilik, parity web)
+    if (_formData != null && _submissionId != null) {
       return _buildFormContent();
     }
 
@@ -853,22 +1045,26 @@ class _FillFormPageState extends State<FillFormPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEE2E2),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0x2EEF4444)
+                    : const Color(0xFFFEE2E2),
                 borderRadius: BorderRadius.circular(50),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.error_outline,
                 size: 48,
-                color: Color(0xFFDC2626),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFFCA5A5)
+                    : const Color(0xFFDC2626),
               ),
             ),
             const SizedBox(height: 24),
             Text(
               _errorMsg!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF374151),
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -981,10 +1177,10 @@ class _FillFormPageState extends State<FillFormPage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
+                    // Parity web: join token boleh anonim — teruskan token
+                    // apa adanya (bisa null, identitas via respondent-key).
                     final token = await ApiService.getToken();
-                    if (token != null) {
-                      await _joinForm(token, _joinTokenController.text.trim());
-                    }
+                    await _joinForm(token, _joinTokenController.text.trim());
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1E66D0),
@@ -1003,6 +1199,159 @@ class _FillFormPageState extends State<FillFormPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // FULLSCREEN INTRO + CHEATED BANNER (parity web require_fullscreen)
+  // ============================================================
+  /// Overlay wajib fullscreen: pengguna harus tekan "Mulai" (masuk imersif)
+  /// sebelum bisa mengisi. Keluar aplikasi setelah mulai → ditandai curang.
+  Widget _buildFullscreenIntro() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: isDark
+                ? Border.all(color: const Color(0xFF2D2D4A))
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E3A5F)
+                      : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Icon(
+                  Icons.fullscreen,
+                  size: 40,
+                  color: isDark
+                      ? const Color(0xFF60A5FA)
+                      : const Color(0xFF1E66D0),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Mode Layar Penuh',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Form "${RichTextView.stripHtml(_formData?.title ?? '')}" mewajibkan mode layar penuh. '
+                'Selama mengisi, JANGAN keluar aplikasi / pindah aplikasi — '
+                'submission Anda akan ditandai sebagai curang oleh sistem.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _enterFullscreen,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text(
+                    'Mulai',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E66D0),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Banner peringatan curang (parity web .cheated-banner).
+  Widget _buildCheatedBanner() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0x2EEF4444) : const Color(0xFFFEE2E2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFFFCA5A5).withValues(alpha: 0.3)
+              : const Color(0xFFFCA5A5),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            color: isDark
+                ? const Color(0xFFFCA5A5)
+                : const Color(0xFFB91C1C),
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ditandai curang',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? const Color(0xFFFCA5A5)
+                        : const Color(0xFF991B1B),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Submission Anda ditandai curang karena keluar aplikasi / keluar dari mode layar penuh. Anda tetap bisa melanjutkan.',
+                  style: TextStyle(
+                    color: isDark
+                        ? const Color(0xFFFCA5A5)
+                        : const Color(0xFF991B1B),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1048,6 +1397,11 @@ class _FillFormPageState extends State<FillFormPage> {
                 height: 1.5,
               ),
             ),
+            // Parity web: submission curang tetap bisa submit, tampilkan banner.
+            if (_isCheated) ...[
+              const SizedBox(height: 16),
+              _buildCheatedBanner(),
+            ],
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(context),
@@ -1089,9 +1443,12 @@ class _FillFormPageState extends State<FillFormPage> {
       children: [
         if (bookmarkedMode) _buildBookmarkIndicator(),
         if (!bookmarkedMode) _buildProgressBar(),
-        // Banner mode pratinjau pemilik (hanya halaman pertama)
-        if (_isOwnerPreview && _currentPage == 0 && !bookmarkedMode)
-          _buildOwnerPreviewBanner(),
+        // Parity web success-cheated-banner: tampil di atas daftar soal.
+        if (_isCheated && !bookmarkedMode)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _buildCheatedBanner(),
+          ),
 
         // Questions list
         Expanded(
@@ -1133,7 +1490,7 @@ class _FillFormPageState extends State<FillFormPage> {
   // setState "Tutup" filter didelegasikan ke _clearBookmarkFilter di atas
   // (urutan + isi statement identik). Tanpa perubahan logika/call-site.
 
-  // NOTE (Tahap 3a): _buildOwnerPreviewBanner, _buildFormHeader,
+  // NOTE (Tahap 3a): _buildFormHeader,
   // _buildQuestionCard (+ header section QUESTION CARD) pindah ke
   // fill_form/display_part.dart (tanpa perubahan logika/call-site).
 

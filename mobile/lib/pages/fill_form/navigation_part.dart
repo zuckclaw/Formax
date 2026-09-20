@@ -48,73 +48,49 @@ extension _FillFormNavigation on _FillFormPageState {
 
           if (!isFirstPage && !isLastPage) const SizedBox(width: 12),
 
-          // Next / Submit button (mode pratinjau pemilik: tanpa Submit)
+          // Next / Submit button
           Expanded(
-            child: (_isOwnerPreview && isLastPage)
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: const Color(0xFFCBD5E1)),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.visibility_outlined,
-                            size: 18, color: Color(0xFF64748B)),
-                        SizedBox(width: 8),
-                        Text(
-                          'Mode pratinjau',
-                          style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  )
-                : ElevatedButton.icon(
-                    onPressed: _isSubmitting
-                        ? null
-                        : () {
-                            if (isLastPage) {
-                              _showSubmitConfirmation();
-                            } else {
-                              _handleNext();
-                            }
-                          },
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Icon(
-                            isLastPage ? Icons.send : Icons.arrow_forward,
-                            size: 18,
-                          ),
-                    label: Text(
-                      _isSubmitting
-                          ? 'Mengirim...'
-                          : isLastPage
-                          ? 'Submit'
-                          : 'Selanjutnya',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isLastPage
-                          ? const Color(0xFF059669)
-                          : const Color(0xFF1E66D0),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+            child: ElevatedButton.icon(
+              onPressed: _isSubmitting
+                  ? null
+                  : () {
+                      if (isLastPage) {
+                        _showSubmitConfirmation();
+                      } else {
+                        _handleNext();
+                      }
+                    },
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
                       ),
+                    )
+                  : Icon(
+                      isLastPage ? Icons.send : Icons.arrow_forward,
+                      size: 18,
                     ),
-                  ),
+              label: Text(
+                _isSubmitting
+                    ? 'Mengirim...'
+                    : isLastPage
+                    ? 'Submit'
+                    : 'Selanjutnya',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isLastPage
+                    ? const Color(0xFF059669)
+                    : const Color(0xFF1E66D0),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
           ),
         ],
       ),

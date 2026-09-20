@@ -52,8 +52,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Parity web: --bg-auth (#ebf5ff light / #1a1a2e dark).
+      backgroundColor:
+          isDark ? const Color(0xFF1A1A2E) : Colors.white,
       body: Stack(
         children: [
           // Top image
@@ -86,8 +89,14 @@ class _LoginPageState extends State<LoginPage> {
                   constraints: const BoxConstraints(maxWidth: 360),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAF3FF),
+                    // Parity web: --bg-card (#ffffff / #23233f).
+                    color: isDark
+                        ? const Color(0xFF23233F)
+                        : const Color(0xFFEAF3FF),
                     borderRadius: BorderRadius.circular(18),
+                    border: isDark
+                        ? Border.all(color: const Color(0xFF2D2D4A))
+                        : null,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -106,7 +115,9 @@ class _LoginPageState extends State<LoginPage> {
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark
+                              ? const Color(0xFF2A2A4A)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Row(
@@ -130,7 +141,9 @@ class _LoginPageState extends State<LoginPage> {
                                     style: TextStyle(
                                       color: isLogin
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : (isDark
+                                              ? const Color(0xFFCBD5E1)
+                                              : Colors.black87),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -156,7 +169,9 @@ class _LoginPageState extends State<LoginPage> {
                                     style: TextStyle(
                                       color: !isLogin
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : (isDark
+                                              ? const Color(0xFFCBD5E1)
+                                              : Colors.black87),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -221,9 +236,13 @@ class _LoginPageState extends State<LoginPage> {
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
-                          const Text(
+                          Text(
                             'Remember me',
-                            style: TextStyle(fontSize: 12, color: _labelColor),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : _labelColor),
                           ),
                           if (isLogin) ...[
                             const Spacer(),
@@ -367,6 +386,27 @@ class _LoginPageState extends State<LoginPage> {
                                       // Batal / waktu habis → pop false →
                                       // jangan lanjut masuk aplikasi.
                                       if (registered == true) {
+                                        // ANTI-ANONIM: pastikan sesi (token)
+                                        // benar-benar tersimpan sebelum masuk.
+                                        // Tanpa token user berada di dalam app
+                                        // tanpa identitas.
+                                        final stored =
+                                            await ApiService.getToken();
+                                        if (stored == null || stored.isEmpty) {
+                                          if (!context.mounted) return;
+                                          setState(() {
+                                            _isLoading = false;
+                                          });
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Registrasi berhasil tetapi sesi tidak terbentuk — silakan login.',
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
                                         result = {'success': true};
                                       } else {
                                         return;
@@ -382,6 +422,22 @@ class _LoginPageState extends State<LoginPage> {
                                   });
 
                                   if (result['success'] == true) {
+                                    // ANTI-ANONIM lapis kedua: jangan pernah
+                                    // masuk HomePage tanpa token tersimpan.
+                                    final session =
+                                        await ApiService.getToken();
+                                    if (!context.mounted) return;
+                                    if (session == null || session.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Sesi tidak terbentuk — silakan coba login lagi.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
                                     Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
@@ -429,9 +485,11 @@ class _LoginPageState extends State<LoginPage> {
                             isLogin
                                 ? "No account? "
                                 : "Already have an account? ",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: _labelColor,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : _labelColor,
                             ),
                           ),
                           GestureDetector(

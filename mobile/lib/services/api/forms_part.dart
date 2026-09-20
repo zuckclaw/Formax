@@ -244,7 +244,11 @@ Future<Map<String, dynamic>> _formGetMine() async {
     final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': ApiService._friendlyException(e)};
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
   }
 }
 
@@ -290,6 +294,10 @@ Future<Map<String, dynamic>> _formValidateLink(String link) async {
       return {'success': false, 'message': msg.toString()};
     }
   } catch (e) {
-    return {'success': false, 'message': ApiService._friendlyException(e)};
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
   }
 }

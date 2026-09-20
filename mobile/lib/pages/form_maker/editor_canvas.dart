@@ -114,12 +114,18 @@ class _EditorCanvasState extends State<EditorCanvas> {
     int index, {
     required Key key,
   }) {
-    final isActive = widget.state.activeQuestionId == q.id;
+    final bulkMode = widget.state.bulkSelectMode;
+    final isActive = !bulkMode && widget.state.activeQuestionId == q.id;
     return QuestionCard(
       key: key,
       index: index,
       question: q,
       isActive: isActive,
+      selectionMode: bulkMode,
+      selected: widget.state.selectedQuestionIds.contains(q.id),
+      onSelectionChanged: (_) {
+        widget.state.toggleQuestionSelected(q.id);
+      },
       onTap: () {
         widget.state.setActiveQuestion(q.id, page.id);
       },

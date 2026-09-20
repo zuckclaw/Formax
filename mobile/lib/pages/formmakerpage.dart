@@ -6,6 +6,7 @@ import '../widgets/share_form_dialog.dart';
 import 'form_maker/models/form_builder_state.dart';
 import 'form_maker/editor_canvas.dart';
 import 'form_maker/preview_canvas.dart';
+import 'form_maker/docx_import_sheet.dart';
 import 'form_maker/components/form_settings_tab.dart';
 import '../models/question_model.dart'; // Ensure QuestionType is imported for toolbar
 import 'package:image_picker/image_picker.dart';
@@ -47,12 +48,12 @@ class _FormMakerPageState extends State<FormMakerPage>
   String?
   _draftFormId; // untuk PATCH form draft (bukan POST berulang / duplikat)
 
-  final Color _primaryColor = const Color(0xFF4F46E5);
+  final Color _primaryColor = const Color(0xFF2563EB);
   final Color _bgColor = const Color(0xFFE8EEF7);
   bool get _isDark => Theme.of(context).brightness == Brightness.dark;
-  Color get _currentBgColor => _isDark ? const Color(0xFF0F172A) : _bgColor;
-  Color get _cardColor => _isDark ? const Color(0xFF1E293B) : Colors.white;
-  Color get _textColor => _isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+  Color get _currentBgColor => _isDark ? const Color(0xFF1A1A2E) : _bgColor;
+  Color get _cardColor => _isDark ? const Color(0xFF23233F) : Colors.white;
+  Color get _textColor => _isDark ? const Color(0xFFEEF2FF) : Colors.black87;
   Color get _subTextColor => _isDark ? const Color(0xFF94A3B8) : Colors.black54;
   Color get _appBarIconColor =>
       _isDark ? const Color(0xFFCBD5E1) : Colors.black54;
@@ -228,6 +229,7 @@ class _FormMakerPageState extends State<FormMakerPage>
           child: Scaffold(
             backgroundColor: _currentBgColor,
             appBar: _buildAppBar(),
+            bottomNavigationBar: _buildBulkBar(),
             body: _isPreviewMode
                 ? PreviewCanvas(state: _builderState)
                 : TabBarView(
@@ -385,8 +387,171 @@ class _FormMakerPageState extends State<FormMakerPage>
     );
   }
 
-  AppBar _buildAppBar() {
-    // Parity web (FormBuilderPage.jsx:1104-1140): saat mengedit form yang
+  /// Konfirmasi + eksekusi hapus massal soal terpilih.
+  Future<void> _confirmBulkDelete() async {
+    final count = _builderState.selectedQuestionIds.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 10),
+            Text('Hapus Soal?'),
+          ],
+        ),
+        content: Text(
+          '$count soal akan dihapus permanen dan tidak bisa dikembalikan.',
+          style: const TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Ya, Hapus ($count)'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final removed = _builderState.deleteSelectedQuestions();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$removed soal dihapus')),
+    );
+  }
+
+  /// Bar bawah mode seleksi: pilih semua + jumlah + hapus.
+  Widget? _buildBulkBar() {
+    if (_isPreviewMode ||
+        _tabController.index != 0 ||
+        !_builderState.bulkSelectMode) {
+      return null;
+    }
+    final total = _builderState.pages
+        .fold<int>(0, (n, p) => n + p.questions.length);
+    final selected = _builderState.selectedQuestionIds.length;
+    final allSelected = total > 0 && selected >= total;
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          border: Border(top: BorderSide(color: _subTextColor.withValues(alpha: 0.2))),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            TextButton.icon(
+              onPressed: () {
+                if (allSelected) {
+                  _builderState.selectedQuestionIds.clear();
+                  _builderState.triggerUpdate();
+                } else {
+                  _builderState.selectAllQuestions();
+                }
+              },
+              icon: Icon(allSelected
+                  ? Icons.deselect_outlined
+                  : Icons.select_all_outlined),
+              label: Text(allSelected ? 'Batal pilih' : 'Pilih semua'),
+            ),
+            const Spacer(),
+            Text(
+              '$selected dipilih',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _textColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed:
+                  selected == 0 ? null : () => _confirmBulkDelete(),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Hapus'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Buka lembar impor DOCX (parity web). Butuh draft tersimpan karena
+  /// endpoint preview/confirm backend bekerja per form_id milik sendiri.
+  Future<void> _openDocxImport() async {
+    final formId = _draftFormId;
+    if (formId == null || formId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Simpan sebagai draft dulu, lalu impor soal dari Word.',
+          ),
+        ),
+      );
+      return;
+    }
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => SingleChildScrollView(
+          controller: controller,
+          child: DocxImportSheet(
+            formId: formId,
+            onImported: _reloadAfterDocxImport,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Reload editor dari server setelah impor DOCX sukses.
+  Future<void> _reloadAfterDocxImport() async {
+    final formId = _draftFormId;
+    if (formId == null || formId.isEmpty) return;
+    final res = await ApiService.getForm(formId);
+    if (!mounted) return;
+    if (res['success'] == true && res['data'] is Map) {
+      _syncEditorFromServerData(Map<String, dynamic>.from(res['data'] as Map));
+    }
+  }
+
+  AppBar _buildAppBar() {    // Parity web (FormBuilderPage.jsx:1104-1140): saat mengedit form yang
     // sudah ada, tombol utama adalah Simpan/Perbarui (save changes, hormati
     // status), bukan Publish. Publish hanya untuk form baru.
     final bool isEdit = _draftFormId != null;
@@ -431,6 +596,34 @@ class _FormMakerPageState extends State<FormMakerPage>
               ),
             ),
       actions: [
+        // Mode seleksi massal (parity web bulk select + hapus banyak soal).
+        if (!_isPreviewMode && _tabController.index == 0)
+          IconButton(
+            icon: Icon(
+              _builderState.bulkSelectMode
+                  ? Icons.checklist_rtl
+                  : Icons.checklist_outlined,
+              color: _builderState.bulkSelectMode
+                  ? const Color(0xFFDC2626)
+                  : _appBarIconColor,
+            ),
+            tooltip: _builderState.bulkSelectMode
+                ? 'Keluar mode seleksi'
+                : 'Pilih banyak soal',
+            onPressed: () {
+              _builderState.setBulkSelectMode(!_builderState.bulkSelectMode);
+            },
+          ),
+        if (!_isPreviewMode &&
+            _tabController.index == 0 &&
+            _builderState.bulkSelectMode)
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: _appBarIconColor),
+            tooltip: 'Hapus soal terpilih',
+            onPressed: _builderState.selectedQuestionIds.isEmpty
+                ? null
+                : () => _confirmBulkDelete(),
+          ),
         IconButton(
           icon: Icon(
             _isPreviewMode ? Icons.edit_outlined : Icons.visibility_outlined,
@@ -456,6 +649,13 @@ class _FormMakerPageState extends State<FormMakerPage>
             icon: Icon(Icons.account_balance, color: _appBarIconColor),
             tooltip: 'Simpan sebagai Template',
             onPressed: _builderState.isSaving ? null : _saveAsTemplate,
+          ),
+        // Impor soal dari Word (parity web).
+        if (!_isPreviewMode)
+          IconButton(
+            icon: Icon(Icons.upload_file_outlined, color: _appBarIconColor),
+            tooltip: 'Impor soal dari Word (.docx)',
+            onPressed: _openDocxImport,
           ),
         Padding(
           padding: const EdgeInsets.only(right: 16.0, top: 10, bottom: 10),

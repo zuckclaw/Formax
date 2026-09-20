@@ -159,7 +159,7 @@ extension _SettingsQuiz on FormSettingsTab {
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: isDark
-                            ? const Color(0xFF334155)
+                            ? const Color(0xFF2D2D4A)
                             : Colors.black12,
                       ),
                       borderRadius: BorderRadius.circular(6),
@@ -226,7 +226,7 @@ extension _SettingsQuiz on FormSettingsTab {
           tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           children: [
-            Divider(height: 1, color: isDark ? const Color(0xFF334155) : null),
+            Divider(height: 1, color: isDark ? const Color(0xFF2D2D4A) : null),
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerLeft,
@@ -242,11 +242,11 @@ extension _SettingsQuiz on FormSettingsTab {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? const Color(0xFF0F172A)
+                      ? const Color(0xFF2A2A4A)
                       : const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : Colors.black12,
+                    color: isDark ? const Color(0xFF2D2D4A) : Colors.black12,
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -264,7 +264,7 @@ extension _SettingsQuiz on FormSettingsTab {
                           ),
                         )
                         .toList(),
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : null,
+                    dropdownColor: isDark ? const Color(0xFF23233F) : null,
                     icon: Icon(Icons.arrow_drop_down, color: textColor),
                     onChanged: (v) {
                       if (v != null) onSendCopyChanged(v);
@@ -330,7 +330,7 @@ extension _SettingsQuiz on FormSettingsTab {
           tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           children: [
-            Divider(height: 1, color: isDark ? const Color(0xFF334155) : null),
+            Divider(height: 1, color: isDark ? const Color(0xFF2D2D4A) : null),
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerLeft,

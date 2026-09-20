@@ -50,10 +50,12 @@ extension _HomeDashboard on _HomePageState {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.drafts_outlined,
                   size: 18,
-                  color: Color(0xFF92400E),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFFDE68A)
+                      : const Color(0xFF92400E),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -111,12 +113,16 @@ extension _HomeDashboard on _HomePageState {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0x2ECA8A04)
+                    : const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.edit_note,
-                color: Color(0xFF92400E),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFFDE68A)
+                    : const Color(0xFF92400E),
                 size: 22,
               ),
             ),
@@ -211,16 +217,23 @@ extension _HomeDashboard on _HomePageState {
   }
 
   Widget _buildGreetingCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFB4C5D4), Color.fromARGB(255, 141, 184, 253)],
+        // Parity web dark: banner gradient #1e293b -> #1e3a8a -> #1d4ed8.
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF1E293B), Color(0xFF1E3A8A), Color(0xFF1D4ED8)]
+              : const [Color(0xFFB4C5D4), Color.fromARGB(255, 141, 184, 253)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? Border.all(color: const Color(0xFF60A5FA).withValues(alpha: 0.25))
+            : null,
       ),
       child: Row(
         children: [
@@ -337,12 +350,16 @@ extension _HomeDashboard on _HomePageState {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E3A5F)
+                    : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.description_outlined,
-                color: Color(0xFF1E40AF),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFF1E40AF),
                 size: 22,
               ),
             ),
@@ -386,10 +403,14 @@ extension _HomeDashboard on _HomePageState {
 
   Widget _buildStatusBadge(String status) {
     final isPublished = status == 'published';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isPublished ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7),
+        // Parity web: dark pakai rgba + teks terang, light pakai pastel.
+        color: isPublished
+            ? (isDark ? const Color(0x2E16A34A) : const Color(0xFFD1FAE5))
+            : (isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF3C7)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -398,8 +419,8 @@ extension _HomeDashboard on _HomePageState {
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: isPublished
-              ? const Color(0xFF065F46)
-              : const Color(0xFF92400E),
+              ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF065F46))
+              : (isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E)),
         ),
       ),
     );

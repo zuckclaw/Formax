@@ -10,25 +10,34 @@ class ProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color statusBgColor;
     Color statusTextColor;
 
     switch (project.status) {
       case "Active":
-        statusBgColor = const Color(0xFFD1FAE5);
-        statusTextColor = const Color(0xFF10B981);
+        statusBgColor =
+            isDark ? const Color(0x2E16A34A) : const Color(0xFFD1FAE5);
+        statusTextColor =
+            isDark ? const Color(0xFF86EFAC) : const Color(0xFF10B981);
         break;
       case "Draft":
-        statusBgColor = const Color(0xFFFEF3C7);
-        statusTextColor = const Color(0xFFD97706);
+        statusBgColor =
+            isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF3C7);
+        statusTextColor =
+            isDark ? const Color(0xFFFDE68A) : const Color(0xFFD97706);
         break;
       case "Archived":
-        statusBgColor = const Color(0xFFF3F4F6);
-        statusTextColor = const Color(0xFF4B5563);
+        statusBgColor =
+            isDark ? const Color(0xFF2E2E55) : const Color(0xFFF3F4F6);
+        statusTextColor =
+            isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5563);
         break;
       default:
-        statusBgColor = Colors.grey.shade200;
-        statusTextColor = Colors.grey.shade700;
+        statusBgColor =
+            isDark ? const Color(0xFF2E2E55) : Colors.grey.shade200;
+        statusTextColor =
+            isDark ? const Color(0xFF94A3B8) : Colors.grey.shade700;
     }
 
     return InkWell(

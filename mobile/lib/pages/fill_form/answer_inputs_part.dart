@@ -675,18 +675,6 @@ extension _FillFormAnswerInputs on _FillFormPageState {
   }
 
   Future<void> _pickAndUploadFile(Question question) async {
-    // Mode pratinjau pemilik: jangan mengunggah file ke server.
-    if (_isOwnerPreview) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Mode pratinjau pemilik — upload file dinonaktifkan.'),
-          ),
-        );
-      }
-      return;
-    }
     if (_uploadingQids.contains(question.id)) return;
 
     final source = await showModalBottomSheet<_FileSource>(

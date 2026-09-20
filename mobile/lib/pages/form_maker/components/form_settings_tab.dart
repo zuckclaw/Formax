@@ -141,9 +141,9 @@ class FormSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = const Color(0xFF4F46E5);
-    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final textColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+    final primaryColor = const Color(0xFF2563EB);
+    final cardColor = isDark ? const Color(0xFF23233F) : Colors.white;
+    final textColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
     final subTextColor = isDark ? const Color(0xFF94A3B8) : Colors.black54;
 
     return SingleChildScrollView(

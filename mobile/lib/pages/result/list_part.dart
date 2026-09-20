@@ -52,7 +52,7 @@ extension _ResultList on _ResultPageState {
                     SizedBox(height: 2),
                     Text(
                       'Gunakan token untuk membuka akses form',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF4F46E5)),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF2563EB)),
                     ),
                   ],
                 ),
@@ -148,14 +148,43 @@ extension _ResultList on _ResultPageState {
       );
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        chip('Semua Status', 'semua'),
-        chip('Selesai', 'selesai'),
-        chip('Proses', 'proses'),
-        chip('Curang', 'curang'),
+        // Pencarian responden (parity web search box).
+        TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Cari nama atau email responden...',
+            prefixIcon: const Icon(Icons.search, size: 20),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 20),
+                    onPressed: _clearSearchQuery,
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+          ),
+          onChanged: _applySearchQuery,
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            chip('Semua Status', 'semua'),
+            chip('Selesai', 'selesai'),
+            chip('Proses', 'proses'),
+            chip('Curang', 'curang'),
+          ],
+        ),
       ],
     );
   }
@@ -203,8 +232,8 @@ extension _ResultList on _ResultPageState {
     final score = _scoreOf(sub, gradeMap);
 
     return InkWell(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final deleted = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
             builder: (_) => DetailResponsePage(
@@ -215,10 +244,13 @@ extension _ResultList on _ResultPageState {
               isCheated: sub.isCheated,
               scoreText: score != null ? '$score/100' : null,
               formTitle: widget.formTitle,
+              submissionId: sub.id,
               answers: _buildAnswerDetails(sub, gradeMap, labels),
             ),
           ),
         );
+        // Respons dihapus dari detail → reload daftar (parity web refresh).
+        if (deleted == true) _reload();
       },
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -297,11 +329,15 @@ extension _ResultList on _ResultPageState {
   }
 
   Widget _buildStatusPill(SubmissionModel sub) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final (String label, Color color, Color bg) = sub.isCheated
-        ? ('Curang', const Color(0xFFDC2626), const Color(0xFFFEE2E2))
+        ? ('Curang', isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+            isDark ? const Color(0x2EEF4444) : const Color(0xFFFEE2E2))
         : sub.submittedAt != null
-        ? ('Selesai', const Color(0xFF059669), const Color(0xFFD1FAE5))
-        : ('Proses', const Color(0xFFD97706), const Color(0xFFFEF3C7));
+        ? ('Selesai', isDark ? const Color(0xFF86EFAC) : const Color(0xFF059669),
+            isDark ? const Color(0x2E16A34A) : const Color(0xFFD1FAE5))
+        : ('Proses', isDark ? const Color(0xFFFDE68A) : const Color(0xFFD97706),
+            isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF3C7));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

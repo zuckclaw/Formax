@@ -42,7 +42,7 @@ class PreviewCanvas extends StatelessWidget {
                 height: 8,
                 decoration: BoxDecoration(
                   color: isFirst
-                      ? const Color(0xFF4F46E5)
+                      ? const Color(0xFF2563EB)
                       : const Color(0xFF8B5CF6),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(8),

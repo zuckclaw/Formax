@@ -167,13 +167,83 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> _unauthorizedResult(dynamic body) async {
-    try {
-      await removeToken();
-    } catch (_) {}
+    // Sesi invalid/kedaluwarsa: BERSIHKAN lalu tendang ke Login.
+    // Fail-closed: tidak ada jalan tetap di dalam app tanpa sesi valid.
+    await forceLogout();
     final msg = (body is Map && body['detail'] != null)
         ? body['detail'].toString()
         : 'Sesi kedaluwarsa, silakan login ulang';
     return {'success': false, 'message': msg.toString(), 'expired': true};
+  }
+
+  /// Hook global: dipanggil setiap forceLogout().
+  /// Diisi di main.dart (navigator) agar logout dari LAPISAN MANA PUN
+  /// (startup gate, API 401/403, network down) mengarah ke LoginPage.
+  /// Cermin web: event 'auth:expired' + AuthExpiredListener di App.jsx.
+  static void Function()? onSessionExpired;
+
+  /// Paksa keluar: hapus SEMUA state auth (memori + secure + prefs) lalu
+  /// beritahu UI. Idempoten — aman dipanggil berulang.
+  static Future<void> forceLogout() async {
+    try {
+      await removeToken();
+    } catch (_) {}
+    try {
+      onSessionExpired?.call();
+    } catch (_) {}
+  }
+
+  /// True hanya jika ada token tersimpan, BELUM kedaluwarsa lokal (klaim
+  /// exp JWT, cermin web getValidToken), DAN diakui backend via /auth/me.
+  /// KEGAGALAN APAPUN (token kosong, exp lewat, 401/403/500, timeout,
+  /// connection refused, backend mati) → false. FAIL-CLOSED.
+  static Future<bool> hasValidSession() async {
+    try {
+      final token = await getToken();
+      if (token == null || token.isEmpty) return false;
+      if (isTokenExpired(token)) {
+        await removeToken();
+        return false;
+      }
+      final me = await getMe();
+      return me['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Cek kedaluwarsa JWT secara lokal dari klaim `exp` (tanpa network).
+  /// Token tak-terparse/diragukan → anggap TIDAK kedaluwarsa di sini
+  /// (validasi final tetap via backend di hasValidSession).
+  static bool isTokenExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return false;
+      final normalized = base64Url.normalize(parts[1]);
+      final payloadString = utf8.decode(base64Url.decode(normalized));
+      final payload = jsonDecode(payloadString);
+      if (payload is! Map || payload['exp'] == null) return false;
+      final expSec = int.tryParse(payload['exp'].toString());
+      if (expSec == null) return false;
+      final expMs = expSec * 1000;
+      return DateTime.now().millisecondsSinceEpoch >= expMs;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// True jika result menandakan sesi invalid (dibuat oleh _unauthorizedResult).
+  static bool isAuthInvalidResult(Map<String, dynamic> res) =>
+      res['expired'] == true;
+
+  /// True jika result berasal dari kegagalan transport (backend mati,
+  /// connection refused, timeout). Fail-closed: pemanggil di titik
+  /// session-critical (gate, dashboard, form) harus forceLogout.
+  static bool isConnectionFailureResult(Map<String, dynamic> res) {
+    if (res['connection'] == true) return true;
+    final m = (res['message'] ?? '').toString().toLowerCase();
+    return m.contains('tidak dapat terhubung ke server') ||
+        m.contains('menghubungi server');
   }
 
   // Menyimpan token. Jika rememberMe false, token hanya disimpan di memori.
@@ -448,6 +518,36 @@ class ApiService {
   ) =>
       _miscSubResult(submissionId);
 
+  // Hapus respons individu (owner only). 204 → sukses.
+  static Future<Map<String, dynamic>> deleteSubmission(
+    String submissionId,
+  ) =>
+      _miscDeleteSub(submissionId);
+
+  // Import soal DOCX (parity web api/docx.js).
+  static Future<Map<String, dynamic>> downloadDocxTemplate() =>
+      _miscDocxTemplate();
+
+  static Future<Map<String, dynamic>> previewDocxImport(
+    String formId,
+    String filePath, {
+    String? fileName,
+  }) =>
+      _miscDocxPreview(formId, filePath, fileName: fileName);
+
+  static Future<Map<String, dynamic>> confirmDocxImport(
+    String formId,
+    List<Map<String, dynamic>> questions,
+  ) =>
+      _miscDocxConfirm(formId, questions);
+
+  // Tandai submission sebagai curang (parity web flagCheated).
+  // Endpoint backend: POST /submissions/{submission_id}/flag-cheated
+  static Future<Map<String, dynamic>> flagCheated(
+    String submissionId,
+  ) =>
+      _miscFlagCheated(submissionId);
+
   // Fungsi Search (untuk Dashboard Search)
   static Future<Map<String, dynamic>> search(String query) =>
       _miscSearch(query);
@@ -457,6 +557,13 @@ class ApiService {
     Map<String, dynamic> payload,
   ) =>
       _miscUpdateProfile(payload);
+
+  // Ganti password (parity web changePassword → PUT /auth/change-password)
+  static Future<Map<String, dynamic>> changePassword(
+    String oldPassword,
+    String newPassword,
+  ) =>
+      _authChangePassword(oldPassword, newPassword);
 
   // Export respons form ke Excel (.xlsx). Backend mengembalikan file biner,
   // jadi kembalikan bytes + nama file (dari Content-Disposition backend).
