@@ -146,52 +146,69 @@ class _EditorCanvasState extends State<EditorCanvas> {
         ],
       ),
       child: state.bulkSelectMode
-          ? Row(
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton.icon(
-                  onPressed: total == 0
-                      ? null
-                      : () {
-                          if (allSelected) {
-                            state.selectedQuestionIds.clear();
-                            state.triggerUpdate();
-                          } else {
-                            state.selectAllQuestions();
-                          }
-                        },
-                  icon: Icon(allSelected
-                      ? Icons.deselect_outlined
-                      : Icons.select_all_outlined),
-                  label: Text(allSelected ? 'Batal pilih' : 'Pilih semua'),
-                ),
-                Expanded(
-                  child: Text(
-                    '$selected dari $total dipilih',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? const Color(0xFFEEF2FF)
-                          : Colors.black87,
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: total == 0
+                          ? null
+                          : () {
+                              if (allSelected) {
+                                state.selectedQuestionIds.clear();
+                                state.triggerUpdate();
+                              } else {
+                                state.selectAllQuestions();
+                              }
+                            },
+                      icon: Icon(allSelected
+                          ? Icons.deselect_outlined
+                          : Icons.select_all_outlined),
+                      label:
+                          Text(allSelected ? 'Batal pilih' : 'Pilih semua'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      tooltip: 'Tutup mode seleksi',
+                      onPressed: () => state.setBulkSelectMode(false),
+                    ),
+                  ],
                 ),
-                FilledButton.icon(
-                  onPressed: selected == 0 ? null : () => _confirmBulkDelete(),
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Hapus'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  tooltip: 'Tutup mode seleksi',
-                  onPressed: () => state.setBulkSelectMode(false),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$selected dari $total dipilih',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? const Color(0xFFEEF2FF)
+                              : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed:
+                          selected == 0 ? null : () => _confirmBulkDelete(),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Hapus'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             )

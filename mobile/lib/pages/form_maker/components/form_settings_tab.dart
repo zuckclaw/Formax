@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/form_builder_state.dart';
 import '../../../../widgets/ngrok_image.dart';
+import '../../../../utils/form_theme.dart';
 
 // Part: kartu Banner & Form-Akses — Tahap 7a.
 // Sama-sama satu library, call-site di build() tidak berubah.
@@ -35,28 +36,18 @@ class FormSettingsTab extends StatelessWidget {
   final bool shuffleOptions;
   final ValueChanged<bool> onShuffleOptionsChanged;
 
-  // Quiz Settings
-  final bool isQuiz;
-  final ValueChanged<bool> onIsQuizChanged;
-  final String releaseGrade;
-  final ValueChanged<String> onReleaseGradeChanged;
-  final bool missedQuestions;
-  final ValueChanged<bool> onMissedQuestionsChanged;
+  // Quiz Settings (parity backend/web — HANYA field yang terkirim ke API)
   final bool correctAnswers;
   final ValueChanged<bool> onCorrectAnswersChanged;
   final bool revealAnswers;
   final ValueChanged<bool> onRevealAnswersChanged;
-  final bool pointValues;
-  final ValueChanged<bool> onPointValuesChanged;
-  final TextEditingController pointValueCtrl;
 
-  // Response Settings
-  final String sendCopy;
-  final ValueChanged<String> onSendCopyChanged;
-  final bool hideResponses;
-  final ValueChanged<bool> onHideResponsesChanged;
-  final bool allowMultipleEdits;
-  final ValueChanged<bool> onAllowMultipleEditsChanged;
+  /// Hapus semua kunci jawaban (aksi lokal, perlu Simpan/Publish).
+  final VoidCallback onClearAnswerKeys;
+
+  // Tema tampilan fill page (parity web; null = default).
+  final String? themeAccent;
+  final ValueChanged<String?> onThemeAccentChanged;
 
   // Default Settings
   final bool requireQuestionDefault;
@@ -65,20 +56,16 @@ class FormSettingsTab extends StatelessWidget {
   final VoidCallback onApplyOptionalToAll;
 
   // Timer Settings
-  final bool enableTimer;
-  final ValueChanged<bool> onEnableTimerChanged;
-  final String timerMode;
-  final ValueChanged<String> onTimerModeChanged;
   final DateTime? startDate;
   final DateTime? endDate;
-  final TextEditingController durationCtrl;
-  final String durationUnit;
-  final ValueChanged<String> onDurationUnitChanged;
   final Future<void> Function({required bool start}) onPickTimerDate;
   final void Function({required bool start})? onClearTimerDate;
   final ValueChanged<Duration>? onSetQuickDuration;
   final String Function(DateTime?) formatTimerDate;
   final VoidCallback onSaveSettings;
+
+  /// true saat penyimpanan pengaturan sedang berjalan (tombol bawah).
+  final bool isSavingSettings;
 
   const FormSettingsTab({
     super.key,
@@ -99,43 +86,25 @@ class FormSettingsTab extends StatelessWidget {
     required this.onShuffleQuestionsChanged,
     required this.shuffleOptions,
     required this.onShuffleOptionsChanged,
-    required this.isQuiz,
-    required this.onIsQuizChanged,
-    required this.releaseGrade,
-    required this.onReleaseGradeChanged,
-    required this.missedQuestions,
-    required this.onMissedQuestionsChanged,
     required this.correctAnswers,
     required this.onCorrectAnswersChanged,
     required this.revealAnswers,
     required this.onRevealAnswersChanged,
-    required this.pointValues,
-    required this.onPointValuesChanged,
-    required this.pointValueCtrl,
-    required this.sendCopy,
-    required this.onSendCopyChanged,
-    required this.hideResponses,
-    required this.onHideResponsesChanged,
-    required this.allowMultipleEdits,
-    required this.onAllowMultipleEditsChanged,
+    required this.onClearAnswerKeys,
+    required this.themeAccent,
+    required this.onThemeAccentChanged,
     required this.requireQuestionDefault,
     required this.onRequireQuestionDefaultChanged,
     required this.onApplyRequiredToAll,
     required this.onApplyOptionalToAll,
-    required this.enableTimer,
-    required this.onEnableTimerChanged,
-    required this.timerMode,
-    required this.onTimerModeChanged,
     required this.startDate,
     required this.endDate,
-    required this.durationCtrl,
-    required this.durationUnit,
-    required this.onDurationUnitChanged,
     required this.onPickTimerDate,
     this.onClearTimerDate,
     this.onSetQuickDuration,
     required this.formatTimerDate,
     required this.onSaveSettings,
+    this.isSavingSettings = false,
   });
 
   @override
@@ -177,7 +146,7 @@ class FormSettingsTab extends StatelessWidget {
             subTextColor,
           ),
           const SizedBox(height: 12),
-          _buildResponseSettingsCard(
+          _buildThemeCard(
             context,
             isDark,
             primaryColor,
@@ -203,6 +172,38 @@ class FormSettingsTab extends StatelessWidget {
             textColor,
             subTextColor,
           ),
+          const SizedBox(height: 20),
+          // Tombol Simpan Pengaturan — PALING BAWAH, di luar semua
+          // container kartu, agar jelas mencakup seluruh pengaturan.
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: isSavingSettings ? null : onSaveSettings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: isSavingSettings
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Simpan Pengaturan',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+            ),
+          ),
           const SizedBox(height: 80),
         ],
       ),
@@ -215,10 +216,7 @@ class FormSettingsTab extends StatelessWidget {
   // NOTE (Tahap 7a): _buildFormAccessCard pindah ke
   // components/settings_basic_part.dart (verbatim, tanpa perubahan apa pun).
 
-  // NOTE (Tahap 7b): _buildQuizSettingsCard pindah ke
-  // components/settings_quiz_part.dart (verbatim, tanpa perubahan apa pun).
-
-  // NOTE (Tahap 7b): _buildResponseSettingsCard pindah ke
+  // NOTE (Tahap 7b): _buildQuizSettingsCard & _buildThemeCard pindah ke
   // components/settings_quiz_part.dart (verbatim, tanpa perubahan apa pun).
 
   // NOTE (Tahap 7b): _buildDefaultSettingsCard pindah ke

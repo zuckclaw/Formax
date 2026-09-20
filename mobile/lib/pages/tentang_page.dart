@@ -217,6 +217,8 @@ class TentangPage extends StatelessWidget {
                               fontSize: 11,
                               color: cs.onSurfaceVariant,
                               height: 1.4),
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -271,6 +273,8 @@ class TentangPage extends StatelessWidget {
                     Text(
                       _team[i].$2,
                       textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 12),
                     ),

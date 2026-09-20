@@ -120,6 +120,18 @@ class _ActivityPageState extends State<ActivityPage> {
   }
 
   Future<void> _openResult(MyActivityModel item) async {
+    // Parity web: bila pemilik menutup izin, jangan tembak API sia-sia.
+    if (!item.allowSeeResult) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Pembuat form tidak mengizinkan responden melihat hasil.',
+          ),
+        ),
+      );
+      return;
+    }
     final res = await ApiService.getSubmissionResult(item.id);
     if (!mounted) return;
     if (res['success'] != true || res['data'] is! Map) {

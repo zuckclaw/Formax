@@ -105,11 +105,19 @@ class _ScanQRPageState extends State<ScanQRPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFB4C5D4),
-        title: const Text('Scan QR', style: TextStyle(color: Colors.white)),
-        foregroundColor: Colors.white,
+        backgroundColor:
+            isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFB4C5D4),
+        title: Text('Scan QR',
+            style: TextStyle(
+                color: isDark
+                    ? Theme.of(context).colorScheme.onSurface
+                    : const Color(0xFF374151))),
+        foregroundColor: isDark
+            ? Theme.of(context).colorScheme.onSurface
+            : const Color(0xFF374151),
       ),
       body: Column(
         children: [

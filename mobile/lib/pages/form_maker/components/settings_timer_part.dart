@@ -305,22 +305,6 @@ extension _SettingsTimer on FormSettingsTab {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: onSaveSettings,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Simpan Pengaturan',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
           ],
         ),
       ),

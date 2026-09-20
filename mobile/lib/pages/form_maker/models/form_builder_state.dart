@@ -486,6 +486,26 @@ class FormBuilderState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Hapus semua kunci jawaban (parity web "Hapus Kunci Jawaban").
+  // Kembalikan jumlah soal yang kunci-nya dihapus.
+  int clearAllAnswerKeys() {
+    var cleared = 0;
+    for (final page in pages) {
+      for (final q in page.questions) {
+        var hadKey = false;
+        for (final o in q.options) {
+          if (o.isCorrect) {
+            o.isCorrect = false;
+            hadKey = true;
+          }
+        }
+        if (hadKey) cleared++;
+      }
+    }
+    notifyListeners();
+    return cleared;
+  }
+
   // --- API Payload Builder ---
   // Solusi aman untuk schema DB saat ini: jangan kirim tipe page_break ke backend,
   // karena PostgreSQL enum questiontype belum mendukung nilai tersebut.

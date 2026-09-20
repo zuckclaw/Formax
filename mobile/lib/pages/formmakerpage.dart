@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/form_template.dart';
 import '../services/api_service.dart';
 import '../utils/quill_html.dart';
+import '../utils/form_theme.dart';
 import '../widgets/share_form_dialog.dart';
 import 'form_maker/models/form_builder_state.dart';
 import 'form_maker/editor_canvas.dart';
@@ -48,6 +49,9 @@ class _FormMakerPageState extends State<FormMakerPage>
   String?
   _draftFormId; // untuk PATCH form draft (bukan POST berulang / duplikat)
 
+  /// true saat tombol "Simpan Pengaturan" (tab Setelan) sedang menyimpan.
+  bool _isSavingSettings = false;
+
   final Color _primaryColor = const Color(0xFF2563EB);
   final Color _bgColor = const Color(0xFFE8EEF7);
   bool get _isDark => Theme.of(context).brightness == Brightness.dark;
@@ -58,16 +62,8 @@ class _FormMakerPageState extends State<FormMakerPage>
   Color get _appBarIconColor =>
       _isDark ? const Color(0xFFCBD5E1) : Colors.black54;
 
-  // State untuk Setelan
-  bool _isQuiz = true;
-  String _releaseGrade = 'langsung';
-  bool _missedQuestions = true;
-  bool _correctAnswers = false;
-  bool _revealAnswers = false;
-  bool _pointValues = true;
-
-  String _sendCopy = 'Nonaktif';
-  // Setelan Form (parity dengan web): status, penerimaan respons, batas respons, fullscreen, join token.
+  // State untuk Setelan (parity backend/web — SEMUA field di bawah ini
+  // benar-benar terkirim ke API; tidak ada toggle dekoratif).
   String _formStatus = 'draft'; // draft / published / closed
   bool _acceptResponses = true;
   String _submissionLimit = 'once'; // once / unlimited / custom
@@ -78,20 +74,21 @@ class _FormMakerPageState extends State<FormMakerPage>
   bool _useJoinToken = false;
   bool _shuffleQuestions = false;
   bool _shuffleOptions = false;
-  bool _hideResponses = false;
-  bool _allowMultipleEdits = false;
 
   bool _requireQuestionDefault = false;
 
-  bool _enableTimer = true;
-  String _timerMode = 'Start when respondent opens the form';
   DateTime? _startDate;
   DateTime? _endDate;
-  final TextEditingController _durationCtrl = TextEditingController(text: '1');
-  String _durationUnit = 'hari';
-  final TextEditingController _pointValueCtrl = TextEditingController(
-    text: '0',
-  );
+
+  /// Aksen tema fill page ({"accent": hex} di backend, null = default).
+  /// null di sini = belum tentu default; lihat _themeTouched.
+  String? _themeAccent;
+  /// true bila user mengubah tema di sesi ini (agar reset ke default
+  /// ikut terkirim; tanpa ini PATCH tak bisa mengembalikan default).
+  bool _themeTouched = false;
+
+  bool _correctAnswers = false;
+  bool _revealAnswers = false;
 
   @override
   void initState() {
@@ -137,7 +134,6 @@ class _FormMakerPageState extends State<FormMakerPage>
   void _markSaving() {
     setState(() => _builderState.isSaving = true);
   }
-
   void _markSavingDone() {
     setState(() => _builderState.isSaving = false);
   }
@@ -148,6 +144,34 @@ class _FormMakerPageState extends State<FormMakerPage>
 
   void _replaceBuilderState(FormBuilderState fresh) {
     setState(() => _builderState = fresh);
+  }
+
+  // Helper flag tombol "Simpan Pengaturan" untuk extension save:
+  // setState HANYA di member State.
+  void _markSavingSettings(bool value) {
+    setState(() => _isSavingSettings = value);
+  }
+
+  /// Hapus semua kunci jawaban (parity web). Perubahan di editor,
+  /// perlu Simpan/Publish agar tersimpan ke server.
+  void _clearAllAnswerKeys() {
+    final n = _builderState.clearAllAnswerKeys();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          n == 0
+              ? 'Tidak ada soal dengan kunci jawaban'
+              : '$n kunci jawaban dihapus — tekan Simpan/Publish untuk menerapkan',
+        ),
+      ),
+    );
+  }
+
+  /// Sinkronkan state pengaturan dari data kanonis server ( dipakai
+  /// extension save setelah simpan sukses ). setState di member State.
+  void _syncSettingsFromServer(Map<String, dynamic> data) {
+    setState(() => _applyFormSettings(data));
   }
 
   // Helper banner untuk extension media (form_maker/media_part.dart):
@@ -169,8 +193,6 @@ class _FormMakerPageState extends State<FormMakerPage>
   void dispose() {
     _builderState.dispose();
     _tabController.dispose();
-    _durationCtrl.dispose();
-    _pointValueCtrl.dispose();
     _customSubLimitCtrl.dispose();
     super.dispose();
   }
@@ -263,63 +285,31 @@ class _FormMakerPageState extends State<FormMakerPage>
                         shuffleOptions: _shuffleOptions,
                         onShuffleOptionsChanged: (v) =>
                             setState(() => _shuffleOptions = v),
-                        isQuiz: _isQuiz,
-                        onIsQuizChanged: (v) => setState(() => _isQuiz = v),
-                        releaseGrade: _releaseGrade,
-                        onReleaseGradeChanged: (v) =>
-                            setState(() => _releaseGrade = v),
-                        missedQuestions: _missedQuestions,
-                        onMissedQuestionsChanged: (v) =>
-                            setState(() => _missedQuestions = v),
+                        themeAccent: _themeAccent,
+                        onThemeAccentChanged: (v) => setState(() {
+                          _themeAccent = v;
+                          _themeTouched = true;
+                        }),
                         correctAnswers: _correctAnswers,
                         onCorrectAnswersChanged: (v) =>
                             setState(() => _correctAnswers = v),
                         revealAnswers: _revealAnswers,
                         onRevealAnswersChanged: (v) =>
                             setState(() => _revealAnswers = v),
-                        pointValues: _pointValues,
-                        onPointValuesChanged: (v) =>
-                            setState(() => _pointValues = v),
-                        pointValueCtrl: _pointValueCtrl,
-                        sendCopy: _sendCopy,
-                        onSendCopyChanged: (v) => setState(() => _sendCopy = v),
-                        hideResponses: _hideResponses,
-                        onHideResponsesChanged: (v) =>
-                            setState(() => _hideResponses = v),
-                        allowMultipleEdits: _allowMultipleEdits,
-                        onAllowMultipleEditsChanged: (v) =>
-                            setState(() => _allowMultipleEdits = v),
+                        onClearAnswerKeys: _clearAllAnswerKeys,
                         requireQuestionDefault: _requireQuestionDefault,
                         onRequireQuestionDefaultChanged: (v) =>
                             setState(() => _requireQuestionDefault = v),
                         onApplyRequiredToAll: _applyRequiredToAll,
                         onApplyOptionalToAll: _applyOptionalToAll,
-                        enableTimer: _enableTimer,
-                        onEnableTimerChanged: (v) =>
-                            setState(() => _enableTimer = v),
-                        timerMode: _timerMode,
-                        onTimerModeChanged: (v) =>
-                            setState(() => _timerMode = v),
                         startDate: _startDate,
                         endDate: _endDate,
-                        durationCtrl: _durationCtrl,
-                        durationUnit: _durationUnit,
-                        onDurationUnitChanged: (v) =>
-                            setState(() => _durationUnit = v),
                         onPickTimerDate: _pickTimerDate,
                         onClearTimerDate: _clearTimerDate,
                         onSetQuickDuration: _applyQuickDuration,
                         formatTimerDate: _formatTimerDate,
-                        onSaveSettings: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Pengaturan dicatat — tekan Simpan untuk menerapkan (status: $_formStatus, batas respons: $_submissionLimit, timer: ${_enableTimer ? _durationDisplayText : 'nonaktif'}). Catatan: tombol Publish selalu menerbitkan (status published); untuk Closed gunakan Simpan.',
-                              ),
-                              duration: const Duration(seconds: 4),
-                            ),
-                          );
-                        },
+                        onSaveSettings: _saveSettingsOnly,
+                        isSavingSettings: _isSavingSettings,
                       ),
                     ],
                   ),

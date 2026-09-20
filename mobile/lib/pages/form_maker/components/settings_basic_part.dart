@@ -351,7 +351,7 @@ extension _SettingsBasic on FormSettingsTab {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Setelan tersimpan saat form disimpan (Simpan Draft / Publish). '
+                      'Setelan tersimpan lewat tombol Simpan Pengaturan di paling bawah, atau ikut tersimpan saat Simpan Draft / Publish. '
                       'Jadwal timer memakai durasi di kartu Form Timer.',
                       style: TextStyle(
                         fontSize: 12,

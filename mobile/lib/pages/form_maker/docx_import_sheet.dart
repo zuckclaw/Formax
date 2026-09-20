@@ -292,7 +292,8 @@ class _DocxImportSheetState extends State<DocxImportSheet> {
                   ),
                 ],
               ),
-              Flexible(
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _questions.length,

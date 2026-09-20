@@ -58,14 +58,23 @@ class _JoinLinkPageState extends State<JoinLinkPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Parity halaman isi form: AppBar terang + teks slate di light,
+    // permukaan tema + teks terang di dark (putih di B4C5D4 tak terbaca).
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFB4C5D4),
-        title: const Text(
+        backgroundColor:
+            isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFB4C5D4),
+        title: Text(
           'Gabung dengan Link',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+              color: isDark
+                  ? Theme.of(context).colorScheme.onSurface
+                  : const Color(0xFF374151)),
         ),
-        foregroundColor: Colors.white,
+        foregroundColor: isDark
+            ? Theme.of(context).colorScheme.onSurface
+            : const Color(0xFF374151),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

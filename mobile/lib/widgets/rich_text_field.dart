@@ -519,7 +519,7 @@ class _RichTextFieldState extends State<RichTextField> {
           children: [
             const Text(
               'Mendukung link YouTube, Vimeo, Google Drive, atau link langsung MP4:',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+              style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(

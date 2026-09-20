@@ -234,6 +234,8 @@ class CaraPakaiPage extends StatelessWidget {
                               fontSize: 11,
                               color: cs.onSurfaceVariant,
                               height: 1.4),
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
