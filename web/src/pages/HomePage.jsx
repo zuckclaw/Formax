@@ -162,7 +162,11 @@ const HomePage = () => {
             </p>
           </div>
           <div className="hp-platform-row">
-            <div className="hp-platform-card">
+            <Link
+              to="/dashboard"
+              className="hp-platform-card hp-platform-card-link"
+              title="Buka dashboard"
+            >
               <div className="hp-platform-icon">
                 <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#2563eb" strokeWidth={1.8}>
                   <circle cx="12" cy="12" r="10" />
@@ -172,8 +176,8 @@ const HomePage = () => {
               </div>
               <h3 className="hp-platform-name">Web Browser</h3>
               <p className="hp-platform-desc">Akses langsung dari semua browser tanpa perlu instalasi aplikasi tambahan.</p>
-              <Link to="/dashboard" className="hp-platform-badge hp-badge-outline-blue" style={{ cursor: 'pointer' }} title="Buka dashboard">Instant Access</Link>
-            </div>
+              <span className="hp-platform-badge hp-badge-outline-blue">Instant Access</span>
+            </Link>
             <a
               href="https://github.com/zuckclaw/Formax/releases/download/v1.0.3/app-release.apk"
               target="_blank"
