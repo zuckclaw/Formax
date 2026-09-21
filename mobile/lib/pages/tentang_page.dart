@@ -38,7 +38,7 @@ class TentangPage extends StatelessWidget {
     ('AK', 'Andhika Khairul Fahmi', 'UI/UX Designer — Web Dev'),
     ('FS', 'Fajriah Salsabilla', 'UI/UX Designer — Web Dev'),
     ('FG', 'Farrel Ghifari', 'Android Dev'),
-    ('RJ', 'Raka Julio Same', 'Android Dev'),
+    ('RJ', 'Raka Julio Same', 'Presenter'),
   ];
 
   static const _steps = [
