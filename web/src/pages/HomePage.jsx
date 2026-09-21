@@ -172,7 +172,7 @@ const HomePage = () => {
               </div>
               <h3 className="hp-platform-name">Web Browser</h3>
               <p className="hp-platform-desc">Akses langsung dari semua browser tanpa perlu instalasi aplikasi tambahan.</p>
-              <span className="hp-platform-badge hp-badge-outline-blue">Instant Access</span>
+              <Link to="/dashboard" className="hp-platform-badge hp-badge-outline-blue" style={{ cursor: 'pointer' }} title="Buka dashboard">Instant Access</Link>
             </div>
             <a
               href="https://github.com/zuckclaw/Formax/releases/download/v1.0.3/app-release.apk"
