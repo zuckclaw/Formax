@@ -14,6 +14,23 @@ function safeDel(storage, key) {
   try { storage.removeItem(key) } catch { /* ignore */ }
 }
 
+function notifyAuthChanged() {
+  // Deferred (microtask) agar aman dipanggil dari jalur sinkron seperti
+  // getValidToken() saat render — listener React tidak di-trigger
+  // di tengah fase render (menghindari setState-during-render).
+  const emit = () => {
+    try {
+      globalThis.dispatchEvent(new CustomEvent('auth:changed'));
+    } catch { /* event API unavailable (SSR/test) */ }
+  };
+  try {
+    if (typeof queueMicrotask === 'function') queueMicrotask(emit);
+    else setTimeout(emit, 0);
+  } catch {
+    emit();
+  }
+}
+
 export function setAuth(token, remember = false, refreshToken = null) {
   safeSet(sessionStorage, TOKEN_KEY, token)
   const refresh = refreshToken || null
@@ -31,6 +48,7 @@ export function setAuth(token, remember = false, refreshToken = null) {
     safeDel(localStorage, EXPIRES_KEY)
     safeDel(localStorage, REFRESH_KEY)
   }
+  notifyAuthChanged()
 }
 
 export function getRefreshToken() {
@@ -76,4 +94,5 @@ export function clearAuth() {
   safeDel(localStorage, 'user')
   safeDel(sessionStorage, TOKEN_KEY)
   safeDel(sessionStorage, REFRESH_KEY)
+  notifyAuthChanged()
 }

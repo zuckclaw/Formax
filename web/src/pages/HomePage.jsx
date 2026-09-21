@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import InteractiveCubeBackground from '../components/InteractiveCubeBackground';
 import LandingNav from '../components/LandingNav';
+import useAuthStatus from '../hooks/useAuthStatus';
 import { getValidToken } from '../utils/authStorage';
 import '../styles/landing.css';
 
@@ -19,10 +20,11 @@ function FeatureCard({ icon, title, desc }) {
 /* ─── Main HomePage ─── */
 const HomePage = () => {
   const navigate = useNavigate()
+  // Auth state ASLI project (sama seperti PrivateRoute): getValidToken().
+  // Berlaku untuk login session maupun remember-me.
+  const isAuthenticated = useAuthStatus()
   const handleCtaClick = (e) => {
-    const token = getValidToken()
-    const isRemembered = localStorage.getItem('auth_remember') === 'true'
-    if (token && isRemembered) {
+    if (getValidToken()) {
       e.preventDefault()
       navigate('/dashboard')
     }
@@ -198,7 +200,8 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ── CTA ── */}
+      {/* ── CTA ── hanya untuk guest; disembunyikan saat sudah login */}
+      {!isAuthenticated && (
       <section id="cara-pakai" className="hp-cta">
         <div className="hp-cta-inner">
           <h2 className="hp-cta-title">Siap Memulai Form Pertama Anda?</h2>
@@ -210,6 +213,7 @@ const HomePage = () => {
           </Link>
         </div>
       </section>
+      )}
 
       {/* ── FOOTER ── */}
       <footer className="hp-footer">

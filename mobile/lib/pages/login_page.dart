@@ -495,17 +495,6 @@ class _LoginPageState extends State<LoginPage> {
                           GestureDetector(
                             onTap: () {
                               setState(() {
-                                if (isLogin &&
-                                    loginEmailController.text.isNotEmpty &&
-                                    registerEmailController.text.isEmpty) {
-                                  registerEmailController.text =
-                                      loginEmailController.text.trim();
-                                } else if (!isLogin &&
-                                    registerEmailController.text.isNotEmpty &&
-                                    loginEmailController.text.isEmpty) {
-                                  loginEmailController.text =
-                                      registerEmailController.text.trim();
-                                }
                                 isLogin = !isLogin;
                               });
                             },
