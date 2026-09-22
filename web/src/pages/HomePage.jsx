@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import InteractiveCubeBackground from '../components/InteractiveCubeBackground';
 import LandingNav from '../components/LandingNav';
+import LandingFooter from '../components/LandingFooter';
 import useAuthStatus from '../hooks/useAuthStatus';
 import { getValidToken } from '../utils/authStorage';
 import '../styles/landing.css';
@@ -220,24 +221,7 @@ const HomePage = () => {
       )}
 
       {/* ── FOOTER ── */}
-      <footer className="hp-footer">
-        <div className="hp-footer-inner">
-          <div className="hp-footer-top">
-            <div className="hp-footer-brand-wrap">
-              <span className="hp-footer-brand">Form4x</span>
-              <p className="hp-footer-tagline">Tempat membuat Form Terlengkap & Terpercaya.</p>
-            </div>
-            <div className="hp-footer-links">
-              <Link to="/">Beranda</Link>
-              <Link to="/tentang">Tentang</Link>
-              <Link to="/cara-pakai">Cara Pakai</Link>
-              <Link to="/auth">Login</Link>
-            </div>
-          </div>
-          <div className="hp-footer-divider" />
-          <p className="hp-footer-copy">© 2026 Form4x. All rights reserved.</p>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 };

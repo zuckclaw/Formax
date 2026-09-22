@@ -4620,3 +4620,120 @@ pre.hljs, div.ql-code-block.hljs { background: #282c34 !important; }
 .fb-theme-reset:hover {
   text-decoration: underline;
 }
+
+/* ============================================================
+   DRAG REORDER — handle kiri card (dnd-kit)
+   Handle kecil menyatu card: transparan tanpa border,
+   warna via CSS var agar otomatis ikut light/dark mode.
+   ============================================================ */
+.fb-sort-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  will-change: transform;
+}
+
+.fb-sort-row.is-dragging {
+  opacity: 0.45;
+}
+
+.fb-sort-row.is-dragging .fb-question-card,
+.fb-sort-row.is-dragging .fb-section-card {
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.22);
+  border-color: #3b82f6;
+}
+
+.fb-sort-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.fb-sort-content .fb-question-card,
+.fb-sort-content .fb-section-card {
+  height: 100%;
+}
+
+.fb-drag-handle {
+  flex-shrink: 0;
+  width: 20px;
+  margin: 0 6px 0 0;
+  padding: 7px 0;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  color: var(--text-faint, #94a3b8);
+  opacity: 0.65;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.fb-sort-row:hover .fb-drag-handle {
+  opacity: 0.9;
+}
+
+.fb-drag-handle:hover {
+  opacity: 1;
+  color: var(--accent, #2563eb);
+  background-color: var(--accent-bg-soft, rgba(37, 99, 235, 0.08));
+}
+
+.fb-drag-handle:active {
+  cursor: grabbing;
+  opacity: 1;
+  color: var(--accent, #2563eb);
+  background-color: transparent;
+}
+
+.fb-drag-handle:focus-visible {
+  outline: 2px solid var(--accent, #3b82f6);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+.fb-sort-row.is-overlay {
+  opacity: 1;
+}
+
+.fb-sort-overlay-card {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--accent, #3b82f6);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.28);
+  max-width: 560px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fb-sort-overlay-card.is-section {
+  background: var(--accent-bg-soft, #eff6ff);
+  color: var(--accent, #1d4ed8);
+}
+
+/* Layar sentuh: handle selalu terlihat jelas (tidak ada hover) */
+@media (hover: none) {
+  .fb-drag-handle {
+    opacity: 0.8;
+  }
+}
+
+@media (max-width: 768px) {
+  .fb-drag-handle {
+    width: 26px;
+    padding: 12px 0;
+    opacity: 0.8;
+  }
+}

@@ -1169,6 +1169,11 @@ body,
   color: #38bdf8;
 }
 
+[data-theme="dark"] .cp-step-icon,
+[data-theme="dark"] .cp-features-icon-spark {
+  color: #60a5fa;
+}
+
 [data-theme="dark"] .hp-feat-card:hover .hp-feat-icon {
   background: #2563eb;
   color: #ffffff;

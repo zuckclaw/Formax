@@ -4,6 +4,7 @@ import '../styles/landing.css'
 
 import InteractiveCubeBackground from '../components/InteractiveCubeBackground';
 import LandingNav from '../components/LandingNav';
+import LandingFooter from '../components/LandingFooter';
 
 const CaraPakaiPage = () => {
   const containerRef = useRef(null)
@@ -72,8 +73,8 @@ const CaraPakaiPage = () => {
             Cara Menggunakan <span className="cp-hero-accent">Form4x</span>
           </h1>
           <p className="cp-hero-sub">
-            Panduan singkat untuk mulai membuat, membagikan, dan memantau form
-            Anda — semua langsung dari browser.
+            Panduan singkat untuk mulai membuat, membagikan,
+            <br /> dan memantau form Anda — semua langsung dari browser.
           </p>
           <Link to="/auth" className="cp-btn-primary">
             Mulai Sekarang
@@ -115,7 +116,14 @@ const CaraPakaiPage = () => {
             <div className="cp-step-content">
               <div className="cp-step-badge">LANGKAH 1</div>
               <h2 className="cp-step-title">
-                <span className="cp-step-icon">👤+</span> Daftar Akun
+                <span className="cp-step-icon">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="22" y1="11" x2="16" y2="11" />
+                  </svg>
+                </span> Daftar Akun
               </h2>
               <p className="cp-step-desc">
                 Cukup daftar dengan email, tanpa perlu mengunduh apa pun untuk mulai menggunakan Form4x di browser.
@@ -172,7 +180,14 @@ const CaraPakaiPage = () => {
             <div className="cp-step-content">
               <div className="cp-step-badge">LANGKAH 2</div>
               <h2 className="cp-step-title">
-                <span className="cp-step-icon">📄</span> Buat Form
+                <span className="cp-step-icon">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </span> Buat Form
               </h2>
               <p className="cp-step-desc">
                 Susun form baru dari template siap pakai atau mulai dari halaman kosong.
@@ -228,7 +243,12 @@ const CaraPakaiPage = () => {
             <div className="cp-step-content">
               <div className="cp-step-badge">LANGKAH 3</div>
               <h2 className="cp-step-title">
-                <span className="cp-step-icon">🔗</span> Bagikan &amp; Pantau
+                <span className="cp-step-icon">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                  </svg>
+                </span> Bagikan &amp; Pantau
               </h2>
               <p className="cp-step-desc">
                 Sebarkan form Anda dan pantau jawaban yang masuk secara real-time.
@@ -287,7 +307,11 @@ const CaraPakaiPage = () => {
       <section className="cp-features-section">
         <div className="cp-features-inner">
           <div className="cp-features-header">
-            <span className="cp-features-icon-spark">✨</span>
+            <span className="cp-features-icon-spark">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            </span>
             <h2 className="cp-features-title">Fitur yang Tersedia</h2>
           </div>
           <p className="cp-features-sub">
@@ -296,37 +320,63 @@ const CaraPakaiPage = () => {
 
           <div className="cp-features-grid">
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">✨</div>
+              <div className="cp-feature-icon-box">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+                </svg>
+              </div>
               <h3>AI Form Builder</h3>
               <p>Buat form, kuis, dan ujian cerdas secara otomatis dalam hitungan detik menggunakan AI.</p>
             </div>
 
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">⚡</div>
+              <div className="cp-feature-icon-box">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+              </div>
               <h3>Buat Form Cepat</h3>
               <p>Susun form baru dengan editor serbaguna dan berbagai jenis pilihan pertanyaan.</p>
             </div>
 
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">⏱️</div>
+              <div className="cp-feature-icon-box">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
               <h3>Timer Otomatis</h3>
               <p>Atur batas waktu pengisian dengan auto-submit begitu waktu habis.</p>
             </div>
 
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">🔲</div>
+              <div className="cp-feature-icon-box">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 4v1m6 11h2m-6 0h-2v4m0-4v-3m0 0h3m-3 0h-3m-2-5h4m-4 0v4m0-4V7m14 4v4m0 0h-3m3 0v3m-3-3h-3m3-3V7m-7 4h.01M7 4h10" />
+                </svg>
+              </div>
               <h3>Kode QR &amp; Link</h3>
               <p>Setiap form otomatis mendapat kode QR &amp; tautan unik, siap untuk dibagikan.</p>
             </div>
 
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">📊</div>
+              <div className="cp-feature-icon-box">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
               <h3>Export ke Spreadsheet</h3>
               <p>Semua jawaban rapi terekspor ke file Excel/Spreadsheet, siap diolah kapan saja.</p>
             </div>
 
             <div className="cp-feature-card">
-              <div className="cp-feature-icon-box">🔒</div>
+              <div className="cp-feature-icon-box">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+              </div>
               <h3>Akses Aman &amp; Ujian</h3>
               <p>Mode fullscreen wajib, pengacak opsi jawaban, dan perlindungan data yang terjaga.</p>
             </div>
@@ -335,12 +385,7 @@ const CaraPakaiPage = () => {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="hp-footer">
-        <div className="hp-footer-inner">
-          <div className="hp-footer-brand">Form4x</div>
-          <p className="cp-footer-copy">© 2026 Form4x. All rights reserved.</p>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   )
 }

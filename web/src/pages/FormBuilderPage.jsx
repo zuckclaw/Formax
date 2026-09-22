@@ -1,5 +1,23 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import RichTextEditor from '../components/RichTextEditor';
 import { getMe, logout } from '../api/auth';
 import { createForm, getForm, updateForm, generateQR } from '../api/forms';
@@ -58,6 +76,99 @@ function getSections(questions) {
   sections.push(cur);
   if (sections.length === 0) sections.push(cur);
   return sections;
+}
+
+const qKeyOf = (q) => q.id || q._tempId;
+
+// Split flat array jadi blok: tiap page_break mulai blok baru.
+// Return [{ key, start, end }] index flat inklusif.
+function getBlockRanges(list) {
+  const ranges = [];
+  let start = 0;
+  let key = 'sec-leading';
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].type === 'page_break') {
+      if (i > start) {
+        ranges.push({ key, start, end: i - 1 });
+      } else if (ranges.length === 0 && i === 0) {
+        // tidak ada leading block, jangan push kosong
+      }
+      key = `sec-${qKeyOf(list[i])}`;
+      start = i;
+    }
+  }
+  if (list.length > start || ranges.length === 0) {
+    ranges.push({ key, start, end: list.length - 1 });
+  } else if (list.length > 0) {
+    // blok terakhir sudah di-push? pastikan blok pb terakhir ikut
+    const last = ranges[ranges.length - 1];
+    if (!last || last.end < list.length - 1) {
+      ranges.push({ key, start, end: list.length - 1 });
+    }
+  }
+  return ranges;
+}
+
+function getBlockIndexForFlatIdx(ranges, flatIdx) {
+  for (let i = 0; i < ranges.length; i++) {
+    if (flatIdx >= ranges[i].start && flatIdx <= ranges[i].end) return i;
+  }
+  return -1;
+}
+
+function DragHandle({ listeners, attributes, disabled, title }) {
+  return (
+    <button
+      type="button"
+      className={`fb-drag-handle ${disabled ? 'disabled' : ''}`}
+      {...attributes}
+      {...listeners}
+      disabled={disabled}
+      title={title || 'Geser untuk pindah urutan'}
+      aria-label="Geser untuk pindah urutan"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <svg width="10" height="16" fill="currentColor" viewBox="0 0 10 16" aria-hidden="true">
+        <circle cx="2.5" cy="2.5" r="1.2" />
+        <circle cx="7.5" cy="2.5" r="1.2" />
+        <circle cx="2.5" cy="8" r="1.2" />
+        <circle cx="7.5" cy="8" r="1.2" />
+        <circle cx="2.5" cy="13.5" r="1.2" />
+        <circle cx="7.5" cy="13.5" r="1.2" />
+      </svg>
+    </button>
+  );
+}
+
+function SortableRow({ id, disabled, isSection, data, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled,
+    data,
+  });
+  const style = {
+    // Translate (translate3d) = GPU-composited, jauh lebih smooth dari Transform (scale ikut dihitung).
+    // Fallback easing halus bila dnd-kit tidak menyediakan transition.
+    transform: CSS.Translate.toString(transform),
+    transition: transition ?? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)',
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`fb-sort-row ${isSection ? 'is-section' : ''} ${isDragging ? 'is-dragging' : ''} ${disabled ? 'no-drag' : ''}`}
+    >
+      {!disabled && (
+        <DragHandle
+          listeners={listeners}
+          attributes={attributes}
+          disabled={disabled}
+          title={isSection ? 'Geser bagian (beserta isinya)' : 'Geser soal ke atas / bawah'}
+        />
+      )}
+      <div className="fb-sort-content">{children}</div>
+    </div>
+  );
 }
 
 function generateSlug(title) {
@@ -1347,6 +1458,86 @@ export default function FormBuilderPage() {
     );
   };
 
+  // ===== DRAG REORDER (dnd-kit, handle kiri, dalam-section) =====
+  // Aturan: soal biasa hanya bisa pindah dalam blok section-nya.
+  // Section (page_break) pindah sebagai blok beserta isinya. Disable saat bulkMode.
+  const [activeDragId, setActiveDragId] = useState(null);
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const sortableIds = useMemo(() => questions.map((q) => qKeyOf(q)), [questions]);
+  const activeDragItem = useMemo(
+    () => questions.find((q) => qKeyOf(q) === activeDragId) || null,
+    [questions, activeDragId]
+  );
+
+  const handleDragStart = useCallback((event) => {
+    setActiveDragId(event.active?.id ?? null);
+  }, []);
+
+  const handleDragCancel = useCallback(() => setActiveDragId(null), []);
+
+  // Implementasi final drag-end (dipisah agar mudah dibaca & di-test):
+  // - soal biasa: arrayMove dalam bloknya saja
+  // - section: pindah seluruh blok [pb..soal] ke posisi blok lain
+  const applyDragEnd = useCallback((activeId, overId) => {
+    if (!activeId || !overId || activeId === overId) return;
+    // Pre-check antar-blok di luar updater agar toast tidak double (StrictMode)
+    const cur = questions;
+    const curOld = cur.findIndex((q) => qKeyOf(q) === activeId);
+    const curNew = cur.findIndex((q) => qKeyOf(q) === overId);
+    if (curOld >= 0 && curNew >= 0 && cur[curOld].type !== 'page_break') {
+      const r = getBlockRanges(cur);
+      if (getBlockIndexForFlatIdx(r, curOld) !== getBlockIndexForFlatIdx(r, curNew)) {
+        showToast('Soal hanya bisa dipindah dalam bagian yang sama', 'error');
+        return;
+      }
+    }
+    setQuestions((prev) => {
+      const oldIndex = prev.findIndex((q) => qKeyOf(q) === activeId);
+      const newIndex = prev.findIndex((q) => qKeyOf(q) === overId);
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      const moving = prev[oldIndex];
+      const ranges = getBlockRanges(prev);
+      const fromBlock = getBlockIndexForFlatIdx(ranges, oldIndex);
+      const toBlock = getBlockIndexForFlatIdx(ranges, newIndex);
+      if (fromBlock < 0 || toBlock < 0) return prev;
+
+      if (moving.type === 'page_break') {
+        if (fromBlock === toBlock) return prev;
+        const blockItems = prev.slice(ranges[fromBlock].start, ranges[fromBlock].end + 1);
+        const without = [...prev.slice(0, ranges[fromBlock].start), ...prev.slice(ranges[fromBlock].end + 1)];
+        const after = getBlockRanges(without.length ? without : []);
+        let insertAt;
+        if (without.length === 0) {
+          insertAt = 0;
+        } else if (toBlock > fromBlock) {
+          const targetIdx = toBlock - 1;
+          insertAt = after[targetIdx] ? after[targetIdx].end + 1 : without.length;
+        } else {
+          insertAt = after[toBlock] ? after[toBlock].start : 0;
+        }
+        const next = [...without.slice(0, insertAt), ...blockItems, ...without.slice(insertAt)];
+        return next.map((q, i) => ({ ...q, order_index: i, _saved: false }));
+      }
+
+      // soal biasa: tolak pindah antar-blok (toast sudah ditangani di pre-check)
+      if (fromBlock !== toBlock) return prev;
+      const next = arrayMove(prev, oldIndex, newIndex);
+      return next.map((q, i) => ({ ...q, order_index: i, _saved: false }));
+    });
+  }, [questions, showToast]);
+
+  const onDragEndFinal = useCallback((event) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    if (bulkMode) return;
+    if (!active || !over) return;
+    applyDragEnd(String(active.id), String(over.id));
+  }, [applyDragEnd, bulkMode]);
+
   if (loading) {
     return (
       <div className="fb-loading">
@@ -1658,11 +1849,20 @@ export default function FormBuilderPage() {
                   </div>
                 )}
 
-                {/* Questions */}
-                {questions.map((q, qIdx) => {
+                {/* Questions — drag reorder via handle kiri (disable saat bulkMode) */}
+                <DndContext
+                  sensors={dragSensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={onDragEndFinal}
+                  onDragCancel={handleDragCancel}
+                >
+                  <SortableContext items={bulkMode ? [] : sortableIds} strategy={verticalListSortingStrategy}>
+                    {questions.map((q, qIdx) => {
                   const qKey = q.id || q._tempId;
                   const isActive = activeQuestion === qKey;
                   const isBulkSelected = bulkSelected.has(qKey);
+                  const dragDisabled = bulkMode;
                   // Section / page_break rendering
                   if (isSection(q.type)) {
                     const sectionNum = questions.filter((x, i) => i <= qIdx && x.type === 'page_break').length;
@@ -1675,8 +1875,8 @@ export default function FormBuilderPage() {
                       return c;
                     })();
                     return (
+                      <SortableRow key={qKey} id={qKey} disabled={dragDisabled} isSection data={{ type: q.type, blockAware: true }}>
                       <div
-                        key={qKey}
                         className={`fb-section-card ${isActive ? 'active' : ''} ${isBulkSelected ? 'bulk-selected' : ''}`}
                         onClick={() => setActiveQuestion(qKey)}
                       >
@@ -1708,11 +1908,12 @@ export default function FormBuilderPage() {
                           <span className="fb-section-hint">Hanya soal di bagian ini yang diacak, antar-bagian tetap berurutan</span>
                         </div>
                       </div>
+                      </SortableRow>
                     );
                   }
                   return (
+                    <SortableRow key={qKey} id={qKey} disabled={dragDisabled} isSection={false} data={{ type: q.type }}>
                     <div
-                      key={qKey}
                       className={`fb-question-card ${isActive ? 'active' : ''} ${isBulkSelected ? 'bulk-selected' : ''}`}
                       onClick={() => setActiveQuestion(qKey)}
                     >
@@ -1913,8 +2114,24 @@ export default function FormBuilderPage() {
                         </div>
                       </div>
                     </div>
+                    </SortableRow>
                   );
-                })}
+                    })}
+                  </SortableContext>
+                  <DragOverlay
+                    dropAnimation={{ duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
+                  >
+                    {activeDragItem ? (
+                      <div className="fb-sort-row is-overlay">
+                        <div className={`fb-sort-overlay-card ${activeDragItem.type === 'page_break' ? 'is-section' : ''}`}>
+                          {activeDragItem.type === 'page_break'
+                            ? (activeDragItem.label || 'Bagian')
+                            : `Pertanyaan — ${(activeDragItem.label || '').replace(/<[^>]+>/g, ' ').slice(0, 80) || 'Tanpa judul'}`}
+                        </div>
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
 
                 {/* Add Buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>

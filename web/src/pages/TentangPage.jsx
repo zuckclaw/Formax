@@ -3,6 +3,7 @@ import '../styles/landing.css'
 
 import InteractiveCubeBackground from '../components/InteractiveCubeBackground';
 import LandingNav from '../components/LandingNav';
+import LandingFooter from '../components/LandingFooter';
 
 /* ─── TentangPage ─── */
 const TentangPage = () => {
@@ -161,12 +162,7 @@ const TentangPage = () => {
         </div>
       </section>
 
-      <footer className="hp-footer">
-        <div className="hp-footer-inner">
-          <div className="hp-footer-brand">Form4x</div>
-          <p className="hp-footer-copy">© 2026 Form4x. All rights reserved.</p>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   )
 }
