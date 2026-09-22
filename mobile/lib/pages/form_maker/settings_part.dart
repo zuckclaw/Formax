@@ -22,9 +22,12 @@ extension _FormMakerSettings on _FormMakerPageState {
     _useJoinToken = map['join_token']?.toString().isNotEmpty ?? false;
     _shuffleQuestions = map['shuffle_questions'] as bool? ?? false;
     _shuffleOptions = map['shuffle_options'] as bool? ?? false;
+    // Tema: baca apa adanya (null = default), tandai belum disentuh agar
+    // save berikutnya tidak menimpa tema yang dipasang dari web.
+    _themeAccent = normalizeFormAccent(map['theme']);
+    _themeTouched = false;
     _startDate = _parseDate(map['start_date']);
     _endDate = _parseDate(map['end_date']);
-    _enableTimer = _endDate != null;
     final maxSub = map['max_submissions'];
     if (maxSub is int) {
       if (maxSub == 1) {
@@ -83,13 +86,6 @@ extension _FormMakerSettings on _FormMakerPageState {
   }
 
 
-
-  String get _durationDisplayText {
-    if (_endDate != null) {
-      return 'aktif s/d ${_formatTimerDate(_endDate)}';
-    }
-    return 'nonaktif';
-  }
 
   String _networkHint(String msg) {
     return msg.contains('SocketException') ||

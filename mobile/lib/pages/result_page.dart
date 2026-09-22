@@ -48,11 +48,19 @@ class _ResultPageState extends State<ResultPage> {
   _dataFuture;
 
   String _statusFilter = 'semua'; // semua / selesai / proses / curang
+  String _searchQuery = ''; // cari nama / email responden (parity web)
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _dataFuture = _fetchData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _reload() {
@@ -63,6 +71,17 @@ class _ResultPageState extends State<ResultPage> {
   // setState HANYA di member State. Isi = pindahan verbatim callback chip.
   void _applyStatusFilter(String value) {
     setState(() => _statusFilter = value);
+  }
+
+  // Helper pencarian responden (parity web search box).
+  void _applySearchQuery(String value) {
+    setState(() => _searchQuery = value.trim().toLowerCase());
+  }
+
+  // Bersihkan pencarian (tombol clear + kosongkan field).
+  void _clearSearchQuery() {
+    _searchController.clear();
+    _applySearchQuery('');
   }
 
   Future<
@@ -353,6 +372,13 @@ class _ResultPageState extends State<ResultPage> {
   }
 
   bool _passFilter(SubmissionModel s) {
+    if (_searchQuery.isNotEmpty) {
+      final name = s.respondentName.toLowerCase();
+      final email = s.respondentEmail.toLowerCase();
+      if (!name.contains(_searchQuery) && !email.contains(_searchQuery)) {
+        return false;
+      }
+    }
     switch (_statusFilter) {
       case 'selesai':
         return s.submittedAt != null;

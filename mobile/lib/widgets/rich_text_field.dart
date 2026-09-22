@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../services/api_service.dart';
 import '../utils/quill_html.dart';
+import 'math_tex.dart';
 import 'ngrok_image.dart';
 
 /// Toolbar variants matching web:
@@ -438,7 +439,7 @@ class _RichTextFieldState extends State<RichTextField> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF23233F) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -461,7 +462,7 @@ class _RichTextFieldState extends State<RichTextField> {
                 ListTile(
                   leading: const Icon(
                     Icons.photo_library_outlined,
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF2563EB),
                   ),
                   title: const Text('Galeri Foto'),
                   onTap: () {
@@ -472,7 +473,7 @@ class _RichTextFieldState extends State<RichTextField> {
                 ListTile(
                   leading: const Icon(
                     Icons.camera_alt_outlined,
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF2563EB),
                   ),
                   title: const Text('Kamera'),
                   onTap: () {
@@ -483,7 +484,7 @@ class _RichTextFieldState extends State<RichTextField> {
                 ListTile(
                   leading: const Icon(
                     Icons.link_outlined,
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF2563EB),
                   ),
                   title: const Text('Link Gambar (URL)'),
                   onTap: () {
@@ -518,7 +519,7 @@ class _RichTextFieldState extends State<RichTextField> {
           children: [
             const Text(
               'Mendukung link YouTube, Vimeo, Google Drive, atau link langsung MP4:',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+              style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -592,7 +593,7 @@ class _RichTextFieldState extends State<RichTextField> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF23233F) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -612,7 +613,7 @@ class _RichTextFieldState extends State<RichTextField> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.audio_file_outlined, color: Color(0xFF4F46E5)),
+                leading: const Icon(Icons.audio_file_outlined, color: Color(0xFF2563EB)),
                 title: const Text('Unggah Berkas Audio'),
                 subtitle: const Text('Pilih file MP3, WAV, M4A dari perangkat'),
                 onTap: () {
@@ -621,7 +622,7 @@ class _RichTextFieldState extends State<RichTextField> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.link_outlined, color: Color(0xFF4F46E5)),
+                leading: const Icon(Icons.link_outlined, color: Color(0xFF2563EB)),
                 title: const Text('Link Audio (URL)'),
                 subtitle: const Text('Masukkan link audio eksternal langsung'),
                 onTap: () {
@@ -664,65 +665,66 @@ class _RichTextFieldState extends State<RichTextField> {
     );
   }
 
-  // ── Math Presets Matching Web MathPicker ──────────────────────────────────
+  // ── Math Presets — SAMA PERSIS dengan web MathPicker.jsx ───────────────────
   static const List<Map<String, dynamic>> _mathCategories = [
     {
       'category': 'Umum',
       'items': [
         {'label': 'Pecahan', 'latex': r'\frac{a}{b}', 'symbol': 'a/b'},
-        {'label': 'Pecahan bertingkat', 'latex': r'\frac{\frac{a}{b}}{c}', 'symbol': '(a/b)/c'},
+        {'label': 'Pecahan kompleks', 'latex': r'\frac{\frac{a}{b}}{c}', 'symbol': '(a/b)/c'},
         {'label': 'Akar kuadrat', 'latex': r'\sqrt{x}', 'symbol': '√x'},
-        {'label': 'Akar-n', 'latex': r'\sqrt[n]{x}', 'symbol': 'ⁿ√x'},
+        {'label': 'Akar pangkat-n', 'latex': r'\sqrt[n]{x}', 'symbol': 'ⁿ√x'},
         {'label': 'Pangkat', 'latex': r'x^{n}', 'symbol': 'xⁿ'},
         {'label': 'Subscript', 'latex': r'x_{i}', 'symbol': 'xᵢ'},
-        {'label': 'Pangkat + Sub', 'latex': r'x_{i}^{n}', 'symbol': 'xᵢⁿ'},
-        {'label': 'Plus-minus', 'latex': r'\pm', 'symbol': '±'},
-        {'label': 'Kali silang', 'latex': r'\times', 'symbol': '×'},
-        {'label': 'Bagi', 'latex': r'\div', 'symbol': '÷'},
-        {'label': 'Titik tengah', 'latex': r'\cdot', 'symbol': '·'},
+        {'label': 'Pangkat+sub', 'latex': r'x_{i}^{n}', 'symbol': 'xᵢⁿ'},
+        {'label': 'Plus-minus', 'latex': r'x \pm y', 'symbol': 'x ± y'},
+        {'label': 'Kali silang', 'latex': r'x \times y', 'symbol': 'x × y'},
+        {'label': 'Bagi (÷)', 'latex': r'x \div y', 'symbol': 'x ÷ y'},
+        {'label': 'Titik tengah', 'latex': r'x \cdot y', 'symbol': 'x · y'},
       ],
     },
     {
       'category': 'Operasi Besar',
       'items': [
-        {'label': 'Sigma (∑)', 'latex': r'\sum_{i=1}^{n} x_i', 'symbol': '∑'},
+        {'label': 'Jumlah (∑)', 'latex': r'\sum_{i=1}^{n} x_i', 'symbol': '∑'},
         {'label': 'Produk (∏)', 'latex': r'\prod_{i=1}^{n} x_i', 'symbol': '∏'},
-        {'label': 'Integral (∫)', 'latex': r'\int_{a}^{b} f(x)\,dx', 'symbol': '∫'},
+        {'label': 'Integral', 'latex': r'\int_{a}^{b} f(x)\,dx', 'symbol': '∫'},
         {'label': 'Integral lipat', 'latex': r'\iint_{D} f(x,y)\,dx\,dy', 'symbol': '∬'},
-        {'label': 'Limit (lim)', 'latex': r'\lim_{x \to \infty} f(x)', 'symbol': 'lim'},
+        {'label': 'Limit', 'latex': r'\lim_{x \to \infty} f(x)', 'symbol': 'lim'},
         {'label': 'Turunan', 'latex': r'\frac{dy}{dx}', 'symbol': 'dy/dx'},
-        {'label': 'Union (∪)', 'latex': r'A \cup B', 'symbol': '∪'},
-        {'label': 'Irisan (∩)', 'latex': r'A \cap B', 'symbol': '∩'},
+        {'label': 'Integral tentu besar', 'latex': r'\int\limits_{0}^{\infty} e^{-x^2} dx', 'symbol': '∫₀^∞'},
+        {'label': 'Union', 'latex': r'A \cup B', 'symbol': '∪'},
+        {'label': 'Intersection', 'latex': r'A \cap B', 'symbol': '∩'},
       ],
     },
     {
       'category': 'Relasi & Logika',
       'items': [
-        {'label': 'Sama dengan', 'latex': '=', 'symbol': '='},
-        {'label': 'Tidak sama', 'latex': r'\neq', 'symbol': '≠'},
-        {'label': 'Kurang-lebih', 'latex': r'\approx', 'symbol': '≈'},
-        {'label': 'Identik', 'latex': r'\equiv', 'symbol': '≡'},
-        {'label': 'Sebanding', 'latex': r'\propto', 'symbol': '∝'},
-        {'label': 'Lebih kecil', 'latex': '<', 'symbol': '<'},
-        {'label': 'Lebih besar', 'latex': '>', 'symbol': '>'},
-        {'label': '≤', 'latex': r'\leq', 'symbol': '≤'},
-        {'label': '≥', 'latex': r'\geq', 'symbol': '≥'},
-        {'label': 'Implikasi (⇒)', 'latex': r'\Rightarrow', 'symbol': '⇒'},
-        {'label': 'Ekuivalen (⇔)', 'latex': r'\Leftrightarrow', 'symbol': '⇔'},
-        {'label': 'Elemen (∈)', 'latex': r'\in', 'symbol': '∈'},
-        {'label': 'Bukan elemen (∉)', 'latex': r'\notin', 'symbol': '∉'},
-        {'label': 'Subset (⊂)', 'latex': r'\subset', 'symbol': '⊂'},
-        {'label': 'Untuk semua (∀)', 'latex': r'\forall', 'symbol': '∀'},
-        {'label': 'Terdapat (∃)', 'latex': r'\exists', 'symbol': '∃'},
+        {'label': 'Sama dengan', 'latex': 'a = b', 'symbol': '='},
+        {'label': 'Tidak sama', 'latex': r'a \neq b', 'symbol': '≠'},
+        {'label': 'Kurang-lebih', 'latex': r'a \approx b', 'symbol': '≈'},
+        {'label': 'Identik', 'latex': r'a \equiv b', 'symbol': '≡'},
+        {'label': 'Sebanding', 'latex': r'a \propto b', 'symbol': '∝'},
+        {'label': 'Lebih kecil', 'latex': 'a < b', 'symbol': '<'},
+        {'label': 'Lebih besar', 'latex': 'a > b', 'symbol': '>'},
+        {'label': '≤', 'latex': r'a \leq b', 'symbol': '≤'},
+        {'label': '≥', 'latex': r'a \geq b', 'symbol': '≥'},
+        {'label': 'Implikasi', 'latex': r'p \Rightarrow q', 'symbol': '⇒'},
+        {'label': 'Ekuivalen', 'latex': r'p \Leftrightarrow q', 'symbol': '⇔'},
+        {'label': 'Elemen', 'latex': r'x \in A', 'symbol': '∈'},
+        {'label': 'Bukan elemen', 'latex': r'x \notin A', 'symbol': '∉'},
+        {'label': 'Subset', 'latex': r'A \subset B', 'symbol': '⊂'},
+        {'label': 'For all', 'latex': r'\forall x', 'symbol': '∀'},
+        {'label': 'Exists', 'latex': r'\exists x', 'symbol': '∃'},
       ],
     },
     {
       'category': 'Fungsi & Trigonometri',
       'items': [
-        {'label': 'Sinus', 'latex': r'\sin x', 'symbol': 'sin'},
-        {'label': 'Cosinus', 'latex': r'\cos x', 'symbol': 'cos'},
-        {'label': 'Tangen', 'latex': r'\tan x', 'symbol': 'tan'},
-        {'label': 'Logaritma', 'latex': r'\log_{a} b', 'symbol': 'log'},
+        {'label': 'Sin', 'latex': r'\sin x', 'symbol': 'sin'},
+        {'label': 'Cos', 'latex': r'\cos x', 'symbol': 'cos'},
+        {'label': 'Tan', 'latex': r'\tan x', 'symbol': 'tan'},
+        {'label': 'Log', 'latex': r'\log_{a} b', 'symbol': 'log'},
         {'label': 'Ln', 'latex': r'\ln x', 'symbol': 'ln'},
         {'label': 'Exp', 'latex': r'e^{x}', 'symbol': 'eˣ'},
         {'label': 'Min', 'latex': r'\min(a,b)', 'symbol': 'min'},
@@ -730,7 +732,7 @@ class _RichTextFieldState extends State<RichTextField> {
       ],
     },
     {
-      'category': 'Huruf Yunani',
+      'category': 'Yunani',
       'items': [
         {'label': 'Alpha', 'latex': r'\alpha', 'symbol': 'α'},
         {'label': 'Beta', 'latex': r'\beta', 'symbol': 'β'},
@@ -741,7 +743,7 @@ class _RichTextFieldState extends State<RichTextField> {
         {'label': 'Lambda', 'latex': r'\lambda', 'symbol': 'λ'},
         {'label': 'Mu', 'latex': r'\mu', 'symbol': 'μ'},
         {'label': 'Pi', 'latex': r'\pi', 'symbol': 'π'},
-        {'label': 'Sigma', 'latex': r'\sigma', 'symbol': 'σ'},
+        {'label': 'Sigma kecil', 'latex': r'\sigma', 'symbol': 'σ'},
         {'label': 'Sigma besar', 'latex': r'\Sigma', 'symbol': 'Σ'},
         {'label': 'Omega', 'latex': r'\omega', 'symbol': 'ω'},
         {'label': 'Omega besar', 'latex': r'\Omega', 'symbol': 'Ω'},
@@ -763,34 +765,55 @@ class _RichTextFieldState extends State<RichTextField> {
       ],
     },
     {
-      'category': 'Simbol Lain',
+      'category': 'Lainnya',
       'items': [
         {'label': 'Tak hingga', 'latex': r'\infty', 'symbol': '∞'},
         {'label': 'Derajat', 'latex': r'90^{\circ}', 'symbol': '°'},
         {'label': 'Persen', 'latex': r'100\%', 'symbol': '%'},
-        {'label': 'Akar pecahan', 'latex': r'\sqrt{\frac{a}{b}}', 'symbol': '√(a/b)'},
+        {'label': 'Akar + pecahan', 'latex': r'\sqrt{\frac{a}{b}}', 'symbol': '√(a/b)'},
         {'label': 'Kombinasi', 'latex': r'\binom{n}{k}', 'symbol': '(n k)'},
-        {'label': 'Floor', 'latex': r'\lfloor x \rfloor', 'symbol': '⌊x⌋'},
-        {'label': 'Ceil', 'latex': r'\lceil x \rceil', 'symbol': '⌈x⌉'},
+        {'label': 'Floor', 'latex': r'\left\lfloor x \right\rfloor', 'symbol': '⌊x⌋'},
+        {'label': 'Ceil', 'latex': r'\left\lceil x \right\rceil', 'symbol': '⌈x⌉'},
         {'label': 'Panah kanan', 'latex': r'\rightarrow', 'symbol': '→'},
         {'label': 'Panah dua arah', 'latex': r'\leftrightarrow', 'symbol': '↔'},
       ],
     },
   ];
 
-  // ── Math / Formula Dialog (Symbols & LaTeX with Category Tabs & Display Mode) ──
+  // ── Math / Formula Dialog (parity web MathPicker: search, preset, edit,
+  // custom LaTeX, display toggle, live KaTeX preview) ──
   void _showMathFormulaDialog() {
     final controller = TextEditingController(text: r'\frac{a}{b}');
+    final searchController = TextEditingController();
     int selectedCategoryIndex = 0;
     bool isDisplayMode = false;
+    String searchQuery = '';
+
+    // Preset yang cocok dengan pencarian (parity web filteredPresets).
+    List<Map<String, dynamic>> filteredItems() {
+      if (searchQuery.trim().isEmpty) {
+        return (_mathCategories[selectedCategoryIndex]['items'] as List)
+            .cast<Map<String, dynamic>>();
+      }
+      final q = searchQuery.toLowerCase();
+      final out = <Map<String, dynamic>>[];
+      for (final cat in _mathCategories) {
+        for (final it in (cat['items'] as List).cast<Map<String, dynamic>>()) {
+          if ((it['label'] as String).toLowerCase().contains(q) ||
+              (it['latex'] as String).toLowerCase().contains(q)) {
+            out.add(it);
+          }
+        }
+      }
+      return out;
+    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final currentItems = (_mathCategories[selectedCategoryIndex]['items'] as List)
-              .cast<Map<String, dynamic>>();
+          final currentItems = filteredItems();
 
           return AlertDialog(
             titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -802,7 +825,7 @@ class _RichTextFieldState extends State<RichTextField> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF2563EB),
                   ),
                 ),
                 SizedBox(width: 8),
@@ -816,6 +839,31 @@ class _RichTextFieldState extends State<RichTextField> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Search (parity web MathPicker search)
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Cari rumus, simbol, Yunani...',
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  searchController.clear();
+                                  setDlgState(() => searchQuery = '');
+                                },
+                              )
+                            : null,
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                      ),
+                      onChanged: (v) =>
+                          setDlgState(() => searchQuery = v),
+                    ),
+                    const SizedBox(height: 10),
+
                     // Category selector chips
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -828,10 +876,10 @@ class _RichTextFieldState extends State<RichTextField> {
                             child: ChoiceChip(
                               label: Text(catName, style: const TextStyle(fontSize: 12)),
                               selected: isSel,
-                              selectedColor: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                              selectedColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
                               labelStyle: TextStyle(
                                 color: isSel
-                                    ? const Color(0xFF4F46E5)
+                                    ? const Color(0xFF2563EB)
                                     : (isDark ? const Color(0xFF94A3B8) : Colors.black87),
                                 fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                               ),
@@ -850,14 +898,28 @@ class _RichTextFieldState extends State<RichTextField> {
                       constraints: const BoxConstraints(maxHeight: 140),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: SingleChildScrollView(
-                        child: Wrap(
+                        child: currentItems.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Text(
+                                  'Tidak ada hasil untuk "$searchQuery"',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : Colors.black54,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: currentItems.map((item) {
@@ -883,12 +945,12 @@ class _RichTextFieldState extends State<RichTextField> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isDark
-                                        ? const Color(0xFF1E293B)
+                                        ? const Color(0xFF23233F)
                                         : Colors.white,
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
                                       color: isDark
-                                          ? const Color(0xFF334155)
+                                          ? const Color(0xFF2D2D4A)
                                           : const Color(0xFFCBD5E1),
                                     ),
                                   ),
@@ -900,7 +962,7 @@ class _RichTextFieldState extends State<RichTextField> {
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
-                                          color: Color(0xFF4F46E5),
+                                          color: Color(0xFF2563EB),
                                         ),
                                       ),
                                       const SizedBox(width: 4),
@@ -956,18 +1018,84 @@ class _RichTextFieldState extends State<RichTextField> {
                         style: const TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                       value: isDisplayMode,
-                      activeTrackColor: const Color(0xFF4F46E5),
+                      activeTrackColor: const Color(0xFF2563EB),
                       onChanged: (val) {
                         setDlgState(() => isDisplayMode = val);
                       },
                     ),
+                    const SizedBox(height: 4),
+
+                    // Live KaTeX preview (parity web PreviewBox)
+                    const Text(
+                      'Pratinjau Live (KaTeX):',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF23233F)
+                            : const Color(0xFFFAFBFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF2D2D4A)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: controller.text.trim().isEmpty
+                          ? Text(
+                              'Pratinjau akan muncul di sini',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                                color: isDark
+                                    ? const Color(0xFF7A8599)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            )
+                          : (isDisplayMode
+                              ? MathTex.display(controller.text,
+                                  isDark: isDark)
+                              : MathTex.inline(controller.text,
+                                  isDark: isDark)),
+                    ),
+                    if (controller.text.trim().isNotEmpty &&
+                        !MathTex.looksValid(controller.text))
+                      Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0x2EEF4444)
+                              : const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: const Color(0xFFFECACA)),
+                        ),
+                        child: const Text(
+                          'Rumus tidak valid — periksa kurung { }',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFFEF4444)),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () {
+                  searchController.dispose();
+                  Navigator.pop(ctx);
+                },
                 child: const Text('Batal'),
               ),
               FilledButton(
@@ -976,6 +1104,7 @@ class _RichTextFieldState extends State<RichTextField> {
                   if (formula.isNotEmpty) {
                     _insertFormula(formula, isDisplay: isDisplayMode);
                   }
+                  searchController.dispose();
                   Navigator.pop(ctx);
                 },
                 child: const Text('Sisipkan Rumus'),
@@ -990,18 +1119,18 @@ class _RichTextFieldState extends State<RichTextField> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final editorBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FB);
+    final editorBg = isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF8F9FB);
     final editorBorder = isDark
-        ? const Color(0xFF334155)
+        ? const Color(0xFF2D2D4A)
         : const Color(0xFFD1D5DB);
     final toolbarBg = isDark
-        ? const Color(0xFF1E293B)
+        ? const Color(0xFF2E2E55)
         : const Color(0xFFF0F1F4);
     final dividerColor = isDark
-        ? const Color(0xFF334155)
+        ? const Color(0xFF2D2D4A)
         : const Color(0xFFE5E7EB);
     final textColor = isDark
-        ? const Color(0xFFF8FAFC)
+        ? const Color(0xFFEEF2FF)
         : const Color(0xFF1F2937);
     final hintColor = isDark
         ? const Color(0xFF94A3B8)
@@ -1023,7 +1152,7 @@ class _RichTextFieldState extends State<RichTextField> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: _focusNode.hasFocus
-                  ? const Color(0xFF4F46E5)
+                  ? const Color(0xFF2563EB)
                   : editorBorder,
               width: _focusNode.hasFocus ? 1.5 : 1,
             ),
@@ -1082,7 +1211,11 @@ class _RichTextFieldState extends State<RichTextField> {
                                     const SizedBox(width: 6),
                                     Text(
                                       _uploadProgressText,
-                                      style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : Colors.black54),
                                     ),
                                   ],
                                 ),
@@ -1122,7 +1255,7 @@ class _RichTextFieldState extends State<RichTextField> {
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
                                     letterSpacing: -0.5,
-                                    color: Color(0xFF4F46E5),
+                                    color: Color(0xFF2563EB),
                                   ),
                                 ),
                                 tooltip: 'Sisipkan Rumus Matematika',
@@ -1226,10 +1359,38 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
     final imageSource = QuillHtml.resolveImageUrl(rawSource);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Lebar pilihan user (parity web drag-handle resize), disimpan sebagai
+    // atribut `width` pada op delta → terserialisasi ke HTML (style+attr).
+    final widthAttr =
+        embedContext.node.style.attributes['width']?.value?.toString();
+    final displayWidth = _resolveDisplayWidth(context, widthAttr);
+
     final imageWidget = NgrokImage(
       imageSource,
       fit: BoxFit.contain,
     );
+
+    Widget framed = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 280),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isDark
+                ? const Color(0xFF2D2D4A)
+                : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: imageWidget,
+      ),
+    );
+    if (displayWidth != null) {
+      framed = Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(width: displayWidth, child: framed),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -1240,21 +1401,7 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
         child: Stack(
           alignment: Alignment.topRight,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 280),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                child: imageWidget,
-              ),
-            ),
+            framed,
             Positioned(
               top: 6,
               right: 6,
@@ -1292,11 +1439,53 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
     }
   }
 
+  /// Terjemahkan atribut width ("50%" / "300px") ke lebar layar.
+  /// null = penuh (perilaku lama).
+  double? _resolveDisplayWidth(BuildContext context, String? widthAttr) {
+    if (widthAttr == null) return null;
+    final s = widthAttr.trim();
+    if (s.endsWith('%')) {
+      final pct = double.tryParse(s.substring(0, s.length - 1));
+      if (pct == null || pct <= 0) return null;
+      if (pct >= 100) return null;
+      final full = MediaQuery.of(context).size.width - 32;
+      return full * (pct / 100).clamp(0.1, 1.0);
+    }
+    final px = RegExp(r'(\d+(\.\d+)?)')
+        .firstMatch(s)
+        ?.group(1);
+    final w = px == null ? null : double.tryParse(px);
+    if (w == null || w <= 0) return null;
+    final full = MediaQuery.of(context).size.width - 32;
+    return w > full ? full : w;
+  }
+
+  /// Terapkan lebar gambar (parity web resize handle).
+  /// Disimpan sebagai atribut `width` pada op delta → awet ke HTML.
+  void _applyImageWidth(EmbedContext embedContext, String width) {
+    try {
+      final offset = embedContext.node.offset;
+      controller.formatText(
+        offset,
+        1,
+        Attribute.fromKeyValue('width', width),
+      );
+    } catch (e) {
+      debugPrint('[RichTextField] Gagal ubah ukuran gambar: $e');
+    }
+  }
+
   void _showImageActionsDialog(
     BuildContext context,
     EmbedContext embedContext,
     String imageSource,
   ) {
+    const sizes = [
+      ('Penuh', '100%'),
+      ('Besar', '75%'),
+      ('Sedang', '50%'),
+      ('Kecil', '25%'),
+    ];
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -1304,13 +1493,36 @@ class _QuillEditorImageEmbedBuilder extends EmbedBuilder {
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(Icons.fullscreen, color: Color(0xFF4F46E5)),
+                leading: const Icon(Icons.fullscreen, color: Color(0xFF2563EB)),
                 title: const Text('Lihat Penuh'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showFullImageDialog(context, imageSource);
                 },
               ),
+              const Divider(height: 1),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  'Ukuran gambar',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              for (final s in sizes)
+                ListTile(
+                  leading: const Icon(Icons.photo_size_select_large_outlined,
+                      color: Color(0xFF2563EB)),
+                  title: Text('${s.$1} (${s.$2})'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _applyImageWidth(embedContext, s.$2);
+                  },
+                ),
+              const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
                 title: const Text(
@@ -1384,7 +1596,7 @@ class _QuillEditorCustomEmbedBuilder extends EmbedBuilder {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+          color: isDark ? const Color(0xFF23233F) : const Color(0xFFEFF6FF),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFF3B82F6)),
         ),
@@ -1416,13 +1628,13 @@ class _QuillEditorCustomEmbedBuilder extends EmbedBuilder {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          color: isDark ? const Color(0xFF23233F) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFCBD5E1)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.audiotrack, color: Color(0xFF4F46E5), size: 22),
+            const Icon(Icons.audiotrack, color: Color(0xFF2563EB), size: 22),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -1448,21 +1660,15 @@ class _QuillEditorCustomEmbedBuilder extends EmbedBuilder {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E8F0),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              data,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
-              ),
+            // Render KaTeX asli (parity web quill formula blot).
+            Flexible(
+              child: MathTex.inline(data, isDark: isDark, fontSize: 14),
             ),
             const SizedBox(width: 4),
             InkWell(
@@ -1480,41 +1686,20 @@ class _QuillEditorCustomEmbedBuilder extends EmbedBuilder {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          color: isDark ? const Color(0xFF23233F) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFCBD5E1),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                '𝑓𝑥',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4F46E5),
-                ),
-              ),
-            ),
             Flexible(
-              child: Text(
-                data,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
-                ),
+              // Render KaTeX asli (parity web DisplayMathBlot).
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: MathTex.display(data, isDark: isDark, fontSize: 15),
               ),
             ),
             const SizedBox(width: 8),

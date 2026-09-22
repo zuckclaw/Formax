@@ -43,6 +43,9 @@ extension _FormMakerSave on _FormMakerPageState {
       'use_join_token': _useJoinToken,
       'start_date': startStr,
       'end_date': endStr,
+      // Tema hanya dikirim bila user mengubahnya di sesi ini (parity web:
+      // null = default; tanpa flag ini reset ke default takkan terkirim).
+      if (_themeTouched) 'theme': _themeAccent == null ? null : {'accent': _themeAccent},
     };
   }
 
@@ -252,6 +255,72 @@ extension _FormMakerSave on _FormMakerPageState {
       return res;
     } finally {
       _markSavingDoneIfMounted();
+    }
+  }
+
+  /// Simpan SEMUA pengaturan tab Setelan ke server (tombol "Simpan
+  /// Pengaturan" di paling bawah tab). Mengirim PATCH TANPA questions
+  /// sehingga tidak pernah kena 409 soal-terkunci — mencakup status,
+  /// fullscreen, join token, timer, batas respons, dan izin lihat hasil.
+  /// Tanpa ini, toggle seperti "Responden dapat melihat hasil" tidak
+  /// tersimpan dan responden tetap tidak bisa membuka hasil.
+  Future<void> _saveSettingsOnly() async {
+    final formId = _draftFormId;
+    if (formId == null || formId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Simpan sebagai draft dulu, lalu simpan pengaturan.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (_builderState.isSaving || _isSavingSettings) return;
+    FocusScope.of(context).unfocus();
+    _markSavingSettings(true);
+    try {
+      _syncTitleFromPage();
+      final titleHtml = _builderState.formTitle.trim().isNotEmpty
+          ? _builderState.formTitle
+          : 'Form Tanpa Judul';
+      final descriptionHtml = _builderState.formDescription.trim();
+      final res = await ApiService.updateForm(formId, {
+        'title': titleHtml,
+        'description': descriptionHtml,
+        'banner_url': _builderState.bannerUrl,
+        ..._buildPublishSettings(),
+      });
+      if (!mounted) return;
+      if (res['success'] == true) {
+        if (res['data'] is Map) {
+          _syncSettingsFromServer(
+              Map<String, dynamic>.from(res['data'] as Map));
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pengaturan berhasil disimpan.'),
+          ),
+        );
+      } else {
+        final m = Map<String, dynamic>.from(res as Map);
+        if (ApiService.isAuthInvalidResult(m) ||
+            ApiService.isConnectionFailureResult(m)) {
+          await ApiService.forceLogout();
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res['message']?.toString() ?? 'Gagal menyimpan pengaturan',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) _markSavingSettings(false);
     }
   }
 

@@ -28,7 +28,7 @@ const TentangPage = () => {
     { name: 'Andhika Khairul Fahmi', role: 'UI/UX Designer — Web Dev', initials: 'AK' },
     { name: 'Fajriah Salsabilla', role: 'UI/UX Designer — Web Dev', initials: 'FS' },
     { name: 'Farrel Ghifari', role: 'Android Dev', initials: 'FG' },
-    { name: 'Raka Julio Same', role: 'Android Dev', initials: 'RJ' },
+    { name: 'Raka Julio Same', role: 'Presenter', initials: 'RJ' },
   ]
 
   return (

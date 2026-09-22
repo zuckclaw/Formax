@@ -30,6 +30,17 @@ class _ProfilePageState extends State<ProfilePage> {
   String _originalName = '';
   String? _originalAvatarUrl;
 
+  // ─── Ganti Password (parity web ProfilePage) ─────────────────────────
+  final TextEditingController _oldPassController = TextEditingController();
+  final TextEditingController _newPassController = TextEditingController();
+  final TextEditingController _confirmPassController = TextEditingController();
+  bool _showOldPass = false;
+  bool _showNewPass = false;
+  bool _showConfirmPass = false;
+  bool _passSaving = false;
+  String? _passErr;
+  String? _passMsg;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +50,9 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _oldPassController.dispose();
+    _newPassController.dispose();
+    _confirmPassController.dispose();
     super.dispose();
   }
 
@@ -60,7 +74,91 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoading = false;
       });
     } else if (mounted) {
+      // Fail-closed: profil tak bisa dimuat karena sesi invalid (hook
+      // global sudah menendang) atau backend mati → force logout.
+      final m = Map<String, dynamic>.from(result);
+      if (ApiService.isAuthInvalidResult(m) ||
+          ApiService.isConnectionFailureResult(m)) {
+        await ApiService.forceLogout();
+        return;
+      }
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// Cek emoji (parity web containsEmoji): password tak boleh ber-emoji.
+  static bool _containsEmoji(String s) {
+    return RegExp(
+      r'[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F2FF}]',
+      unicode: true,
+    ).hasMatch(s);
+  }
+
+  Future<void> _submitPasswordChange() async {
+    final oldPass = _oldPassController.text;
+    final newPass = _newPassController.text;
+    final confirmPass = _confirmPassController.text;
+    setState(() {
+      _passSaving = true;
+      _passErr = null;
+      _passMsg = null;
+    });
+    // Validasi parity web handlePasswordSubmit.
+    if (_containsEmoji(oldPass) || _containsEmoji(newPass)) {
+      setState(() {
+        _passErr = 'Password tidak boleh mengandung emoji';
+        _passSaving = false;
+      });
+      return;
+    }
+    if (oldPass.isEmpty) {
+      setState(() {
+        _passErr = 'Masukkan password lama Anda';
+        _passSaving = false;
+      });
+      return;
+    }
+    if (newPass.length < 6) {
+      setState(() {
+        _passErr = 'Password baru minimal 6 karakter';
+        _passSaving = false;
+      });
+      return;
+    }
+    if (newPass != confirmPass) {
+      setState(() {
+        _passErr = 'Konfirmasi password baru tidak cocok dengan password baru';
+        _passSaving = false;
+      });
+      return;
+    }
+    final res = await ApiService.changePassword(oldPass, newPass);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      _oldPassController.clear();
+      _newPassController.clear();
+      _confirmPassController.clear();
+      setState(() {
+        _passMsg = 'Password Anda berhasil diperbarui!';
+        _showOldPass = false;
+        _showNewPass = false;
+        _showConfirmPass = false;
+        _passSaving = false;
+      });
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) setState(() => _passMsg = null);
+      });
+    } else {
+      final m = Map<String, dynamic>.from(res);
+      if (ApiService.isAuthInvalidResult(m) ||
+          ApiService.isConnectionFailureResult(m)) {
+        await ApiService.forceLogout();
+        return;
+      }
+      setState(() {
+        _passErr = res['message']?.toString() ?? 'Gagal mengubah password';
+        _passSaving = false;
+      });
     }
   }
 
@@ -109,7 +207,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _sheetOption(
             icon: Icons.camera_alt_outlined,
             label: 'Ambil Foto',
-            color: const Color(0xFF4F46E5),
+            color: const Color(0xFF2563EB),
             onTap: () {
               Navigator.pop(context);
               _getImage(ImageSource.camera);
@@ -353,7 +451,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       onChanged: (_) =>
                           setState(() {}), // trigger rebuild for hasChanges
                       style: TextStyle(fontSize: 15, color: cs.onSurface),
-                      cursorColor: const Color(0xFF4F46E5),
+                      cursorColor: const Color(0xFF2563EB),
                       decoration: InputDecoration(
                         hintText: 'Nama kamu',
                         hintStyle: TextStyle(
@@ -377,7 +475,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(
-                            color: Color(0xFF4F46E5),
+                            color: Color(0xFF2563EB),
                             width: 2,
                           ),
                         ),
@@ -409,6 +507,22 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 48),
+
+                  // ─── Keamanan / Ganti Password (parity web) ──────────
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Keamanan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPasswordSection(),
                   const SizedBox(height: 48),
 
                   // ─── Tampilan / Dark Mode ───────────────────────────────
@@ -468,12 +582,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4F46E5),
+                    color: const Color(0xFF2563EB),
                     shape: BoxShape.circle,
                     border: Border.all(color: cs.surface, width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -550,6 +664,164 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildPasswordSection() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  size: 20,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ganti Kata Sandi',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Minimal 6 karakter, tanpa emoji',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildPasswordField(
+            controller: _oldPassController,
+            label: 'Password lama',
+            show: _showOldPass,
+            onToggle: () => setState(() => _showOldPass = !_showOldPass),
+          ),
+          const SizedBox(height: 12),
+          _buildPasswordField(
+            controller: _newPassController,
+            label: 'Password baru',
+            show: _showNewPass,
+            onToggle: () => setState(() => _showNewPass = !_showNewPass),
+          ),
+          const SizedBox(height: 12),
+          _buildPasswordField(
+            controller: _confirmPassController,
+            label: 'Konfirmasi password baru',
+            show: _showConfirmPass,
+            onToggle: () =>
+                setState(() => _showConfirmPass = !_showConfirmPass),
+          ),
+          if (_passErr != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _passErr!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+            ),
+          ],
+          if (_passMsg != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _passMsg!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF059669)),
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _passSaving ? null : _submitPasswordChange,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                disabledBackgroundColor: cs.surfaceContainerHighest,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: _passSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Ubah Password',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool show,
+    required VoidCallback onToggle,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return TextField(
+      controller: controller,
+      obscureText: !show,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: cs.outlineVariant),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: Color(0xFF2563EB), width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        suffixIcon: IconButton(
+          icon: Icon(
+            show ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            size: 20,
+            color: cs.onSurfaceVariant,
+          ),
+          tooltip: show ? 'Sembunyikan password' : 'Tampilkan password',
+          onPressed: onToggle,
+        ),
+      ),
+    );
+  }
+
   Widget _buildThemeToggle() {
     final cs = Theme.of(context).colorScheme;
     return ListenableBuilder(
@@ -569,7 +841,9 @@ class _ProfilePageState extends State<ProfilePage> {
               Icon(
                 dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
                 size: 22,
-                color: const Color(0xFF4F46E5),
+                color: dark
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFF2563EB),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -656,7 +930,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: FilledButton(
             onPressed: (_isSaving || !_hasChanges) ? null : _save,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
+              backgroundColor: const Color(0xFF2563EB),
               disabledBackgroundColor: cs.surfaceContainerHighest,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),

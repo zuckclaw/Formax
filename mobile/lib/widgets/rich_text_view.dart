@@ -3,6 +3,9 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/quill_html.dart';
+import 'code_block.dart';
+import 'inline_video.dart';
+import 'math_tex.dart';
 import 'ngrok_image.dart';
 
 /// Renders an HTML string produced by [RichTextField] / the web builder.
@@ -39,7 +42,7 @@ class RichTextView extends StatelessWidget {
     if (content.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final defaultColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+    final defaultColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
 
     final ts = textStyle;
     return Padding(
@@ -65,7 +68,7 @@ class RichTextView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isDark
-                            ? const Color(0xFF334155)
+                            ? const Color(0xFF2D2D4A)
                             : const Color(0xFFE2E8F0),
                       ),
                     ),
@@ -81,6 +84,8 @@ class RichTextView extends StatelessWidget {
           ),
 
           // ── 2. Custom Video Embed Renderer ───────────────────
+          // MP4 langsung → player inline (parity web <video>);
+          // YouTube/Vimeo/Drive → kartu buka eksternal.
           TagExtension(
             tagsToExtend: {'video-embed'},
             builder: (ctx) {
@@ -91,74 +96,10 @@ class RichTextView extends StatelessWidget {
               if (videoUrl.isEmpty) {
                 return const SizedBox.shrink();
               }
-
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF3B82F6) : const Color(0xFFBFDBFE),
-                  ),
-                ),
-                child: InkWell(
-                  onTap: () async {
-                    if (videoUrl.isNotEmpty) {
-                      final uri = Uri.tryParse(videoUrl);
-                      if (uri != null && await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF2563EB),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Video Tersemat',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF1E40AF),
-                              ),
-                            ),
-                            Text(
-                              videoUrl,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF3B82F6),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.open_in_new,
-                        size: 16,
-                        color: Color(0xFF2563EB),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              if (InlineVideoPlayer.isDirectVideo(videoUrl)) {
+                return InlineVideoPlayer(url: videoUrl);
+              }
+              return ExternalVideoCard(url: videoUrl);
             },
           ),
 
@@ -172,17 +113,17 @@ class RichTextView extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(vertical: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  color: isDark ? const Color(0xFF23233F) : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFCBD5E1),
                   ),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.audiotrack,
-                      color: Color(0xFF4F46E5),
+                      color: Color(0xFF2563EB),
                       size: 22,
                     ),
                     const SizedBox(width: 10),
@@ -204,7 +145,7 @@ class RichTextView extends StatelessWidget {
                         icon: const Icon(
                           Icons.open_in_new,
                           size: 18,
-                          color: Color(0xFF4F46E5),
+                          color: Color(0xFF2563EB),
                         ),
                         tooltip: 'Buka Audio',
                         onPressed: () async {
@@ -220,7 +161,7 @@ class RichTextView extends StatelessWidget {
             },
           ),
 
-          // ── 4. Custom Display Math Formula Renderer ────────
+          // ── 4. Custom Display Math Formula Renderer (KaTeX asli) ────────
           TagExtension(
             tagsToExtend: {'math-display'},
             builder: (ctx) {
@@ -232,44 +173,47 @@ class RichTextView extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF23233F) : const Color(0xFFEEF2FF),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E8F0),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        '𝑓𝑥',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF4F46E5),
-                        ),
-                      ),
-                    ),
-                    Flexible(
-                      child: Text(
-                        latex.trim(),
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1),
-                        ),
-                      ),
-                    ),
-                  ],
+                // Render KaTeX asli (parity web math-display-block).
+                // Scroll horizontal agar matriks/integral lebar tidak overflow.
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: MathTex.display(latex, isDark: isDark, fontSize: 16),
                 ),
+              );
+            },
+          ),
+
+          // ── 5. Inline Math Formula Renderer (KaTeX asli) ───────────────
+          TagExtension(
+            tagsToExtend: {'ql-formula'},
+            builder: (ctx) {
+              final latex = ctx.attributes['data-value'] ?? ctx.element?.text ?? '';
+              if (latex.trim().isEmpty) return const SizedBox.shrink();
+              // Render KaTeX asli (parity web span.ql-formula).
+              return MathTex.inline(latex, isDark: isDark, fontSize: 14);
+            },
+          ),
+
+          // ── 6. Code Block dengan syntax highlighting (parity web hljs) ──
+          TagExtension(
+            tagsToExtend: {'pre'},
+            builder: (ctx) {
+              final code = ctx.element?.text.trim() ?? '';
+              if (code.isEmpty) return const SizedBox.shrink();
+              String? lang = ctx.attributes['class'];
+              lang ??= ctx.element?.attributes['class'];
+              final m = lang != null
+                  ? RegExp(r'language-([\w+#]+)').firstMatch(lang)
+                  : null;
+              return CodeBlock(
+                code: code,
+                language: m?.group(1),
               );
             },
           ),
@@ -279,7 +223,7 @@ class RichTextView extends StatelessWidget {
             fontFamily: 'monospace',
             fontStyle: FontStyle.italic,
             fontWeight: FontWeight.bold,
-            backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            backgroundColor: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E8F0),
             padding: HtmlPaddings.symmetric(horizontal: 4, vertical: 2),
             color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
           ),
@@ -314,12 +258,12 @@ class RichTextView extends StatelessWidget {
             fontStyle: FontStyle.italic,
           ),
           'pre': Style(
-            backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+            backgroundColor: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF1F5F9),
             padding: HtmlPaddings.all(8),
             fontFamily: 'monospace',
           ),
           'code': Style(
-            backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+            backgroundColor: isDark ? const Color(0xFF23233F) : const Color(0xFFE2E8F0),
             padding: HtmlPaddings.symmetric(horizontal: 4, vertical: 2),
             fontFamily: 'monospace',
           ),

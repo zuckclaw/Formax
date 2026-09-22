@@ -11,22 +11,29 @@ part of '../fillformpage.dart';
 extension _FillFormDisplay on _FillFormPageState {
   Widget _buildBookmarkIndicator() {
     final count = _bookmarkedQids.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: const Color(0xFFFEF9C3),
+      color: isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF9C3),
       child: Row(
         children: [
-          const Icon(Icons.bookmark, size: 16, color: Color(0xFFB45309)),
+          Icon(Icons.bookmark,
+              size: 16,
+              color: isDark
+                  ? const Color(0xFFFDE68A)
+                  : const Color(0xFFB45309)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               count == 0
                   ? 'Belum ada soal yang ditandai'
                   : 'Menampilkan $count soal yang ditandai',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF92400E),
+                color: isDark
+                    ? const Color(0xFFFDE68A)
+                    : const Color(0xFF92400E),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -36,7 +43,9 @@ extension _FillFormDisplay on _FillFormPageState {
             icon: const Icon(Icons.close, size: 16),
             label: const Text('Tutup'),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF92400E),
+              foregroundColor: isDark
+                  ? const Color(0xFFFDE68A)
+                  : const Color(0xFF92400E),
               visualDensity: VisualDensity.compact,
             ),
           ),
@@ -111,97 +120,79 @@ extension _FillFormDisplay on _FillFormPageState {
           ),
           if (_timeLeft > Duration.zero) ...[
             const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: _timeLeft < const Duration(minutes: 1)
-                    ? const Color(0xFFFEF2F2)
-                    : const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _timeLeft < const Duration(minutes: 1)
-                      ? const Color(0xFFFCA5A5)
-                      : const Color(0xFF86EFAC),
+            Builder(builder: (context) {
+              final isDark =
+                  Theme.of(context).brightness == Brightness.dark;
+              final urgent = _timeLeft < const Duration(minutes: 1);
+              return Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  // Parity web dark: banner rgba gelap + teks terang.
+                  color: urgent
+                      ? (isDark
+                          ? const Color(0x2EEF4444)
+                          : const Color(0xFFFEF2F2))
+                      : (isDark
+                          ? const Color(0x2E16A34A)
+                          : const Color(0xFFF0FDF4)),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: urgent
+                        ? (isDark
+                            ? const Color(0xFFFCA5A5).withValues(alpha: 0.3)
+                            : const Color(0xFFFCA5A5))
+                        : (isDark
+                            ? const Color(0xFF4ADE80).withValues(alpha: 0.3)
+                            : const Color(0xFF86EFAC)),
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.timer_outlined,
-                    size: 18,
-                    color: _timeLeft < const Duration(minutes: 1)
-                        ? const Color(0xFFDC2626)
-                        : const Color(0xFF059669),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Sisa waktu:',
-                    style: TextStyle(fontSize: 13, color: Colors.black87),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _formatCountdown(_timeLeft),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      color: _timeLeft < const Duration(minutes: 1)
-                          ? const Color(0xFFDC2626)
-                          : const Color(0xFF059669),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 18,
+                      color: urgent
+                          ? (isDark
+                              ? const Color(0xFFFCA5A5)
+                              : const Color(0xFFDC2626))
+                          : (isDark
+                              ? const Color(0xFF86EFAC)
+                              : const Color(0xFF059669)),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Sisa waktu:',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? const Color(0xFFE2E8F0)
+                              : Colors.black87),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _formatCountdown(_timeLeft),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontFeatures: const [
+                          FontFeature.tabularFigures()
+                        ],
+                        color: urgent
+                            ? (isDark
+                                ? const Color(0xFFFCA5A5)
+                                : const Color(0xFFDC2626))
+                            : (isDark
+                                ? const Color(0xFF86EFAC)
+                                : const Color(0xFF059669)),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
-        ],
-      ),
-    );
-  }
-
-  /// Banner info mode pratinjau pemilik — menjelaskan mengapa tombol
-  /// Submit tidak ada dan mengapa pratinjau tidak masuk Aktivitas Saya.
-  Widget _buildOwnerPreviewBanner() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.visibility_outlined,
-              color: Color(0xFF1E66D0), size: 22),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pratinjau pemilik',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E40AF),
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Ini form buatanmu. Kamu melihatnya sebagai pratinjau — '
-                  'jawaban tidak dikirim dan tidak tercatat di Aktivitas Saya. '
-                  'Untuk menguji pengisian, buka link ini tanpa login atau '
-                  'dengan akun lain.',
-                  style: TextStyle(
-                      color: Color(0xFF1E40AF), fontSize: 12, height: 1.4),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

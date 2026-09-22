@@ -12,16 +12,20 @@ part of '../login_page.dart';
 
 extension _LoginFields on _LoginPageState {
   Widget _buildLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: _LoginPageState._labelColor,
+            // Parity web: --text-body (#1e293b / #e2e8f0).
+            color: isDark
+                ? const Color(0xFFE2E8F0)
+                : _LoginPageState._labelColor,
           ),
         ),
       ),
@@ -37,28 +41,38 @@ extension _LoginFields on _LoginPageState {
     TextInputType? keyboardType,
     bool autocorrect = true,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextField(
       key: key,
       controller: controller,
       keyboardType: keyboardType,
       autocorrect: autocorrect,
       obscureText: isPassword ? !_showPassword : obscureText,
-      style: const TextStyle(
-        color: _LoginPageState._inputTextColor,
+      style: TextStyle(
+        // Parity web: input terang di light, gelap #eef2ff di dark.
+        color: isDark
+            ? const Color(0xFFEEF2FF)
+            : _LoginPageState._inputTextColor,
         fontSize: 14,
       ),
       cursorColor: const Color(0xFF1E66D0),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-          color: _LoginPageState._hintColor,
+        hintStyle: TextStyle(
+          color: isDark
+              ? const Color(0xFF7A8599)
+              : _LoginPageState._hintColor,
           fontSize: 14,
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor:
+            isDark ? const Color(0xFF2A2A4A) : Colors.white,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderSide: BorderSide(
+              color: isDark
+                  ? const Color(0xFF3A3A5C)
+                  : const Color(0xFFE5E7EB)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),

@@ -34,7 +34,7 @@ extension _FormMakerMedia on _FormMakerPageState {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final source = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF23233F) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -71,17 +71,17 @@ extension _FormMakerMedia on _FormMakerPageState {
                 ),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF4F46E5)),
+                  leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF2563EB)),
                   title: const Text('Galeri Foto'),
                   onTap: () => Navigator.pop(ctx, 'gallery'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF4F46E5)),
+                  leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF2563EB)),
                   title: const Text('Kamera'),
                   onTap: () => Navigator.pop(ctx, 'camera'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.link_outlined, color: Color(0xFF4F46E5)),
+                  leading: const Icon(Icons.link_outlined, color: Color(0xFF2563EB)),
                   title: const Text('Link Gambar (URL)'),
                   onTap: () => Navigator.pop(ctx, 'url'),
                 ),

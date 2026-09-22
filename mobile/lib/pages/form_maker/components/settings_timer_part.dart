@@ -64,7 +64,7 @@ extension _SettingsTimer on FormSettingsTab {
               ],
             ),
             const SizedBox(height: 16),
-            Divider(color: isDark ? const Color(0xFF334155) : null),
+            Divider(color: isDark ? const Color(0xFF2D2D4A) : null),
             const SizedBox(height: 12),
 
             // Status Badge
@@ -73,12 +73,12 @@ extension _SettingsTimer on FormSettingsTab {
               decoration: BoxDecoration(
                 color: hasTimer
                     ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
-                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                    : (isDark ? const Color(0xFF23233F) : const Color(0xFFF1F5F9)),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: hasTimer
                       ? (isDark ? const Color(0xFF059669) : const Color(0xFFA7F3D0))
-                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      : (isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
@@ -147,7 +147,7 @@ extension _SettingsTimer on FormSettingsTab {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       side: BorderSide(
-                        color: isDark ? const Color(0xFF475569) : Colors.black12,
+                        color: isDark ? const Color(0xFF3A3A5C) : Colors.black12,
                       ),
                     ),
                   ),
@@ -207,7 +207,7 @@ extension _SettingsTimer on FormSettingsTab {
                       side: BorderSide(
                         color: hasTimer
                             ? primaryColor
-                            : (isDark ? const Color(0xFF475569) : Colors.black12),
+                            : (isDark ? const Color(0xFF3A3A5C) : Colors.black12),
                       ),
                     ),
                   ),
@@ -305,22 +305,6 @@ extension _SettingsTimer on FormSettingsTab {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: onSaveSettings,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Simpan Pengaturan',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
           ],
         ),
       ),
@@ -407,7 +391,7 @@ extension _SettingsTimer on FormSettingsTab {
           activeTrackColor: primaryColor,
           inactiveThumbColor: Colors.white,
           inactiveTrackColor: isDark
-              ? const Color(0xFF475569)
+              ? const Color(0xFF3A3A5C)
               : Colors.grey.shade400,
         ),
       ],

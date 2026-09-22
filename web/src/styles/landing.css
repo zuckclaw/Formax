@@ -53,10 +53,11 @@
 }
 
 .hp-brand-logo {
-  width: 34px;
+  width: auto;
   height: 34px;
-  border-radius: 8px;
-  object-fit: cover;
+  max-width: 120px;
+  object-fit: contain;
+  display: block;
 }
 
 .hp-brand-text {

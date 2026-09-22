@@ -55,7 +55,160 @@ Future<Map<String, dynamic>> _miscMySubs() async {
     final msg = body is Map ? (body['detail'] ?? 'Failed') : 'Failed';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
-    return {'success': false, 'message': ApiService._friendlyException(e)};
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
+  }
+}
+
+// Hapus respons individu (owner form only) agar responden bisa mengerjakan ulang.
+// Endpoint backend: DELETE /submissions/{submission_id} → 204
+// Parity web deleteSubmission (DashboardPage → "Hapus Respons").
+Future<Map<String, dynamic>> _miscDeleteSub(
+  String submissionId,
+) async {
+  try {
+    final token = await ApiService.getToken();
+    if (token == null) return {'success': false, 'message': 'No token found'};
+    final response = await ApiService.client.delete(
+      Uri.parse('${ApiService.baseUrl}/submissions/$submissionId'),
+      headers: ApiService.defaultHeaders(token: token),
+    ).timeout(const Duration(seconds: 15));
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return {'success': true};
+    }
+    final body = ApiService._safeJson(response.body);
+    if (ApiService._isSessionExpired(response.statusCode, body)) {
+      return ApiService._unauthorizedResult(body);
+    }
+    final msg = body is Map
+        ? (body['detail'] ?? 'Gagal menghapus respons')
+        : 'Gagal menghapus respons';
+    return {'success': false, 'message': msg.toString()};
+  } catch (e) {
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
+  }
+}
+
+// ── Import soal dari DOCX (parity web api/docx.js) ─────────────────────
+// GET /import/template-docx → bytes template
+Future<Map<String, dynamic>> _miscDocxTemplate() async {
+  try {
+    final token = await ApiService.getToken();
+    if (token == null) return {'success': false, 'message': 'No token found'};
+    final response = await ApiService.client.get(
+      Uri.parse('${ApiService.baseUrl}/import/template-docx'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'ngrok-skip-browser-warning': 'true',
+      },
+    ).timeout(const Duration(seconds: 30));
+    if (response.statusCode == 200) {
+      return {'success': true, 'bytes': response.bodyBytes};
+    }
+    final body = ApiService._safeJson(
+      utf8.decode(response.bodyBytes, allowMalformed: true),
+    );
+    if (ApiService._isSessionExpired(response.statusCode, body)) {
+      return ApiService._unauthorizedResult(body);
+    }
+    final msg = body is Map
+        ? (body['detail'] ?? 'Gagal mengunduh template')
+        : 'Gagal mengunduh template';
+    return {'success': false, 'message': msg.toString()};
+  } catch (e) {
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
+  }
+}
+
+// POST /forms/{form_id}/questions/import-docx/preview (multipart .docx)
+Future<Map<String, dynamic>> _miscDocxPreview(
+  String formId,
+  String filePath, {
+  String? fileName,
+}) async {
+  try {
+    final token = await ApiService.getToken();
+    if (token == null) return {'success': false, 'message': 'No token found'};
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(
+          '${ApiService.baseUrl}/forms/$formId/questions/import-docx/preview'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['ngrok-skip-browser-warning'] = 'true';
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        filePath,
+        filename: fileName ?? filePath.split('/').last,
+      ),
+    );
+    final streamed = await request.send().timeout(
+          const Duration(seconds: 60),
+        );
+    final bodyStr = await streamed.stream.bytesToString();
+    final data = ApiService._safeJson(bodyStr);
+    if (streamed.statusCode == 200) {
+      return {'success': true, 'data': data};
+    }
+    if (ApiService._isSessionExpired(streamed.statusCode, data)) {
+      return ApiService._unauthorizedResult(data);
+    }
+    final msg = data is Map
+        ? (data['detail'] ?? 'Gagal memproses file DOCX')
+        : 'Gagal memproses file DOCX';
+    return {'success': false, 'message': msg.toString()};
+  } catch (e) {
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
+  }
+}
+
+// POST /forms/{form_id}/questions/import-docx/confirm {questions:[...]}
+Future<Map<String, dynamic>> _miscDocxConfirm(
+  String formId,
+  List<Map<String, dynamic>> questions,
+) async {
+  try {
+    final token = await ApiService.getToken();
+    if (token == null) return {'success': false, 'message': 'No token found'};
+    final response = await ApiService.client.post(
+      Uri.parse(
+          '${ApiService.baseUrl}/forms/$formId/questions/import-docx/confirm'),
+      headers: ApiService.defaultHeaders(token: token),
+      body: jsonEncode({'questions': questions}),
+    ).timeout(const Duration(seconds: 30));
+    final data = ApiService._safeJson(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'data': data};
+    }
+    if (ApiService._isSessionExpired(response.statusCode, data)) {
+      return ApiService._unauthorizedResult(data);
+    }
+    final msg = data is Map
+        ? (data['detail'] ?? 'Gagal mengimpor soal')
+        : 'Gagal mengimpor soal';
+    return {'success': false, 'message': msg.toString()};
+  } catch (e) {
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
   }
 }
 
@@ -84,6 +237,38 @@ Future<Map<String, dynamic>> _miscSubResult(
     final msg = data is Map
         ? (data['detail'] ?? 'Gagal memuat hasil')
         : 'Gagal memuat hasil';
+    return {'success': false, 'message': msg.toString()};
+  } catch (e) {
+    return {'success': false, 'message': ApiService._friendlyException(e)};
+  }
+}
+
+// Tandai submission sebagai curang (keluar aplikasi / keluar fullscreen).
+// Endpoint backend: POST /submissions/{submission_id}/flag-cheated
+// Hanya aktif kalau form.require_fullscreen true (parity web flagCheated).
+Future<Map<String, dynamic>> _miscFlagCheated(
+  String submissionId,
+) async {
+  try {
+    final token = await ApiService.getToken();
+    final respondentKey = await ApiService.getRespondentKey();
+    final response = await ApiService.client.post(
+      Uri.parse('${ApiService.baseUrl}/submissions/$submissionId/flag-cheated'),
+      headers: ApiService.defaultHeaders(
+        token: token,
+        respondentKey: respondentKey,
+      ),
+    ).timeout(const Duration(seconds: 15));
+    final data = ApiService._safeJson(response.body);
+    if (response.statusCode == 200) {
+      return {'success': true, 'data': data};
+    }
+    if (ApiService._isSessionExpired(response.statusCode, data)) {
+      return ApiService._unauthorizedResult(data);
+    }
+    final msg = data is Map
+        ? (data['detail'] ?? 'Gagal menandai submission')
+        : 'Gagal menandai submission';
     return {'success': false, 'message': msg.toString()};
   } catch (e) {
     return {'success': false, 'message': ApiService._friendlyException(e)};

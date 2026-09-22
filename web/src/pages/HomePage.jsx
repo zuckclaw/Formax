@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import InteractiveCubeBackground from '../components/InteractiveCubeBackground';
 import LandingNav from '../components/LandingNav';
+import useAuthStatus from '../hooks/useAuthStatus';
 import { getValidToken } from '../utils/authStorage';
 import '../styles/landing.css';
 
@@ -19,10 +20,11 @@ function FeatureCard({ icon, title, desc }) {
 /* ─── Main HomePage ─── */
 const HomePage = () => {
   const navigate = useNavigate()
+  // Auth state ASLI project (sama seperti PrivateRoute): getValidToken().
+  // Berlaku untuk login session maupun remember-me.
+  const isAuthenticated = useAuthStatus()
   const handleCtaClick = (e) => {
-    const token = getValidToken()
-    const isRemembered = localStorage.getItem('auth_remember') === 'true'
-    if (token && isRemembered) {
+    if (getValidToken()) {
       e.preventDefault()
       navigate('/dashboard')
     }
@@ -160,7 +162,11 @@ const HomePage = () => {
             </p>
           </div>
           <div className="hp-platform-row">
-            <div className="hp-platform-card">
+            <Link
+              to="/dashboard"
+              className="hp-platform-card hp-platform-card-link"
+              title="Buka dashboard"
+            >
               <div className="hp-platform-icon">
                 <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#2563eb" strokeWidth={1.8}>
                   <circle cx="12" cy="12" r="10" />
@@ -171,7 +177,7 @@ const HomePage = () => {
               <h3 className="hp-platform-name">Web Browser</h3>
               <p className="hp-platform-desc">Akses langsung dari semua browser tanpa perlu instalasi aplikasi tambahan.</p>
               <span className="hp-platform-badge hp-badge-outline-blue">Instant Access</span>
-            </div>
+            </Link>
             <a
               href="https://github.com/zuckclaw/Formax/releases/download/v1.0.3/app-release.apk"
               target="_blank"
@@ -198,7 +204,8 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ── CTA ── */}
+      {/* ── CTA ── hanya untuk guest; disembunyikan saat sudah login */}
+      {!isAuthenticated && (
       <section id="cara-pakai" className="hp-cta">
         <div className="hp-cta-inner">
           <h2 className="hp-cta-title">Siap Memulai Form Pertama Anda?</h2>
@@ -210,6 +217,7 @@ const HomePage = () => {
           </Link>
         </div>
       </section>
+      )}
 
       {/* ── FOOTER ── */}
       <footer className="hp-footer">

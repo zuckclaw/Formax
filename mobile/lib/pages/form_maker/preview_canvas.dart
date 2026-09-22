@@ -11,19 +11,24 @@ class PreviewCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF3F4F6),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: state.pages.length,
         itemBuilder: (context, index) {
           final page = state.pages[index];
-          return _buildPagePreview(page, index == 0);
+          return _buildPagePreview(context, page, index == 0);
         },
       ),
     );
   }
 
-  Widget _buildPagePreview(FormPageModel page, bool isFirst) {
+  Widget _buildPagePreview(
+    BuildContext context,
+    FormPageModel page,
+    bool isFirst,
+  ) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -31,9 +36,9 @@ class PreviewCanvas extends StatelessWidget {
         Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cs.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.black12),
+            border: Border.all(color: cs.outlineVariant),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -42,7 +47,7 @@ class PreviewCanvas extends StatelessWidget {
                 height: 8,
                 decoration: BoxDecoration(
                   color: isFirst
-                      ? const Color(0xFF4F46E5)
+                      ? const Color(0xFF2563EB)
                       : const Color(0xFF8B5CF6),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(8),
@@ -62,7 +67,7 @@ class PreviewCanvas extends StatelessWidget {
                       textStyle: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: cs.onSurface,
                       ),
                     ),
                     if (page.description.isNotEmpty) ...[
@@ -71,7 +76,7 @@ class PreviewCanvas extends StatelessWidget {
                         html: page.description,
                         textStyle: TextStyle(
                           fontSize: 14,
-                          color: Colors.black54,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ] else if (isFirst && state.formDescription.isNotEmpty) ...[
@@ -80,7 +85,7 @@ class PreviewCanvas extends StatelessWidget {
                         html: state.formDescription,
                         textStyle: TextStyle(
                           fontSize: 14,
-                          color: Colors.black54,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -97,9 +102,9 @@ class PreviewCanvas extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.black12),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: QuestionViewer(question: q),
           ),

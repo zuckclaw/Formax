@@ -358,7 +358,9 @@ extension _FillFormAnswerInputs on _FillFormPageState {
               value: option.label,
               child: _renderOptionText(
                 option.label,
-                const TextStyle(fontSize: 15, color: Color(0xFF374151)),
+                TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).colorScheme.onSurface),
               ),
             );
           }).toList(),
@@ -595,10 +597,12 @@ extension _FillFormAnswerInputs on _FillFormPageState {
             fileName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF065F46),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF86EFAC)
+                  : const Color(0xFF065F46),
             ),
           ),
           const SizedBox(height: 2),
@@ -675,18 +679,6 @@ extension _FillFormAnswerInputs on _FillFormPageState {
   }
 
   Future<void> _pickAndUploadFile(Question question) async {
-    // Mode pratinjau pemilik: jangan mengunggah file ke server.
-    if (_isOwnerPreview) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Mode pratinjau pemilik — upload file dinonaktifkan.'),
-          ),
-        );
-      }
-      return;
-    }
     if (_uploadingQids.contains(question.id)) return;
 
     final source = await showModalBottomSheet<_FileSource>(

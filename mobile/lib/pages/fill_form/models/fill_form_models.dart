@@ -107,6 +107,7 @@ class FormData {
   final String slug;
   final String? joinToken;
   final bool requireJoinToken;
+  final bool requireFullscreen;
   final bool acceptResponses;
   final String? startDate;
   final String? endDate;
@@ -124,6 +125,7 @@ class FormData {
     required this.slug,
     this.joinToken,
     this.requireJoinToken = false,
+    this.requireFullscreen = false,
     this.acceptResponses = true,
     this.startDate,
     this.endDate,
@@ -145,6 +147,7 @@ class FormData {
       // Tetap baca join_token bila ada (compat form lama), utama pakai flag bool.
       joinToken: map['join_token']?.toString(),
       requireJoinToken: map['require_join_token'] == true,
+      requireFullscreen: map['require_fullscreen'] == true,
       acceptResponses: map['accept_responses'] == true || map['accept_responses'] == null,
       startDate: map['start_date']?.toString(),
       endDate: map['end_date']?.toString(),

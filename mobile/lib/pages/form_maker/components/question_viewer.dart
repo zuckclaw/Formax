@@ -13,7 +13,7 @@ class QuestionViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+    final textColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
     final subTextColor = isDark ? const Color(0xFF94A3B8) : Colors.black54;
 
     final hasLabel = question.label.trim().isNotEmpty;
@@ -104,8 +104,8 @@ class QuestionViewer extends StatelessWidget {
 
   Widget _buildBodyByType(BuildContext context, bool isDark) {
     final subColor = isDark ? const Color(0xFF94A3B8) : Colors.black38;
-    final textColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
-    final borderColor = isDark ? const Color(0xFF334155) : Colors.black12;
+    final textColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
+    final borderColor = isDark ? const Color(0xFF2D2D4A) : Colors.black12;
 
     switch (question.type) {
       case QuestionType.shortAnswer:

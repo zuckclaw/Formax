@@ -149,8 +149,7 @@ void main() {
     },
   );
 
-  test('headers, alignment and bullet lists round-trip', () {
-    final deltaJson = [
+  test('headers, alignment and bullet lists round-trip', () {    final deltaJson = [
       {'insert': 'Heading'},
       {
         'insert': '\n',
@@ -176,5 +175,23 @@ void main() {
     expect(attrKeys(restored).contains('header'), isTrue);
     expect(attrKeys(restored).contains('align'), isTrue);
     expect(attrKeys(restored).contains('list'), isTrue);
+  });
+
+  test('lebar gambar (resize) terserialisasi ke HTML dan terbaca kembali', () {
+    final doc = Document.fromJson([
+      {
+        'insert': {'image': 'https://x.test/a.png'},
+        'attributes': {'width': '50%'},
+      },
+      {'insert': '\n'},
+    ]);
+    final html = QuillHtml.documentToHtml(doc);
+    expect(html, contains('width'));
+    expect(html, contains('50%'));
+    // Style width (format web) terbaca kembali sebagai atribut delta.
+    final restored = QuillHtml.documentFromHtml(
+      '<p><img src="https://x.test/a.png" style="width: 50%;" /></p>',
+    ).toDelta().toJson().join();
+    expect(restored, contains('width'));
   });
 }

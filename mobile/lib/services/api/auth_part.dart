@@ -165,12 +165,19 @@ Future<Map<String, dynamic>> _authRegister(
 
     final data = ApiService._safeJson(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) {
+      // WAJIB ada access_token: tanpa token user akan masuk sebagai anonim.
+      // Jangan pernah anggap sukses bila backend tidak membentuk sesi.
       if (data is Map &&
           data['access_token'] is String &&
           (data['access_token'] as String).isNotEmpty) {
         await ApiService.saveToken(data['access_token'] as String);
+        return {'success': true, 'data': data};
       }
-      return {'success': true, 'data': data};
+      return {
+        'success': false,
+        'message':
+            'Registrasi berhasil tetapi sesi tidak terbentuk — silakan login.',
+      };
     } else {
       final msg = data is Map
           ? (data['detail'] ?? 'Registration failed')
@@ -179,6 +186,42 @@ Future<Map<String, dynamic>> _authRegister(
     }
   } catch (e) {
     return {'success': false, 'message': ApiService._friendlyException(e)};
+  }
+}
+
+// Fungsi Ganti Password (parity web changePassword → PUT /auth/change-password)
+Future<Map<String, dynamic>> _authChangePassword(
+  String oldPassword,
+  String newPassword,
+) async {
+  try {
+    final token = await ApiService.getToken();
+    if (token == null) return {'success': false, 'message': 'No token found'};
+    final response = await ApiService.client.put(
+      Uri.parse('${ApiService.baseUrl}/auth/change-password'),
+      headers: ApiService.defaultHeaders(token: token),
+      body: jsonEncode({
+        'old_password': oldPassword,
+        'new_password': newPassword,
+      }),
+    ).timeout(const Duration(seconds: 15));
+    final data = ApiService._safeJson(response.body);
+    if (response.statusCode == 200) {
+      return {'success': true, 'data': data};
+    }
+    if (ApiService._isSessionExpired(response.statusCode, data)) {
+      return ApiService._unauthorizedResult(data);
+    }
+    final msg = data is Map
+        ? (data['detail'] ?? 'Gagal mengubah password')
+        : 'Gagal mengubah password';
+    return {'success': false, 'message': msg.toString()};
+  } catch (e) {
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
   }
 }
 
@@ -199,13 +242,25 @@ Future<Map<String, dynamic>> _authGetMe() async {
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
     } else {
+      // Sesi invalid (401 kadaluarsa/tidak valid, cermin web config.js) →
+      // hapus token + picu auto-logout global. Jangan biarkan user
+      // bertahan di dalam app dengan sesi mati (= anonim).
+      if (ApiService._isSessionExpired(response.statusCode, data)) {
+        return ApiService._unauthorizedResult(data);
+      }
       final msg = data is Map
           ? (data['detail'] ?? 'Failed to get profile')
           : 'Failed to get profile';
       return {'success': false, 'message': msg.toString()};
     }
   } catch (e) {
-    return {'success': false, 'message': ApiService._friendlyException(e)};
+    // Transport gagal (backend mati/timeout) → tandai agar titik
+    // session-critical bisa fail-closed (force logout).
+    return {
+      'success': false,
+      'message': ApiService._friendlyException(e),
+      'connection': true,
+    };
   }
 }
 

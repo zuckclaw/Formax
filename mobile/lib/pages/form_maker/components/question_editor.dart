@@ -54,9 +54,9 @@ class _QuestionEditorState extends State<QuestionEditor> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final typeBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FB);
-    final typeBorder = isDark ? const Color(0xFF334155) : Colors.black12;
-    final textColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+    final typeBg = isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF8F9FB);
+    final typeBorder = isDark ? const Color(0xFF2D2D4A) : Colors.black12;
+    final textColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
     final iconColor = isDark ? const Color(0xFF94A3B8) : Colors.black54;
 
     return Column(
@@ -165,10 +165,10 @@ class _QuestionEditorState extends State<QuestionEditor> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F6FA),
+        color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF5F6FA),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E6F0),
+          color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E6F0),
         ),
       ),
       child: Row(
@@ -181,7 +181,7 @@ class _QuestionEditorState extends State<QuestionEditor> {
               style: TextStyle(
                 fontSize: 14,
                 color: isDark
-                    ? const Color(0xFFF8FAFC)
+                    ? const Color(0xFFEEF2FF)
                     : const Color(0xFF374151),
               ),
             ),
@@ -190,10 +190,10 @@ class _QuestionEditorState extends State<QuestionEditor> {
             width: 56,
             height: 34,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              color: isDark ? const Color(0xFF23233F) : Colors.white,
               border: Border.all(
                 color: isDark
-                    ? const Color(0xFF334155)
+                    ? const Color(0xFF2D2D4A)
                     : const Color(0xFFD1D5DB),
               ),
               borderRadius: BorderRadius.circular(6),
@@ -547,7 +547,7 @@ class _QuestionEditorState extends State<QuestionEditor> {
                                     : Icons.radio_button_unchecked,
                                 size: 22,
                                 color: opt.isCorrect
-                                    ? const Color(0xFF4F46E5)
+                                    ? const Color(0xFF2563EB)
                                     : (isDark
                                           ? const Color(0xFF64748B)
                                           : Colors.black26),
@@ -557,7 +557,7 @@ class _QuestionEditorState extends State<QuestionEditor> {
                                   'Kunci',
                                   style: TextStyle(
                                     fontSize: 9,
-                                    color: Color(0xFF4F46E5),
+                                    color: Color(0xFF2563EB),
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -618,7 +618,7 @@ class _QuestionEditorState extends State<QuestionEditor> {
                 child: const Text(
                   'tambahkan "Lainnya"',
                   style: TextStyle(
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF2563EB),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),

@@ -15,6 +15,12 @@ class QuestionCard extends StatelessWidget {
   final VoidCallback onChanged;
   final VoidCallback onTypeChangeTap;
 
+  /// Mode seleksi massal (parity web bulk select): tampilkan checkbox,
+  /// tap kartu = toggle seleksi.
+  final bool selectionMode;
+  final bool selected;
+  final ValueChanged<bool>? onSelectionChanged;
+
   const QuestionCard({
     super.key,
     required this.index,
@@ -27,20 +33,25 @@ class QuestionCard extends StatelessWidget {
     required this.onRequiredChanged,
     required this.onChanged,
     required this.onTypeChangeTap,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelectionChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final cardColor = isDark ? const Color(0xFF23233F) : Colors.white;
     final iconColor = isDark ? const Color(0xFF94A3B8) : Colors.black54;
-    final textColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+    final textColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
     final dividerColor = isDark
-        ? const Color(0xFF334155)
+        ? const Color(0xFF2D2D4A)
         : const Color(0xFFE5E7EB);
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: selectionMode
+          ? () => onSelectionChanged?.call(!selected)
+          : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 16),
@@ -48,9 +59,13 @@ class QuestionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: isActive
+          border: selected
               ? const Border(
-                  left: BorderSide(color: Color(0xFF4F46E5), width: 4),
+                  left: BorderSide(color: Color(0xFFDC2626), width: 4),
+                )
+              : isActive
+              ? const Border(
+                  left: BorderSide(color: Color(0xFF2563EB), width: 4),
                 )
               : null,
           boxShadow: [
@@ -65,7 +80,22 @@ class QuestionCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            if (isActive)
+            // Checkbox seleksi massal.
+            if (selectionMode)
+              Row(
+                children: [
+                  Checkbox(
+                    value: selected,
+                    activeColor: const Color(0xFFDC2626),
+                    onChanged: (v) => onSelectionChanged?.call(v ?? false),
+                  ),
+                  Text(
+                    'Pilih soal ini',
+                    style: TextStyle(color: textColor, fontSize: 13),
+                  ),
+                ],
+              ),
+            if (isActive && !selectionMode)
               Center(
                 child: ReorderableDragStartListener(
                   index: index,
@@ -140,7 +170,7 @@ class QuestionCard extends StatelessWidget {
                     Switch(
                       value: question.isRequired,
                       onChanged: onRequiredChanged,
-                      activeThumbColor: const Color(0xFF4F46E5),
+                      activeThumbColor: const Color(0xFF2563EB),
                     ),
                     IconButton(
                       icon: Icon(Icons.more_vert, color: iconColor),

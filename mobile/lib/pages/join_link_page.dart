@@ -33,8 +33,7 @@ class _JoinLinkPageState extends State<JoinLinkPage> {
     final result = await ApiService.validateFormLink(link);
     if (!mounted) return;
     setState(() => _isLoading = false);
-    if (result['success'] == true) {
-      final data = result['data'];
+    if (result['success'] == true) {      final data = result['data'];
       final slug = ((data is Map) ? data['slug'] : null)?.toString() ?? '';
       if (slug.isNotEmpty) {
         Navigator.push(
@@ -45,20 +44,37 @@ class _JoinLinkPageState extends State<JoinLinkPage> {
         setState(() => _errorText = 'Form tidak ditemukan');
       }
     } else {
+      // Fail-closed: sesi invalid (hook global sudah menendang) atau
+      // backend tak terjangkau → keluar ke Login, jangan diam di form.
+      final m = Map<String, dynamic>.from(result);
+      if (ApiService.isAuthInvalidResult(m) ||
+          ApiService.isConnectionFailureResult(m)) {
+        await ApiService.forceLogout();
+        return;
+      }
       setState(() => _errorText = result['message'] ?? 'Link tidak valid');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Parity halaman isi form: AppBar terang + teks slate di light,
+    // permukaan tema + teks terang di dark (putih di B4C5D4 tak terbaca).
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFB4C5D4),
-        title: const Text(
+        backgroundColor:
+            isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFB4C5D4),
+        title: Text(
           'Gabung dengan Link',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+              color: isDark
+                  ? Theme.of(context).colorScheme.onSurface
+                  : const Color(0xFF374151)),
         ),
-        foregroundColor: Colors.white,
+        foregroundColor: isDark
+            ? Theme.of(context).colorScheme.onSurface
+            : const Color(0xFF374151),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

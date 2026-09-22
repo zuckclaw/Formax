@@ -29,8 +29,8 @@ class PageHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final titleColor = isDark ? const Color(0xFFF8FAFC) : Colors.black87;
+    final cardColor = isDark ? const Color(0xFF23233F) : Colors.white;
+    final titleColor = isDark ? const Color(0xFFEEF2FF) : Colors.black87;
     final descColor = isDark ? const Color(0xFF94A3B8) : Colors.black54;
 
     return GestureDetector(
@@ -42,7 +42,7 @@ class PageHeaderCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: const BoxDecoration(
-                color: Color(0xFF4F46E5),
+                color: Color(0xFF2563EB),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
               ),
               child: Row(
@@ -83,7 +83,7 @@ class PageHeaderCard extends StatelessWidget {
                   : const BorderRadius.vertical(bottom: Radius.circular(8)),
               border: isActive
                   ? const Border(
-                      left: BorderSide(color: Color(0xFF4F46E5), width: 4),
+                      left: BorderSide(color: Color(0xFF2563EB), width: 4),
                     )
                   : null,
               boxShadow: [
@@ -101,7 +101,7 @@ class PageHeaderCard extends StatelessWidget {
                   Container(
                     height: 10,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF4F46E5),
+                      color: Color(0xFF2563EB),
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(8),
                       ),

@@ -166,11 +166,11 @@ extension _SettingsBasic on FormSettingsTab {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: isDark
-                    ? const Color(0xFF0F172A)
+                    ? const Color(0xFF2A2A4A)
                     : const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : Colors.black12,
+                  color: isDark ? const Color(0xFF2D2D4A) : Colors.black12,
                 ),
               ),
               child: DropdownButtonHideUnderline(
@@ -200,7 +200,7 @@ extension _SettingsBasic on FormSettingsTab {
                       ),
                     ),
                   ],
-                  dropdownColor: isDark ? const Color(0xFF1E293B) : null,
+                  dropdownColor: isDark ? const Color(0xFF23233F) : null,
                   icon: Icon(Icons.arrow_drop_down, color: textColor),
                   onChanged: (v) {
                     if (v != null) onFormStatusChanged(v);
@@ -269,7 +269,7 @@ extension _SettingsBasic on FormSettingsTab {
                       borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide(
                         color: isDark
-                            ? const Color(0xFF475569)
+                            ? const Color(0xFF3A3A5C)
                             : Colors.black12,
                       ),
                     ),
@@ -278,7 +278,7 @@ extension _SettingsBasic on FormSettingsTab {
               ),
             ],
             const SizedBox(height: 12),
-            Divider(color: isDark ? const Color(0xFF334155) : null),
+            Divider(color: isDark ? const Color(0xFF2D2D4A) : null),
             const SizedBox(height: 12),
             _settingsSwitchRow(
               'Paksa layar penuh (anti-cheat)',
@@ -351,7 +351,7 @@ extension _SettingsBasic on FormSettingsTab {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Setelan tersimpan saat form disimpan (Simpan Draft / Publish). '
+                      'Setelan tersimpan lewat tombol Simpan Pengaturan di paling bawah, atau ikut tersimpan saat Simpan Draft / Publish. '
                       'Jadwal timer memakai durasi di kartu Form Timer.',
                       style: TextStyle(
                         fontSize: 12,
