@@ -1745,16 +1745,28 @@ body,
   color: var(--text-primary);
 }
 
-[data-theme="dark"] .fb-template-btn {
+[data-theme="dark"] .fb-save-btn,
+[data-theme="dark"] .fb-template-btn,
+[data-theme="dark"] .fb-import-btn {
   background: var(--bg-card);
   color: var(--text-secondary);
   border-color: var(--border-medium);
 }
 
-[data-theme="dark"] .fb-template-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-bg-soft);
+[data-theme="dark"] .fb-save-btn:hover,
+[data-theme="dark"] .fb-template-btn:hover,
+[data-theme="dark"] .fb-import-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong, var(--border-medium));
+}
+
+[data-theme="dark"] .fb-publish-btn {
+  box-shadow: none;
+}
+
+[data-theme="dark"] .fb-publish-btn.is-published {
+  background: #334155;
 }
 
 /* ---- Progress Bar ---- */

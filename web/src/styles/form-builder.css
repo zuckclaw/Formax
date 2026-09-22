@@ -513,100 +513,110 @@ pre.hljs, div.ql-code-block.hljs { background: #282c34 !important; }
   border-radius: 3px 3px 0 0;
 }
 
-.fb-save-btn {
-  padding: 9px 22px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: #fff;
+.fb-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fb-save-btn,
+.fb-template-btn,
+.fb-import-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.fb-save-btn:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
-  transform: translateY(-1px);
+.fb-save-btn:hover,
+.fb-template-btn:hover,
+.fb-import-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
 }
 
-.fb-save-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.fb-save-btn:active,
+.fb-template-btn:active,
+.fb-import-btn:active {
   transform: none;
+}
+
+.fb-save-btn:disabled,
+.fb-template-btn:disabled,
+.fb-import-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .fb-publish-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 18px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 10px;
+  background: #2563eb;
   color: #fff;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  transition: all 0.15s ease;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2), 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .fb-publish-btn:hover {
-  background: linear-gradient(135deg, #059669, #047857);
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+  background: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
   transform: translateY(-1px);
+}
+
+.fb-publish-btn:active {
+  transform: none;
 }
 
 .fb-publish-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .fb-publish-btn.is-published {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  background: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2), 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .fb-publish-btn.is-published:hover {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+  background: #1e293b;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
 }
 
-.fb-topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.fb-template-btn {
-  padding: 9px 18px;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  color: #475569;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.fb-template-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
-  background: #eff6ff;
-}
-
-.fb-template-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.fb-save-btn svg,
+.fb-template-btn svg,
+.fb-import-btn svg,
+.fb-publish-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .fb-back-btn {
@@ -1997,55 +2007,8 @@ pre.hljs, div.ql-code-block.hljs { background: #282c34 !important; }
   color: #9a3412;
 }
 
-/* ============================================================
-   IMPORT WORD (DOCX) BUTTON — PREMIUM
-   ============================================================ */
-.fb-import-btn {
-  padding: 9px 18px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-  color: #fff;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35), 0 1px 2px rgba(0, 0, 0, 0.06);
-  position: relative;
-  overflow: hidden;
-}
-
-.fb-import-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 60%);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.fb-import-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4), 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.fb-import-btn:hover::before {
-  opacity: 1;
-}
-
-.fb-import-btn:active {
-  transform: translateY(0);
-}
-
-.fb-import-btn svg {
-  flex-shrink: 0;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
+/* NOTE: .fb-import-btn disatukan dengan .fb-save-btn/.fb-template-btn
+   di blok topbar di atas agar ukuran & warna serasi. */
 
 /* ============================================================
    IMPORT WORD MODAL — PREMIUM REDESIGN
