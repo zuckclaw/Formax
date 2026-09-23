@@ -148,6 +148,7 @@ export function prepareCodeHtml(html, opts = {}) {
 /** Cek apakah HTML hasil sanitasi terlihat kosong (tag di-strip semua). */
 export function isVisuallyEmpty(html) {
   if (!html || typeof html !== 'string') return true;
+  if (/<(img|audio|video|source|hr)\b[^>]*>/i.test(html)) return false;
   const text = html
     .replace(/<[^>]+>/g, '')
     .replace(/&lt;/gi, '<')
