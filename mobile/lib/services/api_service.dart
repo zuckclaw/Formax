@@ -45,7 +45,7 @@ class ApiService {
 
     // Mobile harus konsumsi backend yang sama dengan web project,
     // sehingga semua client terhubung ke backend production yang sama.
-    return 'https://wriggly-diffusion-flatfoot.ngrok-free.dev';
+    return 'https://formax-api.commandspes.tech';
   }
 
   static String get frontendUrl {

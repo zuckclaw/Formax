@@ -1,4 +1,4 @@
-name: "Form4x"
+name: form4x
 description: "Form4x is a form-building application that has useful features. It is made to make creating, managing and sharing forms simple, efficient and easy to use. With an modern interface Form4x gives users the tools they need to make professional forms for many different purposes."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.6+1
+version: 1.0.7+1
 
 environment:
   sdk: ^3.12.0
