@@ -1,13 +1,42 @@
 version: '3.8'
 
 services:
+  nginx:
+    build:
+      context: ./nginx
+    environment:
+      - DOMAIN=${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    command: >
+      /bin/bash -c "
+        envsubst '$${DOMAIN}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+        && nginx -g 'daemon off;'
+      "
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot --webroot-path=/var/www/certbot; sleep 12h & wait $${!}; done'"
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./web
-    env_file:
-      - ./web/.env
-    ports:
-      - "8001:80"
+      args:
+        VITE_API_BASE_URL: https://${DOMAIN}/api
+    expose:
+      - "80"
     restart: unless-stopped
 
   backend:
@@ -17,8 +46,8 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/formmaker
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - backend_uploads:/app/static/uploads
       - backend_qrcodes:/app/static/qrcodes
@@ -42,24 +71,7 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # backend-sqlite:
-  #   profiles: ["sqlite"]
-  #   build:
-  #     context: ./backend
-  #   env_file:
-  #     - ./backend/.env
-  #   environment:
-  #     DATABASE_URL: sqlite:////app/data/formmaker.db
-  #   ports:
-  #     - "8001:8000"
-  #   volumes:
-  #     - sqlite_data:/app/data
-  #     - backend_uploads:/app/static/uploads
-  #     - backend_qrcodes:/app/static/qrcodes
-  #   restart: unless-stopped
-
 volumes:
   postgres_data:
-  sqlite_data:
   backend_uploads:
   backend_qrcodes:
