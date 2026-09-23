@@ -23,9 +23,9 @@ class ProjectCard extends StatelessWidget {
         break;
       case "Draft":
         statusBgColor =
-            isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF3C7);
+            isDark ? const Color(0x2E0053DB) : const Color(0xFFEFF6FF);
         statusTextColor =
-            isDark ? const Color(0xFFFDE68A) : const Color(0xFFD97706);
+            isDark ? const Color(0xFF93C5FD) : const Color(0xFF0053DB);
         break;
       case "Archived":
         statusBgColor =

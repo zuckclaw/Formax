@@ -144,19 +144,22 @@ class _DraftPageState extends State<DraftPage> {
   // ─── Header ───────────────────────────────────────────────────────────────
 
   Widget _buildHeader(int count) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFB45309), Color(0xFFF59E0B)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF003896), Color(0xFF0053DB)]
+              : const [Color(0xFF0041B2), Color(0xFF0053DB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+            color: const Color(0xFF0053DB).withValues(alpha: isDark ? 0.35 : 0.25),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -208,6 +211,7 @@ class _DraftPageState extends State<DraftPage> {
   // ─── List ─────────────────────────────────────────────────────────────────
 
   Widget _buildList(List<FormModel> drafts) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -218,9 +222,9 @@ class _DraftPageState extends State<DraftPage> {
             Icon(
               Icons.edit_note_rounded,
               size: 18,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFFDE68A)
-                  : const Color(0xFF92400E),
+              color: isDark
+                  ? const Color(0xFF93C5FD)
+                  : const Color(0xFF0053DB),
             ),
             const SizedBox(width: 6),
             Text(
@@ -265,7 +269,7 @@ class _DraftPageState extends State<DraftPage> {
           border: Border.all(
               color: isDark
                   ? const Color(0xFF3A3A5C)
-                  : const Color(0xFFFDE68A)),
+                  : const Color(0xFFBFDBFE)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -281,15 +285,15 @@ class _DraftPageState extends State<DraftPage> {
               height: 48,
               decoration: BoxDecoration(
                 color: isDark
-                    ? const Color(0x2ECA8A04)
-                    : const Color(0xFFFEF3C7),
+                    ? const Color(0x2E0053DB)
+                    : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 Icons.edit_note,
                 color: isDark
-                    ? const Color(0xFFFDE68A)
-                    : const Color(0xFF92400E),
+                    ? const Color(0xFF93C5FD)
+                    : const Color(0xFF0053DB),
                 size: 24,
               ),
             ),
@@ -315,8 +319,8 @@ class _DraftPageState extends State<DraftPage> {
                         Icons.schedule_rounded,
                         size: 13,
                         color: isDark
-                            ? const Color(0xFFFDE68A)
-                            : const Color(0xFFB45309),
+                            ? const Color(0xFF93C5FD)
+                            : const Color(0xFF0053DB),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -324,8 +328,8 @@ class _DraftPageState extends State<DraftPage> {
                         style: TextStyle(
                           fontSize: 12,
                           color: isDark
-                              ? const Color(0xFFFDE68A)
-                              : const Color(0xFF92400E),
+                              ? const Color(0xFF93C5FD)
+                              : const Color(0xFF0053DB),
                         ),
                       ),
                     ],
@@ -340,8 +344,8 @@ class _DraftPageState extends State<DraftPage> {
                         ),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? const Color(0x2ECA8A04)
-                              : const Color(0xFFFEF3C7),
+                              ? const Color(0x2E0053DB)
+                              : const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -350,8 +354,8 @@ class _DraftPageState extends State<DraftPage> {
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: isDark
-                                ? const Color(0xFFFDE68A)
-                                : const Color(0xFF92400E),
+                                ? const Color(0xFF93C5FD)
+                                : const Color(0xFF0053DB),
                           ),
                         ),
                       ),
@@ -392,6 +396,7 @@ class _DraftPageState extends State<DraftPage> {
   // ─── Empty state ──────────────────────────────────────────────────────────
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -413,14 +418,18 @@ class _DraftPageState extends State<DraftPage> {
                         width: 110,
                         height: 110,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7).withValues(alpha: 0.6),
+                          color: isDark
+                              ? const Color(0x2E0053DB)
+                              : const Color(0xFFEFF6FF),
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.drafts_outlined,
                         size: 72,
-                        color: Color(0xFFF59E0B),
+                        color: isDark
+                            ? const Color(0xFF60A5FA)
+                            : const Color(0xFF0053DB),
                       ),
                     ],
                   ),
@@ -462,7 +471,7 @@ class _DraftPageState extends State<DraftPage> {
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Buat Formulir'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E40AF),
+                      backgroundColor: const Color(0xFF0053DB),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,

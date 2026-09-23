@@ -61,16 +61,16 @@ class AppColors {
   static const darkAccentSoft = Color(0xFF1E3A5F);
 
   // ---------- STATUS DARK (web rgba + teks terang) ----------
-  static const darkDraftBg = Color(0x2ECA8A04);
-  static const darkDraftText = Color(0xFFFDE68A);
+  static const darkDraftBg = Color(0x200053DB);
+  static const darkDraftText = Color(0xFFBFDBFE);
   static const darkPublishedBg = Color(0x2E16A34A);
   static const darkPublishedText = Color(0xFF86EFAC);
   static const darkClosedBg = Color(0x2EEF4444);
   static const darkClosedText = Color(0xFFFCA5A5);
 
   // ---------- STATUS LIGHT ----------
-  static const lightDraftBg = Color(0xFFFEF3C7);
-  static const lightDraftText = Color(0xFF92400E);
+  static const lightDraftBg = Color(0xFFEFF6FF);
+  static const lightDraftText = Color(0xFF0053DB);
   static const lightPublishedBg = Color(0xFFDCFCE7);
   static const lightPublishedText = Color(0xFF15803D);
   static const lightClosedBg = Color(0xFFFEE2E2);

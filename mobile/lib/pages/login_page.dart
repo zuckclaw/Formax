@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'home_page.dart';
+import 'otp_verification_page.dart';
 import '../services/api_service.dart';
 
 // Part: dialog OTP — Tahap 9a. Seluruh class pindah utuh (setState tetap sah
@@ -131,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isLogin
-                                        ? const Color(0xFF1E66D0)
+                                        ? const Color(0xFF0053DB)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(24),
                                   ),
@@ -159,7 +160,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: !isLogin
-                                        ? const Color(0xFF1E66D0)
+                                        ? const Color(0xFF0053DB)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(24),
                                   ),
@@ -249,7 +250,7 @@ class _LoginPageState extends State<LoginPage> {
                             TextButton(
                               onPressed: _showForgotPasswordDialog,
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF1E66D0),
+                                foregroundColor: const Color(0xFF0053DB),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
                                 ),
@@ -260,7 +261,7 @@ class _LoginPageState extends State<LoginPage> {
                                 'Lupa password?',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF1E66D0),
+                                  color: Color(0xFF0053DB),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -456,7 +457,7 @@ class _LoginPageState extends State<LoginPage> {
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E66D0),
+                            backgroundColor: const Color(0xFF0053DB),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -472,9 +473,23 @@ class _LoginPageState extends State<LoginPage> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text(isLogin ? 'Login' : 'Register'),
+                              : Text(isLogin ? 'Login' : 'Kirim OTP'),
                         ),
                       ),
+
+                      if (!isLogin) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Kode OTP 6 digit akan dikirim ke email kamu untuk verifikasi pendaftaran.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 12),
 
@@ -502,7 +517,7 @@ class _LoginPageState extends State<LoginPage> {
                               isLogin ? 'Register' : 'Login',
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF1E66D0),
+                                color: Color(0xFF0053DB),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -521,11 +536,16 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<bool?> _showOtpDialog(String fullName, String email, String password) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          _OtpDialog(fullName: fullName, email: email, password: password),
+    return Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationPage(
+          fullName: fullName,
+          email: email,
+          password: password,
+          length: 6,
+        ),
+      ),
     );
   }
 
