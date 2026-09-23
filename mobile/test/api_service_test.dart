@@ -5,7 +5,7 @@ void main() {
   test('mobile uses the same production backend as web', () {
     expect(
       ApiService.baseUrl,
-      'https://wriggly-diffusion-flatfoot.ngrok-free.dev',
+      'https://formax-api.commandspes.tech',
     );
   });
 }

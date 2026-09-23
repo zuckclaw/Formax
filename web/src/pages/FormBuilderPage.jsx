@@ -41,6 +41,7 @@ import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
 import NgrokImage from '../components/NgrokImage';
 import { safeHtml } from '../utils/safeHtml';
+import { normalizeFileUrl } from '../utils/normalizeFileUrl';
 import { prepareMathHtml } from '../utils/mathRender';
 import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { DEFAULT_ACCENT, THEME_PRESETS, normalizeTheme, themeAccent, themeStyle } from '../utils/formTheme';
@@ -1408,7 +1409,7 @@ export default function FormBuilderPage() {
     setBannerUploading(true);
     try {
       const result = await uploadFile(token, file);
-      const cleanUrl = (result.file_url || '').trim();
+      const cleanUrl = normalizeFileUrl((result.file_url || '').trim());
       console.log('[Banner] uploaded URL:', cleanUrl);
       setFormData((prev) => ({ ...prev, banner_url: cleanUrl }));
       showToast('Banner berhasil diupload — jangan lupa klik Simpan Draf', 'success');

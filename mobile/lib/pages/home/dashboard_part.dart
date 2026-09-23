@@ -54,8 +54,8 @@ extension _HomeDashboard on _HomePageState {
                   Icons.drafts_outlined,
                   size: 18,
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFFFDE68A)
-                      : const Color(0xFF92400E),
+                      ? const Color(0xFF93C5FD)
+                      : const Color(0xFF0053DB),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -98,7 +98,11 @@ extension _HomeDashboard on _HomePageState {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFFDE68A)),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF3A3A5C)
+                : const Color(0xFFBFDBFE),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -114,15 +118,15 @@ extension _HomeDashboard on _HomePageState {
               height: 44,
               decoration: BoxDecoration(
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0x2ECA8A04)
-                    : const Color(0xFFFEF3C7),
+                    ? const Color(0x2E0053DB)
+                    : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 Icons.edit_note,
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFFDE68A)
-                    : const Color(0xFF92400E),
+                    ? const Color(0xFF93C5FD)
+                    : const Color(0xFF0053DB),
                 size: 22,
               ),
             ),
@@ -410,7 +414,7 @@ extension _HomeDashboard on _HomePageState {
         // Parity web: dark pakai rgba + teks terang, light pakai pastel.
         color: isPublished
             ? (isDark ? const Color(0x2E16A34A) : const Color(0xFFD1FAE5))
-            : (isDark ? const Color(0x2ECA8A04) : const Color(0xFFFEF3C7)),
+            : (isDark ? const Color(0x2E0053DB) : const Color(0xFFEFF6FF)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -420,7 +424,7 @@ extension _HomeDashboard on _HomePageState {
           fontWeight: FontWeight.w600,
           color: isPublished
               ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF065F46))
-              : (isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E)),
+              : (isDark ? const Color(0xFF93C5FD) : const Color(0xFF0053DB)),
         ),
       ),
     );

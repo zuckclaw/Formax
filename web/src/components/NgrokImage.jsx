@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../api/config';
+import { normalizeFileUrl } from '../utils/normalizeFileUrl';
 
-// Komponen <img> yang aman untuk ngrok-free.dev
-// Bypass OpaqueResponseBlocking dengan fetch + header + blob URL
-// Jika src bukan ngrok, render <img> biasa
 export default function NgrokImage({ src, alt, className, style, onError, loading = 'lazy', decoding = 'async', draggable = false }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [failed, setFailed] = useState(false);
 
-  const cleanSrc = (src || '').trim();
+  const cleanSrc = normalizeFileUrl((src || '').trim());
   const isNgrok = cleanSrc.includes('ngrok-free.dev') || cleanSrc.includes('ngrok-free.app');
 
   useEffect(() => {
