@@ -1,4 +1,5 @@
 import io
+import os
 
 try:
     from docx import Document
@@ -15,7 +16,8 @@ from ..utils.docx_import import parse_docx_questions, generate_template_docx
 
 router = APIRouter(prefix="", tags=["import-docx"])
 
-MAX_DOCX_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_DOCX_SIZE = 5 * 1024 * 1024
+BASE_URL = os.getenv("BASE_URL", "").strip().rstrip("/")  # 5 MB
 
 
 def _get_owned_form(form_id: str, db: Session, current_user: models.User) -> models.Form:
@@ -57,7 +59,7 @@ def preview_import_docx(
     if len(data) < 4 or data[:4] != b"PK\x03\x04":
         raise HTTPException(status_code=400, detail="File bukan .docx valid (header ZIP tidak ditemukan)")
 
-    base_url = str(request.base_url) if request is not None else ""
+    base_url = BASE_URL if BASE_URL else ""
     try:
         parsed = parse_docx_questions(io.BytesIO(data), base_url=base_url)
     except Exception:

@@ -432,16 +432,11 @@ def generate_qr(request: Request, form_id: str, db: Session = Depends(get_db), c
         raise HTTPException(status_code=422, detail="Slug form tidak valid untuk QR")
     img.save(filepath)
 
-    # FIX base_url sama: kalau enkripnya belongs BASE_URL dikosongkan (kosong),
-    # gm pasti dapat fallback yang basis-nya malah relatif (/static/...), jadi
-    # QR tidak bisa dimuat kembali di web maupun Android (gambar rusak/hilang).
-    # Pakai host dari request (seperti uploads.py) agar URL selalu absolut, cocok
-    # dengan local dev maupun tunnel ngrok — kedua client memakai URL yang sama.
-    if not BASE_URL:
-        qr_base = str(request.base_url).rstrip("/")
-    else:
+    if BASE_URL:
         qr_base = BASE_URL
-    form.qr_code_url = f"{qr_base}/static/qrcodes/{safe_slug}.png"
+        form.qr_code_url = f"{qr_base}/static/qrcodes/{safe_slug}.png"
+    else:
+        form.qr_code_url = f"/static/qrcodes/{safe_slug}.png"
     db.commit()
     return {"qr_code_url": form.qr_code_url, "share_link": public_url}
 

@@ -15,6 +15,7 @@ import '../styles/form-fill.css';
 import '../styles/video-embed.css';
 import { prepareMathHtml } from '../utils/mathRender';
 import { safeHtml } from '../utils/safeHtml';
+import { normalizeFileUrl } from '../utils/normalizeFileUrl';
 import { prepareCodeHtml, ensureVisibleCodeHtml } from '../utils/codeRender';
 import { enhanceCodeBlocks } from '../utils/codeCopy';
 import { getValidToken } from '../utils/authStorage';
@@ -191,10 +192,18 @@ function fixNgrokMediaInContainer(el) {
       return;
     }
 
-    const isNgrok = src.includes('ngrok-free.dev') || src.includes('ngrok-free.app');
+    const normalized = normalizeFileUrl(src);
+    if (normalized !== src && !item.getAttribute('data-ngrok-fixed')) {
+      item.src = normalized;
+      item.dataset.originalSrc = src;
+      if (item.tagName === 'AUDIO') item.load();
+      return;
+    }
+
+    const isNgrok = normalized.includes('ngrok-free.dev') || normalized.includes('ngrok-free.app');
     if (!isNgrok) {
       if (item.getAttribute('data-original-src') && !item.getAttribute('src')) {
-        item.src = src;
+        item.src = normalized;
       }
       return;
     }

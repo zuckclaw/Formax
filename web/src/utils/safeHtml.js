@@ -1,11 +1,12 @@
 import DOMPurify from 'dompurify';
+import { normalizeHtmlImageUrls } from './normalizeFileUrl';
 
 // Sanitasi terpusat untuk semua dangerouslySetInnerHTML.
 // Backend sudah sanitasi, tapi defense-in-depth di client wajib karena
 // label/judul bisa datang dari form lama, AI, atau import DOCX.
 export function safeHtml(dirty) {
   if (!dirty || typeof dirty !== 'string') return '';
-  return DOMPurify.sanitize(dirty, {
+  const sanitized = DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
       'span', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote',
@@ -23,11 +24,15 @@ export function safeHtml(dirty) {
       'data-video', 'data-embed', 'data-type', 'data-original-src', 'data-rendered', 'data-ngrok-fixed', 'data-language',
     ],
     ALLOW_DATA_ATTR: false,
-    // Tolak javascript:/data:text/html di href/src agar avatar/banner/file_url jahat tidak lolos.
     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'link', 'meta', 'base', 'svg'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onmouseenter', 'onmouseleave', 'onloadstart', 'onerror'],
   });
+  return normalizeHtmlImageUrls(sanitized);
+}
+
+export function safeHtmlWithNormalizedUrls(dirty) {
+  return safeHtml(dirty);
 }
 
 const _SAFE_SRC_RE = /^(https?:\/\/|blob:|data:image\/)/i;

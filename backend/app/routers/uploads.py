@@ -98,12 +98,8 @@ async def upload_file(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    # FIX: URL file harus menggunakan host yang sama dengan request si client,
-    # supaya gambar/file selalu bisa dimuat kembali (local dev maupun ngrok).
-    # Env BASE_URL dipakai sebagai fallback/override jika diinginkan host publik tetap.
-    if not BASE_URL:
-        url_base = str(request.base_url).rstrip("/")
-    else:
+    if BASE_URL:
         url_base = BASE_URL
+        return {"file_url": f"{url_base}/static/uploads/{filename}"}
 
-    return {"file_url": f"{url_base}/static/uploads/{filename}"}
+    return {"file_url": f"/static/uploads/{filename}"}
