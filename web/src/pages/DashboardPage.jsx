@@ -47,6 +47,22 @@ function truncateText(str, maxLen = 55) {
   return str.substring(0, maxLen).trim() + '…';
 }
 
+// Bilingual label: DB/seed Inggris (Blank/Attendance/Exam Form) tampil Indonesia,
+// tapi klik tetap pakai template.id asli agar isi questions ke-load.
+function getTemplateDisplay(tpl) {
+  const lower = (tpl?.title || '').toLowerCase();
+  if (lower.includes('blank') || lower.includes('kosong')) {
+    return { title: 'Form Kosong', subtitle: 'Mulai dari kosong' };
+  }
+  if (lower.includes('attendance') || lower.includes('kehadiran') || lower.includes('hadir') || lower.includes('absen')) {
+    return { title: 'Form Kehadiran', subtitle: 'Pelacakan acara atau kelas' };
+  }
+  if (lower.includes('exam') || lower.includes('ujian')) {
+    return { title: 'Form Ujian', subtitle: 'Penilaian & Kuis' };
+  }
+  return { title: tpl?.title || '', subtitle: tpl?.description || '' };
+}
+
 // Helper: ambil nilai jawaban responden untuk suatu pertanyaan (question_id)
 function getRespondentAnswerValue(sub, questionId) {
   if (!sub || !sub.answers || !Array.isArray(sub.answers) || !questionId) return '';
@@ -190,6 +206,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [templates, setTemplates] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState(null);
   const [recentForms, setRecentForms] = useState([]);
   const [allForms, setAllForms] = useState([]);
   const [contextMenu, setContextMenu] = useState(null); // { type: 'form'|'template', id }
@@ -254,11 +271,12 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
     if (!t) return;
     const startedAt = Date.now();
     setTemplatesLoading(true);
+    setTemplatesError(null);
     try {
       const tpls = await getTemplates(t);
-      setTemplates(tpls);
-    } catch {
-      // diamkan, biar tidak blokir dashboard
+      setTemplates(Array.isArray(tpls) ? tpls : []);
+    } catch (err) {
+      setTemplatesError(err?.message || 'Gagal memuat template');
     } finally {
       await withMinSkeleton(startedAt);
       setTemplatesLoading(false);
@@ -272,7 +290,13 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
     Promise.all([
       getMe(t),
       getMyForms(t).catch(() => []),
-      getTemplates(t).catch(() => []),
+      getTemplates(t).then((tpls) => {
+        setTemplatesError(null);
+        return tpls;
+      }).catch((err) => {
+        setTemplatesError(err?.message || 'Gagal memuat template');
+        return [];
+      }),
     ])
       .then(([userData, forms, tpls]) => {
         setUser(userData);
@@ -708,9 +732,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
     : systemTemplates;
   const filteredRecentForms = q ? filteredForms.slice(0, 6) : recentForms;
   const filteredTemplates = q
-    ? templates.filter(
-      (t) => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))
-    )
+    ? templates.filter((t) => matchesTemplateQuery(t, q))
     : templates;
 
   // Daftar pertanyaan riil formulir (di luar header page_break)
@@ -1069,13 +1091,12 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
 
                 {filteredSystemTemplates.length > 0 ? (
                   filteredSystemTemplates.map((tpl) => {
-                    // Deterministik per title, bukan idx — fix klik form ujian malah kosong saat order shuffle
                     const lower = (tpl.title || '').toLowerCase();
                     const isBlank = lower.includes('kosong') || lower.includes('blank');
                     const isAttendance = lower.includes('hadir') || lower.includes('attendance');
                     const isExam = lower.includes('ujian') || lower.includes('exam');
                     const bgClass = isBlank ? 'blank-bg' : isAttendance ? 'attendance-bg' : 'exam-bg';
-                    const subtitle = isBlank ? 'Mulai dari kosong' : isAttendance ? 'Pelacakan acara atau kelas' : 'Penilaian & Kuis';
+                    const display = getTemplateDisplay(tpl);
                     const showBadge = isExam;
                     return (
                       <div
@@ -1101,8 +1122,8 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                           </div>
                         </div>
                         <div className="db-card-info">
-                          <p className="db-card-title">{stripHtml(tpl.title)}</p>
-                          <p className="db-card-subtitle">{subtitle}</p>
+                          <p className="db-card-title">{stripHtml(display.title)}</p>
+                          <p className="db-card-subtitle">{display.subtitle}</p>
                         </div>
                       </div>
                     );
@@ -1111,43 +1132,25 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                   <div className="db-empty-state" style={{ gridColumn: 'span 3', padding: '24px' }}>
                     <p>Tidak ada template untuk "{searchQuery}"</p>
                   </div>
-                ) : loading ? (
+                ) : (loading || templatesLoading) ? (
                   <div className="db-empty-state" style={{ gridColumn: 'span 3', padding: '24px' }}>
                     <div className="db-spinner" style={{ margin: '0 auto 12px' }} />
                     <p>Memuat template...</p>
                   </div>
+                ) : templatesError ? (
+                  <div className="db-empty-state" style={{ gridColumn: 'span 3', padding: '24px' }}>
+                    <p>Gagal memuat template: {templatesError}</p>
+                    <button type="button" style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#1e40af', color: '#fff', cursor: 'pointer' }} onClick={() => fetchTemplates()}>
+                      Muat Ulang
+                    </button>
+                  </div>
                 ) : (
-                  <>
-                    {[
-                      { title: 'Form Kosong', subtitle: 'Mulai dari kosong', bg: 'blank-bg' },
-                      { title: 'Form Kehadiran', subtitle: 'Pelacakan acara atau kelas', bg: 'attendance-bg' },
-                      { title: 'Form Ujian', subtitle: 'Penilaian & Kuis', bg: 'exam-bg', badge: true },
-                    ].map((card, idx) => (
-                      <div key={idx} className="db-card-system" onClick={handleCreateBlank}>
-                        <div className={`db-card-preview ${card.bg}`}>
-                          {card.badge && (
-                            <span className="db-badge">
-                              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <circle cx="12" cy="12" r="10" />
-                                <polyline points="12 6 12 12 16 14" />
-                              </svg>
-                              Timer Aktif
-                            </span>
-                          )}
-                          <div className="db-preview-doc">
-                            <div className="db-preview-line db-line-wide" />
-                            <div className="db-preview-line db-line-mid" />
-                            <div className="db-preview-line db-line-short" />
-                            <div className="db-preview-line db-line-mid" />
-                          </div>
-                        </div>
-                        <div className="db-card-info">
-                          <p className="db-card-title">{stripHtml(card.title)}</p>
-                          <p className="db-card-subtitle">{card.subtitle}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </>
+                  <div className="db-empty-state" style={{ gridColumn: 'span 3', padding: '24px' }}>
+                    <p>Belum ada template sistem. Jalankan seed backend atau periksa koneksi API.</p>
+                    <button type="button" style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#1e40af', color: '#fff', cursor: 'pointer' }} onClick={() => fetchTemplates()}>
+                      Muat Ulang
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1235,11 +1238,13 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                 <SkelCards count={6} gridClass="db-recent-grid" label="Memuat templat..." />
               ) : filteredTemplates.length > 0 ? (
                 <div className="db-recent-grid">
-                  {filteredTemplates.map((tpl) => (
+                  {filteredTemplates.map((tpl) => {
+                    const displayTitle = tpl.is_system ? getTemplateDisplay(tpl).title : tpl.title;
+                    return (
                     <div key={tpl.id} className="db-recent-card" onClick={() => handleTemplateClick(tpl)}>
                       <div className="db-recent-preview">
                         {tpl.banner_url ? (
-                          <NgrokImage src={tpl.banner_url} alt={stripHtml(tpl.title)} loading="lazy" decoding="async" className="db-recent-banner" />
+                          <NgrokImage src={tpl.banner_url} alt={stripHtml(displayTitle)} loading="lazy" decoding="async" className="db-recent-banner" />
                         ) : (
                           <div className="db-preview-doc">
                             <div className="db-preview-line db-line-wide" />
@@ -1250,7 +1255,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                       </div>
                       <div className="db-recent-footer">
                         <div>
-                          <p className="db-recent-title">{stripHtml(tpl.title)}</p>
+                          <p className="db-recent-title">{stripHtml(displayTitle)}</p>
                           <p className="db-recent-date">{tpl.is_system ? 'Templat Sistem' : 'Templat Saya'}</p>
                         </div>
                         {!tpl.is_system && (
@@ -1284,11 +1289,19 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : q ? (
                 <div className="db-empty-state">
                   <p>Tidak ada template untuk "{searchQuery}"</p>
+                </div>
+              ) : templatesError ? (
+                <div className="db-empty-state">
+                  <p>Gagal memuat template: {templatesError}</p>
+                  <button type="button" style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#1e40af', color: '#fff', cursor: 'pointer' }} onClick={() => fetchTemplates()}>
+                    Muat Ulang
+                  </button>
                 </div>
               ) : (
                 <div className="db-empty-state">
