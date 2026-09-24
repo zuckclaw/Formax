@@ -593,7 +593,7 @@ export default function FormBuilderPage() {
               }))
           );
         } else if (templateId) {
-          // Create from template: load template questions as initial data
+          // Create from template: load template questions + ALL form settings as initial data
           try {
             const tpl = await getTemplate(t, templateId);
             setFormData((prev) => ({
@@ -602,7 +602,27 @@ export default function FormBuilderPage() {
               description: tpl.description || '',
               banner_url: tpl.banner_url || null,
               theme: tpl.theme || null,
+              // FIX: Load ALL form settings from template (Bug: settings were resetting to defaults)
+              accept_responses: tpl.accept_responses ?? true,
+              allow_see_result: tpl.allow_see_result ?? false,
+              max_submissions: tpl.max_submissions ?? 0,
+              require_fullscreen: tpl.require_fullscreen ?? false,
+              reveal_answers: tpl.reveal_answers ?? false,
+              shuffle_questions: tpl.shuffle_questions ?? false,
+              shuffle_options: tpl.shuffle_options ?? false,
+              start_date: tpl.start_date ? tpl.start_date.substring(0, 16) : '',
+              end_date: tpl.end_date ? tpl.end_date.substring(0, 16) : '',
             }));
+            // Sync maxSubmissionsMode & customMaxSubmissions state variables
+            const maxSub = tpl.max_submissions ?? 0;
+            if (maxSub === 1) {
+              setMaxSubmissionsMode('once');
+            } else if (maxSub === 0) {
+              setMaxSubmissionsMode('unlimited');
+            } else {
+              setMaxSubmissionsMode('custom');
+              setCustomMaxSubmissions(maxSub);
+            }
             setQuestions(
               (tpl.questions || [])
                 .sort((a, b) => a.order_index - b.order_index)

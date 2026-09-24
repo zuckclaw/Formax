@@ -103,6 +103,18 @@ class _FormMakerPageState extends State<FormMakerPage>
     } else if (widget.initialTemplate != null) {
       _builderState = FormBuilderState.fromTemplate(widget.initialTemplate!);
       _draftTemplateId = widget.initialTemplate!.id;
+      // FIX: Apply template form settings (Bug: settings were staying as defaults)
+      _applyFormSettings({
+        'accept_responses': widget.initialTemplate!.acceptResponses,
+        'allow_see_result': widget.initialTemplate!.allowSeeResult,
+        'max_submissions': widget.initialTemplate!.maxSubmissions,
+        'require_fullscreen': widget.initialTemplate!.requireFullscreen,
+        'reveal_answers': widget.initialTemplate!.revealAnswers,
+        'shuffle_questions': widget.initialTemplate!.shuffleQuestions,
+        'shuffle_options': widget.initialTemplate!.shuffleOptions,
+        'start_date': widget.initialTemplate!.startDate?.toIso8601String(),
+        'end_date': widget.initialTemplate!.endDate?.toIso8601String(),
+      });
     } else {
       _builderState = FormBuilderState();
     }
