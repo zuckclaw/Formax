@@ -74,6 +74,18 @@ class Template(Base):
     # Tema tampilan fill page: {"accent": "#0053db"} — nullable agar migrasi Postgres instan (tanpa rewrite)
     theme = Column(JSON, nullable=True)
     is_system = Column(Boolean, default=False)
+    
+    # Form settings yang di-inherit saat membuat form dari template
+    accept_responses = Column(Boolean, default=True)
+    allow_see_result = Column(Boolean, default=False)
+    max_submissions = Column(Integer, default=0)
+    require_fullscreen = Column(Boolean, default=False)
+    reveal_answers = Column(Boolean, default=False)
+    shuffle_questions = Column(Boolean, default=False)
+    shuffle_options = Column(Boolean, default=False)
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

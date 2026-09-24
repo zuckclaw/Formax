@@ -932,6 +932,14 @@ export default function FormBuilderPage() {
     setShowConfirmTemplateSave(false);
     setTemplateSaving(true);
     try {
+      // Build max_submissions from mode
+      let maxSub = 0;
+      if (maxSubmissionsMode === 'once') {
+        maxSub = 1;
+      } else if (maxSubmissionsMode === 'custom') {
+        maxSub = Math.max(2, customMaxSubmissions);
+      }
+      
       const created = await createTemplate(token, {
         title: formData.title,
         description: formData.description,
@@ -951,6 +959,15 @@ export default function FormBuilderPage() {
             is_correct: o.is_correct || false,
           })),
         })),
+        accept_responses: formData.accept_responses,
+        allow_see_result: formData.allow_see_result,
+        max_submissions: maxSub,
+        require_fullscreen: formData.require_fullscreen,
+        reveal_answers: formData.reveal_answers,
+        shuffle_questions: formData.shuffle_questions,
+        shuffle_options: formData.shuffle_options,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
       });
       showToast('Template berhasil disimpan! Muncul di Dashboard > Template', 'success');
     } catch (err) {

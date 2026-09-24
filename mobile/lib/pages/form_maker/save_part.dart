@@ -430,6 +430,23 @@ extension _FormMakerSave on _FormMakerPageState {
         : 'Form Tanpa Judul';
     final descriptionHtml = _builderState.formDescription.trim();
     final questionsPayload = _builderState.buildApiPayload();
+    
+    // Build template settings (same as form settings)
+    final startStr = _startDate?.toIso8601String().substring(0, 19);
+    final endStr = _endDate?.toIso8601String().substring(0, 19);
+    int maxSub;
+    switch (_submissionLimit) {
+      case 'unlimited':
+        maxSub = 0;
+        break;
+      case 'custom':
+        final n = int.tryParse(_customSubLimitCtrl.text.trim()) ?? 1;
+        maxSub = n >= 2 ? n : 1;
+        break;
+      case 'once':
+      default:
+        maxSub = 1;
+    }
 
     _markSaving();
 
@@ -438,6 +455,16 @@ extension _FormMakerSave on _FormMakerPageState {
       'description': descriptionHtml,
       'banner_url': _builderState.bannerUrl,
       'questions': questionsPayload,
+      'accept_responses': _acceptResponses,
+      'allow_see_result': _correctAnswers,
+      'max_submissions': maxSub,
+      'require_fullscreen': _requireFullscreen,
+      'reveal_answers': _revealAnswers,
+      'shuffle_questions': _shuffleQuestions,
+      'shuffle_options': _shuffleOptions,
+      'start_date': startStr,
+      'end_date': endStr,
+      if (_themeTouched) 'theme': _themeAccent == null ? null : {'accent': _themeAccent},
     };
 
     final String? targetId = _draftTemplateId ?? widget.initialTemplate?.id;
@@ -462,6 +489,15 @@ extension _FormMakerSave on _FormMakerPageState {
             subtitle: 'Baru saja disimpan',
             id: _draftTemplateId ?? widget.initialTemplate?.id,
             questionsJson: questionsPayload,
+            acceptResponses: _acceptResponses,
+            allowSeeResult: _correctAnswers,
+            maxSubmissions: maxSub,
+            requireFullscreen: _requireFullscreen,
+            revealAnswers: _revealAnswers,
+            shuffleQuestions: _shuffleQuestions,
+            shuffleOptions: _shuffleOptions,
+            startDate: _startDate,
+            endDate: _endDate,
           ),
         ),
       );

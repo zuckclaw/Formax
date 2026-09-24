@@ -135,6 +135,28 @@ def create_form(
             form.banner_url = template.banner_url
         if not form.theme and getattr(template, "theme", None):
             form.theme = template.theme
+        
+        # Inherit form settings dari template jika tidak explicit di payload
+        # (jika client tidak kirim setting, gunakan template punya)
+        if payload.accept_responses is None and hasattr(template, "accept_responses"):
+            form.accept_responses = template.accept_responses
+        if payload.allow_see_result is None and hasattr(template, "allow_see_result"):
+            form.allow_see_result = template.allow_see_result
+        if payload.max_submissions is None and hasattr(template, "max_submissions"):
+            form.max_submissions = template.max_submissions
+        if payload.require_fullscreen is None and hasattr(template, "require_fullscreen"):
+            form.require_fullscreen = template.require_fullscreen
+        if payload.reveal_answers is None and hasattr(template, "reveal_answers"):
+            form.reveal_answers = template.reveal_answers
+        if payload.shuffle_questions is None and hasattr(template, "shuffle_questions"):
+            form.shuffle_questions = template.shuffle_questions
+        if payload.shuffle_options is None and hasattr(template, "shuffle_options"):
+            form.shuffle_options = template.shuffle_options
+        if payload.start_date is None and hasattr(template, "start_date"):
+            form.start_date = template.start_date
+        if payload.end_date is None and hasattr(template, "end_date"):
+            form.end_date = template.end_date
+        
         template_questions = (
             db.query(models.Question)
             .filter(models.Question.template_id == str(payload.template_id))

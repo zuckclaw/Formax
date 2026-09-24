@@ -53,6 +53,15 @@ def create_template(
             description=(payload.description or "").strip() or None,
             banner_url=payload.banner_url,
             theme=payload.theme,
+            accept_responses=payload.accept_responses,
+            allow_see_result=payload.allow_see_result,
+            max_submissions=payload.max_submissions,
+            require_fullscreen=payload.require_fullscreen,
+            reveal_answers=payload.reveal_answers,
+            shuffle_questions=payload.shuffle_questions,
+            shuffle_options=payload.shuffle_options,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
         )
         db.add(template)
         db.flush()

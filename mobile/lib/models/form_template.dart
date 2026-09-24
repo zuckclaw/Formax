@@ -5,6 +5,17 @@ class FormTemplate {
   final String? bannerUrl;
   final List<dynamic>? questionsJson;
   final bool isSystem;
+  
+  // Form settings dari template
+  final bool acceptResponses;
+  final bool allowSeeResult;
+  final int maxSubmissions;
+  final bool requireFullscreen;
+  final bool revealAnswers;
+  final bool shuffleQuestions;
+  final bool shuffleOptions;
+  final DateTime? startDate;
+  final DateTime? endDate;
 
   FormTemplate({
     required this.title,
@@ -13,6 +24,15 @@ class FormTemplate {
     this.bannerUrl,
     this.questionsJson,
     this.isSystem = false,
+    this.acceptResponses = true,
+    this.allowSeeResult = false,
+    this.maxSubmissions = 0,
+    this.requireFullscreen = false,
+    this.revealAnswers = false,
+    this.shuffleQuestions = false,
+    this.shuffleOptions = false,
+    this.startDate,
+    this.endDate,
   });
 
   /// Plain text untuk display list — strip HTML "<p>hhhh</p>" -> "hhhh"
@@ -50,6 +70,15 @@ class FormTemplate {
           )
           .toList();
     }
+    
+    // Parse datetime fields
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+    
     return FormTemplate(
       id: map['id']?.toString(),
       title: (map['title']?.toString() ?? '').trim().isEmpty
@@ -59,6 +88,17 @@ class FormTemplate {
       bannerUrl: map['banner_url']?.toString(),
       questionsJson: qs,
       isSystem: map['is_system'] == true,
+      acceptResponses: map['accept_responses'] != false,
+      allowSeeResult: map['allow_see_result'] == true,
+      maxSubmissions: (map['max_submissions'] is int)
+          ? map['max_submissions'] as int
+          : int.tryParse('${map['max_submissions']}') ?? 0,
+      requireFullscreen: map['require_fullscreen'] == true,
+      revealAnswers: map['reveal_answers'] == true,
+      shuffleQuestions: map['shuffle_questions'] == true,
+      shuffleOptions: map['shuffle_options'] == true,
+      startDate: parseDateTime(map['start_date']),
+      endDate: parseDateTime(map['end_date']),
     );
   }
 }

@@ -293,6 +293,17 @@ class TemplateCreate(BaseModel):
     banner_url: Optional[str] = None
     theme: Optional[Dict[str, Any]] = None
     questions: List[QuestionCreate] = []
+    
+    # Form settings untuk di-inherit saat membuat form dari template
+    accept_responses: bool = True
+    allow_see_result: bool = False
+    max_submissions: int = 0
+    require_fullscreen: bool = False
+    reveal_answers: bool = False
+    shuffle_questions: bool = False
+    shuffle_options: bool = False
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
 
     @field_validator("title", "description")
     @classmethod
@@ -310,7 +321,18 @@ class TemplateUpdate(BaseModel):
     description: Optional[str] = None
     banner_url: Optional[str] = None
     theme: Optional[Dict[str, Any]] = None
-    questions: Optional[List[QuestionCreate]] = None  # untuk draft update, replace semua questions
+    questions: Optional[List[QuestionCreate]] = None
+    
+    # Form settings untuk di-inherit
+    accept_responses: Optional[bool] = None
+    allow_see_result: Optional[bool] = None
+    max_submissions: Optional[int] = None
+    require_fullscreen: Optional[bool] = None
+    reveal_answers: Optional[bool] = None
+    shuffle_questions: Optional[bool] = None
+    shuffle_options: Optional[bool] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
 
     @field_validator("title", "description")
     @classmethod
@@ -331,6 +353,18 @@ class TemplateOut(BaseModel):
     banner_url: Optional[str]
     theme: Optional[Dict[str, Any]] = None
     is_system: bool
+    
+    # Form settings
+    accept_responses: bool = True
+    allow_see_result: bool = False
+    max_submissions: int = 0
+    require_fullscreen: bool = False
+    reveal_answers: bool = False
+    shuffle_questions: bool = False
+    shuffle_options: bool = False
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    
     created_at: datetime
     questions: List[QuestionOut] = []
 

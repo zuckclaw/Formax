@@ -4,6 +4,7 @@
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
@@ -298,11 +299,14 @@ class _DocxImportSheetState extends State<DocxImportSheet> {
                   shrinkWrap: true,
                   itemCount: _questions.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) {                    final q = _questions[i];
+                  itemBuilder: (context, i) {
+                    final q = _questions[i];
                     final opts = (q['options'] as List? ?? []).length;
                     final errs = (q['errors'] as List? ?? [])
                         .map((e) => e.toString())
                         .toList();
+                    final labelHtml = (q['label'] ?? '').toString();
+                    
                     return CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -314,11 +318,56 @@ class _DocxImportSheetState extends State<DocxImportSheet> {
                           _selected.remove(i);
                         }
                       }),
-                      title: Text(
-                        '${q['number'] ?? (i + 1)}. ${(q['label'] ?? '').toString()}',
-                        style: const TextStyle(fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${q['number'] ?? (i + 1)}.',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.65,
+                            child: Html(
+                              data: labelHtml,
+                              style: {
+                                'body': Style(
+                                  fontSize: FontSize(13),
+                                  margin: Margins.zero,
+                                  padding: HtmlPaddings.zero,
+                                ),
+                                'p': Style(
+                                  margin: Margins.zero,
+                                  padding: HtmlPaddings.zero,
+                                  fontSize: FontSize(13),
+                                ),
+                                'code': Style(
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  padding: HtmlPaddings.symmetric(horizontal: 4),
+                                  fontSize: FontSize(12),
+                                  fontFamily: 'monospace',
+                                ),
+                                'pre': Style(
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  padding: HtmlPaddings.all(8),
+                                  margin: Margins.symmetric(vertical: 4),
+                                  fontSize: FontSize(12),
+                                  fontFamily: 'monospace',
+                                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                                ),
+                                'img': Style(
+                                  width: Width(100, Unit.percent),
+                                  height: Height.auto(),
+                                  margin: Margins.symmetric(vertical: 4),
+                                ),
+                                'div': Style(
+                                  margin: Margins.zero,
+                                  padding: HtmlPaddings.zero,
+                                ),
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                       subtitle: Text(
                         errs.isNotEmpty
