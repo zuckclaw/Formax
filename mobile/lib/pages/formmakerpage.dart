@@ -114,6 +114,7 @@ class _FormMakerPageState extends State<FormMakerPage>
         'shuffle_options': widget.initialTemplate!.shuffleOptions,
         'start_date': widget.initialTemplate!.startDate?.toIso8601String(),
         'end_date': widget.initialTemplate!.endDate?.toIso8601String(),
+        'theme': widget.initialTemplate!.theme,
       });
     } else {
       _builderState = FormBuilderState();

@@ -99,13 +99,28 @@ try:
             except Exception:
                 pass
 
-        # Setting baru Form Builder
+        # Setting baru Form Builder — FORMS
         add_column("forms", "allow_see_result", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("forms", "max_submissions", "INTEGER NOT NULL DEFAULT 1")
         add_column("forms", "require_fullscreen", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("forms", "reveal_answers", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("forms", "shuffle_questions", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("forms", "shuffle_options", "BOOLEAN NOT NULL DEFAULT FALSE")
+
+        # FIX BUG Save as Template: kolom settings yang sama HARUS ada di tabel templates.
+        # Sebelumnya hanya forms yang dimigrasikan → INSERT template dengan settings
+        # selalu gagal (kolom tidak ditemukan) → settings kembali ke default saat
+        # template dibuka/digunakan kembali.
+        # accept_responses di templates: default TRUE (sama dengan forms)
+        add_column("templates", "accept_responses", "BOOLEAN NOT NULL DEFAULT TRUE")
+        add_column("templates", "allow_see_result", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("templates", "max_submissions", "INTEGER NOT NULL DEFAULT 0")
+        add_column("templates", "require_fullscreen", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("templates", "reveal_answers", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("templates", "shuffle_questions", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("templates", "shuffle_options", "BOOLEAN NOT NULL DEFAULT FALSE")
+        add_column("templates", "start_date", "DATETIME")
+        add_column("templates", "end_date", "DATETIME")
         add_column("submissions", "is_cheated", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("submissions", "shuffled_order", "JSON")
         add_column("submissions", "shuffled_options", "JSON")

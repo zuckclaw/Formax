@@ -16,6 +16,7 @@ class FormTemplate {
   final bool shuffleOptions;
   final DateTime? startDate;
   final DateTime? endDate;
+  final dynamic theme;
 
   FormTemplate({
     required this.title,
@@ -33,6 +34,7 @@ class FormTemplate {
     this.shuffleOptions = false,
     this.startDate,
     this.endDate,
+    this.theme,
   });
 
   /// Plain text untuk display list — strip HTML "<p>hhhh</p>" -> "hhhh"
@@ -99,6 +101,7 @@ class FormTemplate {
       shuffleOptions: map['shuffle_options'] == true,
       startDate: parseDateTime(map['start_date']),
       endDate: parseDateTime(map['end_date']),
+      theme: map['theme'],
     );
   }
 }

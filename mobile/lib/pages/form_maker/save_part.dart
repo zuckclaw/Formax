@@ -450,6 +450,12 @@ extension _FormMakerSave on _FormMakerPageState {
 
     _markSaving();
 
+    // Untuk Save as Template, tema SELALU dikirim (bukan hanya saat _themeTouched).
+    // _themeTouched hanya relevan saat save form agar tidak menimpa tema dari web.
+    // Saat membuat template baru, semua settings form — termasuk tema — harus disalin.
+    final Map<String, dynamic>? themePayload =
+        _themeAccent != null ? {'accent': _themeAccent} : null;
+
     final payload = {
       'title': titleHtml,
       'description': descriptionHtml,
@@ -464,7 +470,7 @@ extension _FormMakerSave on _FormMakerPageState {
       'shuffle_options': _shuffleOptions,
       'start_date': startStr,
       'end_date': endStr,
-      if (_themeTouched) 'theme': _themeAccent == null ? null : {'accent': _themeAccent},
+      'theme': themePayload,
     };
 
     final String? targetId = _draftTemplateId ?? widget.initialTemplate?.id;

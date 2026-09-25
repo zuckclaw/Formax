@@ -640,6 +640,7 @@ export default function FormBuilderPage() {
                     value: o.value || '',
                     order_index: oidx,
                     is_correct: o.is_correct || false,
+                    is_other: !!o.is_other,
                   })),
                 }))
             );
@@ -977,6 +978,7 @@ export default function FormBuilderPage() {
             value: o.value || '',
             order_index: oidx,
             is_correct: o.is_correct || false,
+            is_other: !!o.is_other,
           })),
         })),
         accept_responses: formData.accept_responses,
