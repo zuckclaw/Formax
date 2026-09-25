@@ -716,7 +716,7 @@ extension _FormMakerSave on _FormMakerPageState {
     if (qrRes['success'] == true && qrRes['data'] is Map) {
       final qrData = Map<String, dynamic>.from(qrRes['data'] as Map);
       var shareLink = qrData['share_link'] as String;
-      // Paksa link publik selalu menunjuk ke frontend yang dideploy (Vercel),
+      // Paksa link publik selalu menunjuk ke frontend yang dideploy (commandspes.tech),
       // bukan localhost yang mungkin di-set di env backend.
       shareLink = ApiService.publicFormLink(shareLink);
       String qrUrl = qrData['qr_code_url'] as String;

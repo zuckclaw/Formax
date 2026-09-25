@@ -51,7 +51,7 @@ class ApiService {
   static String get frontendUrl {
     const f = String.fromEnvironment('FRONTEND_URL');
     if (f.isNotEmpty) return f;
-    return 'https://formax-seven.vercel.app';
+    return 'https://formax-api.commandspes.tech';
   }
 
   static String publicFormLink(String slug) {
