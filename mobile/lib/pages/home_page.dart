@@ -440,15 +440,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           child: TextField(
             controller: _searchController,
             focusNode: _searchFocus,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black,
+            ),
+            cursorColor: Colors.black,
             decoration: InputDecoration(
               hintText: 'Cari formulir...',
-              hintStyle: const TextStyle(fontSize: 14, color: Colors.black38),
+              hintStyle: const TextStyle(fontSize: 14, color: Colors.black45),
               filled: true,
               fillColor: Colors.white,
-              prefixIcon: const Icon(Icons.search, color: Colors.black38),
+              prefixIcon: const Icon(Icons.search, color: Colors.black45),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.black38),
+                      icon: const Icon(Icons.clear, color: Colors.black45),
                       onPressed: () {
                         _searchController.clear();
                         _searchFocus.unfocus();
