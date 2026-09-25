@@ -80,9 +80,9 @@ export async function apiFetch(url, options = {}, timeoutMs = 30000) {
     return fetchWithTimeout(url, { ...requestOptions, headers: retryHeaders }, timeoutMs);
   } catch (e) {
     if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
-      throw new Error('Permintaan timeout — periksa koneksi / ngrok / VITE_API_BASE_URL, lalu coba lagi.', { cause: e });
+      throw new Error('Permintaan timeout — periksa koneksi internet Anda lalu coba lagi.', { cause: e });
     }
-    throw new Error('Gagal terhubung ke server — periksa ngrok & VITE_API_BASE_URL.', { cause: e });
+    throw new Error('Gagal terhubung ke server — periksa koneksi internet Anda lalu coba lagi.', { cause: e });
   }
 }
 

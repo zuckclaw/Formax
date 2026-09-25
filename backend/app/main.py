@@ -67,6 +67,7 @@ try:
         def add_column(table: str, column: str, coldef: str):
             if not _column_exists_conn(conn, table, column, dialect):
                 if dialect == "postgresql":
+                    coldef = coldef.replace("DATETIME", "TIMESTAMP")
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {coldef}"))
                 else:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coldef}"))

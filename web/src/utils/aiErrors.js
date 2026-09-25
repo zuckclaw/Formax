@@ -100,7 +100,7 @@ export function mapAiError(err, ctx = {}) {
   if (/timeout|Gagal terhubung ke server|network|Failed to fetch|Load failed/i.test(raw)) {
     return {
       text: 'Gagal terhubung ke server.',
-      hint: 'Periksa koneksi / ngrok / VITE_API_BASE_URL, lalu coba lagi.',
+      hint: 'Periksa koneksi internet Anda lalu coba lagi. Jika terus gagal, server sedang sibuk — tunggu sebentar.',
       action: 'retry',
       actionLabel: 'Coba lagi',
     };

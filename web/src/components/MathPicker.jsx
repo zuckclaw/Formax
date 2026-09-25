@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import katex from 'katex'
 import './MathPicker.css'
 
@@ -256,6 +257,8 @@ export default function MathPicker({ isOpen, onClose, onInsert, anchorRect }) {
   // ── Drag handlers ────────────────────────────────────────────────
   const onHeaderPointerDown = useCallback((e) => {
     if (isMobile) return
+    e.stopPropagation()
+    if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation()
     const card = modalRef.current
     if (!card) return
     const rect = card.getBoundingClientRect()
@@ -307,11 +310,13 @@ export default function MathPicker({ isOpen, onClose, onInsert, anchorRect }) {
   if (!isOpen) return null
 
   // Card style: if pos is set (dragged or initial anchor), use fixed positioning
+  // ponytail: fixed terikat containing-block terdekat (dnd-kit transform di SortableRow)
+  // → render via portal ke body agar left/top viewport selalu benar.
   const cardDragStyle = pos ? { left: pos.left, top: pos.top, position: 'fixed', margin: 0 } : undefined
   // For popover that hasn't been dragged yet, pos is already set from anchor; for centered modal, pos=null -> CSS centers via flex
   const cardStyle = isPopover || pos ? cardDragStyle : undefined
 
-  return (
+  return createPortal(
     <div className={`mp-overlay ${isPopover ? 'mp-overlay-popover' : ''}`} onClick={onClose}>
       <div
         ref={modalRef}
@@ -500,6 +505,7 @@ export default function MathPicker({ isOpen, onClose, onInsert, anchorRect }) {
           <span>💡 Klik rumus untuk sisipkan langsung • Klik <b>Edit</b> untuk ubah huruf/angka • Seret header untuk pindahkan modal</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

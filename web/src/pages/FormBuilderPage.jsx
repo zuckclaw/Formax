@@ -40,6 +40,7 @@ import '../styles/form-builder.css';
 import logoForm4x from '../assets/logo_form4x.png';
 import ThemeToggle from '../components/ThemeToggle';
 import NgrokImage from '../components/NgrokImage';
+import ShareCard from '../components/ShareCard';
 import { safeHtml } from '../utils/safeHtml';
 import { normalizeFileUrl } from '../utils/normalizeFileUrl';
 import { prepareMathHtml } from '../utils/mathRender';
@@ -658,6 +659,17 @@ export default function FormBuilderPage() {
     load();
   }, [formId, templateId, navigate, showToast]);
 
+  // ponytail: auto-QR sekali bila published tapi qr kosong (thumbnail kartu).
+  const autoQrDoneRef = useRef(false);
+  useEffect(() => {
+    if (autoQrDoneRef.current) return;
+    if (formData.status !== 'published' || !formData.id || formData.qr_code_url || !token) return;
+    autoQrDoneRef.current = true;
+    generateQR(token, formData.id)
+      .then((qr) => setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url })))
+      .catch(() => { autoQrDoneRef.current = false; });
+  }, [formData.status, formData.id, formData.qr_code_url, token]);
+
   // Drawer swipe open dari edge kiri
   useEffect(() => {
     let startX = 0;
@@ -766,7 +778,7 @@ export default function FormBuilderPage() {
                 if (publishOk) {
                   setFormData((prev) => ({ ...prev, status: 'published' }));
                   showToast('Form berhasil dipublikasikan! (Soal tidak diubah karena sudah ada jawaban)', 'success');
-                  try { const qr = await generateQR(token, formData.id); setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url })); } catch { }
+                  await openShareAfterPublish(formData.id);
                   return;
                 }
               } catch { }
@@ -803,10 +815,7 @@ export default function FormBuilderPage() {
         if (publish) {
           showToast('Form berhasil dipublikasikan! Link siap dibagikan.', 'success');
           if (formData.id) {
-            try {
-              const qr = await generateQR(token, formData.id);
-              setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url }));
-            } catch { /* ignore */ }
+            await openShareAfterPublish(formData.id);
           }
         } else {
           showToast('Form berhasil disimpan!', 'success');
@@ -922,10 +931,7 @@ export default function FormBuilderPage() {
           showToast('Form berhasil disimpan!', 'success');
         }
         if (publish && created.id) {
-          try {
-            const qr = await generateQR(token, created.id);
-            setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url }));
-          } catch { /* ignore */ }
+          await openShareAfterPublish(created.id);
         }
       }
     } catch (err) {
@@ -1288,6 +1294,16 @@ export default function FormBuilderPage() {
       showToast(err.message, 'error');
     }
   };
+
+  // ponytail: QR tetap PNG backend (tanpa lib baru). Buka modal tiap Publish sukses.
+  const openShareAfterPublish = useCallback(async (formId) => {
+    if (!formId) return;
+    try {
+      const qr = await generateQR(token, formId);
+      setFormData((prev) => ({ ...prev, qr_code_url: qr.qr_code_url }));
+    } catch { /* QR gagal -> modal tetap dibuka berisi link */ }
+    setShowQrModal(true);
+  }, [token]);
 
   // ============================================================
   // IMPORT DOCX HANDLERS
@@ -2195,6 +2211,21 @@ export default function FormBuilderPage() {
                 <p style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', marginTop: '-6px' }}>Gunakan <strong>Tambah Bagian</strong> untuk buat Section 1 = Informasi Pribadi, Section 2 = Soal Ujian. Tiap bagian jadi 1 halaman di Fill.</p>
               </div>
 
+              {formData.status === 'published' && formData.id && (
+              <aside className="fb-share-rail">
+                <ShareCard
+                  variant="rail"
+                  link={formData.id ? getPublicLink() : ''}
+                  qrUrl={formData.qr_code_url}
+                  copied={copiedLink}
+                  hasId={!!formData.id}
+                  onCopy={handleCopyLink}
+                  onViewQr={() => setShowQrModal(true)}
+                  onGenerate={handleGenerateQR}
+                />
+              </aside>
+              )}
+
               {/* Floating actions */}
               <div className="fb-float-actions">
                 <button className="fb-float-btn" onClick={addQuestion} title="Tambah pertanyaan">
@@ -2216,6 +2247,16 @@ export default function FormBuilderPage() {
           {activeTab === 'setelan' && (
             <div className="fb-editor-area">
               <div className="fb-settings-card">
+                <ShareCard
+                  variant="top"
+                  link={formData.id ? getPublicLink() : ''}
+                  qrUrl={formData.qr_code_url}
+                  copied={copiedLink}
+                  hasId={!!formData.id}
+                  onCopy={handleCopyLink}
+                  onViewQr={() => setShowQrModal(true)}
+                  onGenerate={handleGenerateQR}
+                />
                 <h2 className="fb-settings-title">Setelan Formulir</h2>
 
                 {/* Slug */}
@@ -2571,28 +2612,6 @@ export default function FormBuilderPage() {
                   </div>
                 )}
 
-                {/* QR Code */}
-                <div className="fb-setting-row" style={{ borderBottom: 'none', marginTop: '8px' }}>
-                  <div>
-                    <p className="fb-setting-row-label">QR Code</p>
-                    <p className="fb-setting-row-desc">Generate QR code untuk dibagikan</p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {formData.qr_code_url && (
-                      <button
-                        type="button"
-                        className="fb-qr-btn"
-                        style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}
-                        onClick={() => setShowQrModal(true)}
-                      >
-                        Lihat QR
-                      </button>
-                    )}
-                    <button className="fb-qr-btn" onClick={handleGenerateQR} disabled={!formData.id}>
-                      {formData.qr_code_url ? 'Regenerate QR' : 'Generate QR'}
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -2914,7 +2933,7 @@ export default function FormBuilderPage() {
       )}
 
       {/* QR Code Modal Pop-up */}
-      {showQrModal && formData.qr_code_url && (
+      {showQrModal && formData.id && (
         <div className="fb-modal-overlay" onClick={() => setShowQrModal(false)}>
           <div className="fb-modal-card" onClick={(e) => e.stopPropagation()}>
             <button className="fb-modal-close" onClick={() => setShowQrModal(false)} aria-label="Tutup">
@@ -2927,9 +2946,17 @@ export default function FormBuilderPage() {
             <h3 className="fb-modal-title">QR Code Formulir</h3>
             <p className="fb-modal-subtitle">Pindai kode QR untuk membuka formulir ini di perangkat seluler</p>
 
-            <div className="fb-qr-img-wrapper">
-              <NgrokImage src={formData.qr_code_url} alt="QR Code Form" style={{ width: '190px', height: '190px', display: 'block' }} />
-            </div>
+            {formData.qr_code_url ? (
+              <div className="fb-qr-img-wrapper">
+                <NgrokImage src={formData.qr_code_url} alt="QR Code Form" style={{ width: '190px', height: '190px', display: 'block' }} />
+              </div>
+            ) : (
+              <div className="fb-qr-img-wrapper">
+                <button className="fb-share-btn secondary" onClick={handleGenerateQR}>
+                  Generate QR
+                </button>
+              </div>
+            )}
 
             <div className="fb-share-link-box">
               <span className="fb-share-link-text">{getPublicLink()}</span>
@@ -2939,6 +2966,7 @@ export default function FormBuilderPage() {
             </div>
 
             <div className="fb-modal-actions">
+              {formData.qr_code_url && (
               <button
                 onClick={async () => {
                   try {
@@ -2966,6 +2994,7 @@ export default function FormBuilderPage() {
                 </svg>
                 Unduh QR
               </button>
+              )}
               <a
                 href={getPublicLink()}
                 target="_blank"
