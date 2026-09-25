@@ -51,7 +51,9 @@ class ApiService {
   static String get frontendUrl {
     const f = String.fromEnvironment('FRONTEND_URL');
     if (f.isNotEmpty) return f;
-    return 'https://formax-api.commandspes.tech';
+    // URL web frontend (tempat form diakses di browser) — BUKAN backend API.
+    // Harus sama dengan FRONTEND_URL di backend .env agar QR & share link valid.
+    return 'https://formax.commandspes.tech';
   }
 
   static String publicFormLink(String slug) {

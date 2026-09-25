@@ -24,7 +24,7 @@ export async function uploadFile(token, file) {
   }
   // 503 = ngrok tunnel mati (CORS Missing Allow Origin di console)
   if (res.status === 503) {
-    throw new Error('Server ngrok 503 — tunnel mati. Jalankan `ngrok http 8000` lagi & pastikan URL di Vercel sama');
+    throw new Error('Server ngrok 503 — tunnel mati. Jalankan `ngrok http 8000` lagi & pastikan URL di API sama');
   }
   let json;
   try {

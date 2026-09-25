@@ -4,7 +4,7 @@ export const API_BASE_URL = _rawBase.replace(/\/+$/, '');
 import { clearAuth, getRefreshToken, getRememberPreference, setAuth } from '../utils/authStorage.js';
 
 if (!import.meta.env.VITE_API_BASE_URL && import.meta.env.PROD) {
-  console.warn('[config] VITE_API_BASE_URL belum diset — fallback ke localhost. Set di Vercel Env.');
+  console.warn('[config] VITE_API_BASE_URL belum diset — fallback ke localhost. Set di URL_API Env.');
 }
 
 // Ambil atau buat anonymous identity untuk isi form tanpa login (Google-Forms style)
