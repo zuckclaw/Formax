@@ -1,3 +1,5 @@
+import '../utils/form_settings_meta.dart';
+
 class FormTemplate {
   final String title;
   final String subtitle;
@@ -5,7 +7,7 @@ class FormTemplate {
   final String? bannerUrl;
   final List<dynamic>? questionsJson;
   final bool isSystem;
-  
+
   // Form settings dari template
   final bool acceptResponses;
   final bool allowSeeResult;
@@ -14,6 +16,7 @@ class FormTemplate {
   final bool revealAnswers;
   final bool shuffleQuestions;
   final bool shuffleOptions;
+  final bool useJoinToken;
   final DateTime? startDate;
   final DateTime? endDate;
   final dynamic theme;
@@ -32,6 +35,7 @@ class FormTemplate {
     this.revealAnswers = false,
     this.shuffleQuestions = false,
     this.shuffleOptions = false,
+    this.useJoinToken = false,
     this.startDate,
     this.endDate,
     this.theme,
@@ -39,7 +43,8 @@ class FormTemplate {
 
   /// Plain text untuk display list — strip HTML "<p>hhhh</p>" -> "hhhh"
   String get plainTitle => _stripHtml(title);
-  String get plainSubtitle => _stripHtml(subtitle);
+  String get plainSubtitle =>
+      _stripHtml(FormSettingsMeta.stripMetaHtml(subtitle));
 
   static String _stripHtml(String? html) {
     if (html == null || html.trim().isEmpty) return '';
@@ -72,7 +77,14 @@ class FormTemplate {
           )
           .toList();
     }
-    
+
+    // Ekstrak pengaturan formulir secara menyeluruh (root + embedded meta di description & questions)
+    final settings = FormSettingsMeta.extractSettings(
+      root: map,
+      descriptionHtml: map['description']?.toString(),
+      questions: qs,
+    );
+
     // Parse datetime fields
     DateTime? parseDateTime(dynamic value) {
       if (value == null) return null;
@@ -80,7 +92,12 @@ class FormTemplate {
       if (value is String) return DateTime.tryParse(value);
       return null;
     }
-    
+
+    int parseMaxSubmissions(dynamic value) {
+      if (value is int) return value;
+      return int.tryParse('$value') ?? 0;
+    }
+
     return FormTemplate(
       id: map['id']?.toString(),
       title: (map['title']?.toString() ?? '').trim().isEmpty
@@ -90,18 +107,17 @@ class FormTemplate {
       bannerUrl: map['banner_url']?.toString(),
       questionsJson: qs,
       isSystem: map['is_system'] == true,
-      acceptResponses: map['accept_responses'] != false,
-      allowSeeResult: map['allow_see_result'] == true,
-      maxSubmissions: (map['max_submissions'] is int)
-          ? map['max_submissions'] as int
-          : int.tryParse('${map['max_submissions']}') ?? 0,
-      requireFullscreen: map['require_fullscreen'] == true,
-      revealAnswers: map['reveal_answers'] == true,
-      shuffleQuestions: map['shuffle_questions'] == true,
-      shuffleOptions: map['shuffle_options'] == true,
-      startDate: parseDateTime(map['start_date']),
-      endDate: parseDateTime(map['end_date']),
-      theme: map['theme'],
+      acceptResponses: settings['accept_responses'] != false,
+      allowSeeResult: settings['allow_see_result'] == true,
+      maxSubmissions: parseMaxSubmissions(settings['max_submissions']),
+      requireFullscreen: settings['require_fullscreen'] == true,
+      revealAnswers: settings['reveal_answers'] == true,
+      shuffleQuestions: settings['shuffle_questions'] == true,
+      shuffleOptions: settings['shuffle_options'] == true,
+      useJoinToken: settings['use_join_token'] == true,
+      startDate: parseDateTime(settings['start_date']),
+      endDate: parseDateTime(settings['end_date']),
+      theme: settings['theme'] ?? map['theme'],
     );
   }
 }

@@ -19,7 +19,8 @@ extension _FormMakerSettings on _FormMakerPageState {
     _correctAnswers = map['allow_see_result'] as bool? ?? false;
     _revealAnswers =
         _correctAnswers && (map['reveal_answers'] as bool? ?? false);
-    _useJoinToken = map['join_token']?.toString().isNotEmpty ?? false;
+    _useJoinToken = (map['use_join_token'] == true) ||
+        (map['join_token']?.toString().isNotEmpty ?? false);
     _shuffleQuestions = map['shuffle_questions'] as bool? ?? false;
     _shuffleOptions = map['shuffle_options'] as bool? ?? false;
     // Tema: baca apa adanya (null = default), tandai belum disentuh agar
@@ -28,8 +29,10 @@ extension _FormMakerSettings on _FormMakerPageState {
     _themeTouched = false;
     _startDate = _parseDate(map['start_date']);
     _endDate = _parseDate(map['end_date']);
-    final maxSub = map['max_submissions'];
-    if (maxSub is int) {
+    final int? maxSub = (map['max_submissions'] is int)
+        ? map['max_submissions'] as int
+        : int.tryParse('${map['max_submissions']}');
+    if (maxSub != null) {
       if (maxSub == 1) {
         _submissionLimit = 'once';
       } else if (maxSub == 0) {

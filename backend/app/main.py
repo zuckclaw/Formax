@@ -121,6 +121,7 @@ try:
         add_column("templates", "shuffle_options", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("templates", "start_date", "DATETIME")
         add_column("templates", "end_date", "DATETIME")
+        add_column("templates", "use_join_token", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("submissions", "is_cheated", "BOOLEAN NOT NULL DEFAULT FALSE")
         add_column("submissions", "shuffled_order", "JSON")
         add_column("submissions", "shuffled_options", "JSON")

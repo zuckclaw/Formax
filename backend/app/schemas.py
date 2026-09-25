@@ -304,6 +304,7 @@ class TemplateCreate(BaseModel):
     shuffle_options: bool = False
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    use_join_token: bool = False
 
     @field_validator("title", "description")
     @classmethod
@@ -331,6 +332,7 @@ class TemplateUpdate(BaseModel):
     reveal_answers: Optional[bool] = None
     shuffle_questions: Optional[bool] = None
     shuffle_options: Optional[bool] = None
+    use_join_token: Optional[bool] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
 
@@ -362,6 +364,7 @@ class TemplateOut(BaseModel):
     reveal_answers: bool = False
     shuffle_questions: bool = False
     shuffle_options: bool = False
+    use_join_token: bool = False
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     

@@ -156,6 +156,8 @@ def create_form(
             form.start_date = template.start_date
         if payload.end_date is None and hasattr(template, "end_date"):
             form.end_date = template.end_date
+        if not form.join_token and getattr(template, "use_join_token", False):
+            form.join_token = security.generate_join_token()
         
         template_questions = (
             db.query(models.Question)

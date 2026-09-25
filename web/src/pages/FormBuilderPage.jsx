@@ -596,25 +596,42 @@ export default function FormBuilderPage() {
           // Create from template: load template questions + ALL form settings as initial data
           try {
             const tpl = await getTemplate(t, templateId);
+            let desc = tpl.description || '';
+            let metaSettings = {};
+            if (desc.includes('form-settings-meta')) {
+              try {
+                const match = desc.match(/class="form-settings-meta"[^>]*data-value="([^"]+)"/);
+                if (match && match[1]) {
+                  metaSettings = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
+                }
+              } catch (e) {
+                console.error('Failed to parse form-settings-meta', e);
+              }
+              desc = desc.replace(/<div class="form-settings-meta"[^>]*>.*?<\/div>/gs, '').trim();
+            }
+            if (tpl.questions && tpl.questions.length > 0 && tpl.questions[0].settings && tpl.questions[0].settings.__form_settings__) {
+              metaSettings = { ...tpl.questions[0].settings.__form_settings__, ...metaSettings };
+            }
+
             setFormData((prev) => ({
               ...prev,
               title: tpl.title || '',
-              description: tpl.description || '',
+              description: desc,
               banner_url: tpl.banner_url || null,
-              theme: tpl.theme || null,
+              theme: tpl.theme || metaSettings.theme || null,
               // FIX: Load ALL form settings from template (Bug: settings were resetting to defaults)
-              accept_responses: tpl.accept_responses ?? true,
-              allow_see_result: tpl.allow_see_result ?? false,
-              max_submissions: tpl.max_submissions ?? 0,
-              require_fullscreen: tpl.require_fullscreen ?? false,
-              reveal_answers: tpl.reveal_answers ?? false,
-              shuffle_questions: tpl.shuffle_questions ?? false,
-              shuffle_options: tpl.shuffle_options ?? false,
-              start_date: tpl.start_date ? tpl.start_date.substring(0, 16) : '',
-              end_date: tpl.end_date ? tpl.end_date.substring(0, 16) : '',
+              accept_responses: tpl.accept_responses ?? metaSettings.accept_responses ?? true,
+              allow_see_result: tpl.allow_see_result ?? metaSettings.allow_see_result ?? false,
+              max_submissions: tpl.max_submissions ?? metaSettings.max_submissions ?? 0,
+              require_fullscreen: tpl.require_fullscreen ?? metaSettings.require_fullscreen ?? false,
+              reveal_answers: tpl.reveal_answers ?? metaSettings.reveal_answers ?? false,
+              shuffle_questions: tpl.shuffle_questions ?? metaSettings.shuffle_questions ?? false,
+              shuffle_options: tpl.shuffle_options ?? metaSettings.shuffle_options ?? false,
+              start_date: (tpl.start_date || metaSettings.start_date) ? (tpl.start_date || metaSettings.start_date).substring(0, 16) : '',
+              end_date: (tpl.end_date || metaSettings.end_date) ? (tpl.end_date || metaSettings.end_date).substring(0, 16) : '',
             }));
             // Sync maxSubmissionsMode & customMaxSubmissions state variables
-            const maxSub = tpl.max_submissions ?? 0;
+            const maxSub = tpl.max_submissions ?? metaSettings.max_submissions ?? 0;
             if (maxSub === 1) {
               setMaxSubmissionsMode('once');
             } else if (maxSub === 0) {
@@ -623,6 +640,7 @@ export default function FormBuilderPage() {
               setMaxSubmissionsMode('custom');
               setCustomMaxSubmissions(maxSub);
             }
+            setUseJoinToken(!!(tpl.use_join_token ?? metaSettings.use_join_token));
             setQuestions(
               (tpl.questions || [])
                 .sort((a, b) => a.order_index - b.order_index)
@@ -645,7 +663,7 @@ export default function FormBuilderPage() {
                 }))
             );
           } catch {
-        showToast('Gagal memuat template', 'error');
+            showToast('Gagal memuat template', 'error');
           }
         }
       } catch {
@@ -960,27 +978,8 @@ export default function FormBuilderPage() {
       } else if (maxSubmissionsMode === 'custom') {
         maxSub = Math.max(2, customMaxSubmissions);
       }
-      
-      const created = await createTemplate(token, {
-        title: formData.title,
-        description: formData.description,
-        banner_url: formData.banner_url,
-        theme: formData.theme,
-        questions: questions.map((q, idx) => ({
-          type: q.type,
-          label: q.label,
-          placeholder: q.placeholder || '',
-          is_required: q.is_required,
-          order_index: idx,
-          settings: q.settings || {},
-          options: (q.options || []).map((o, oidx) => ({
-            label: o.label,
-            value: o.value || '',
-            order_index: oidx,
-            is_correct: o.is_correct || false,
-            is_other: !!o.is_other,
-          })),
-        })),
+
+      const formSettings = {
         accept_responses: formData.accept_responses,
         allow_see_result: formData.allow_see_result,
         max_submissions: maxSub,
@@ -988,6 +987,53 @@ export default function FormBuilderPage() {
         reveal_answers: formData.reveal_answers,
         shuffle_questions: formData.shuffle_questions,
         shuffle_options: formData.shuffle_options,
+        use_join_token: useJoinToken,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        theme: formData.theme,
+      };
+
+      const cleanDesc = (formData.description || '').replace(/<div class="form-settings-meta"[^>]*>.*?<\/div>/gs, '').trim();
+      let encodedMeta = '';
+      try {
+        encodedMeta = btoa(unescape(encodeURIComponent(JSON.stringify(formSettings))));
+      } catch (e) {
+        console.error(e);
+      }
+      const embeddedDescription = encodedMeta
+        ? `${cleanDesc}<div class="form-settings-meta" data-value="${encodedMeta}" style="display:none"></div>`
+        : cleanDesc;
+
+      const templateQuestions = questions.map((q, idx) => ({
+        type: q.type,
+        label: q.label,
+        placeholder: q.placeholder || '',
+        is_required: q.is_required,
+        order_index: idx,
+        settings: idx === 0 ? { ...(q.settings || {}), __form_settings__: formSettings } : (q.settings || {}),
+        options: (q.options || []).map((o, oidx) => ({
+          label: o.label,
+          value: o.value || '',
+          order_index: oidx,
+          is_correct: o.is_correct || false,
+          is_other: !!o.is_other,
+        })),
+      }));
+
+      const created = await createTemplate(token, {
+        title: formData.title,
+        description: embeddedDescription,
+        banner_url: formData.banner_url,
+        theme: formData.theme,
+        questions: templateQuestions,
+        accept_responses: formData.accept_responses,
+        allow_see_result: formData.allow_see_result,
+        max_submissions: maxSub,
+        require_fullscreen: formData.require_fullscreen,
+        reveal_answers: formData.reveal_answers,
+        shuffle_questions: formData.shuffle_questions,
+        shuffle_options: formData.shuffle_options,
+        use_join_token: useJoinToken,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
       });

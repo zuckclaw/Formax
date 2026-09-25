@@ -3,6 +3,7 @@ import '../models/form_template.dart';
 import '../services/api_service.dart';
 import '../utils/quill_html.dart';
 import '../utils/form_theme.dart';
+import '../utils/form_settings_meta.dart';
 import '../widgets/share_form_dialog.dart';
 import 'form_maker/models/form_builder_state.dart';
 import 'form_maker/editor_canvas.dart';
@@ -102,7 +103,6 @@ class _FormMakerPageState extends State<FormMakerPage>
       _builderState = FormBuilderState.fromForm(map);
     } else if (widget.initialTemplate != null) {
       _builderState = FormBuilderState.fromTemplate(widget.initialTemplate!);
-      _draftTemplateId = widget.initialTemplate!.id;
       // FIX: Apply template form settings (Bug: settings were staying as defaults)
       _applyFormSettings({
         'accept_responses': widget.initialTemplate!.acceptResponses,
@@ -114,6 +114,7 @@ class _FormMakerPageState extends State<FormMakerPage>
         'shuffle_options': widget.initialTemplate!.shuffleOptions,
         'start_date': widget.initialTemplate!.startDate?.toIso8601String(),
         'end_date': widget.initialTemplate!.endDate?.toIso8601String(),
+        'use_join_token': widget.initialTemplate!.useJoinToken,
         'theme': widget.initialTemplate!.theme,
       });
     } else {
