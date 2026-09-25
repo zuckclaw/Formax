@@ -676,52 +676,41 @@ extension _FormMakerSave on _FormMakerPageState {
       );
     }
 
-    // FIX: jangan asal force-unwrap â€” kalau _draftFormId belum ke-set (mis. data
-    // response tak punya id), ambil dari res supaya tidak null-crash.
+    // FIX "Form tidak ditemukan": _saveForm(publish:true) sudah mengirim
+    // status:'published' ke backend (via createForm atau updateForm). Memanggil
+    // ApiService.publishForm lagi adalah REDUNDANT dan menyebabkan 404
+    // jika ada race condition DB atau formId tidak ter-set dengan benar.
+    // Alur diperbaiki: ambil formId dari _draftFormId atau res['data']['id'],
+    // lalu langsung generate QR tanpa double-call ke publishForm.
     var formId = _draftFormId;
-    if (formId == null) {
+    if (formId == null || formId.isEmpty) {
       final data = res['data'];
       if (data is Map && data['id'] != null) {
         _draftFormId = data['id'].toString();
         formId = _draftFormId;
       }
     }
-    if (formId == null) {
+    if (formId == null || formId.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Gagal publish form: tidak ada id form'),
+            content: Text('Gagal publish form: id form tidak ditemukan'),
             backgroundColor: Colors.red,
           ),
         );
       }
       return;
     }
-    _markSaving();
 
+    // Form sudah dipublish oleh _saveForm (status:'published' sudah terkirim).
+    // Langsung generate QR tanpa memanggil publishForm lagi.
     final titlePlain = QuillHtml.htmlToPlainText(
       _builderState.formTitle.trim().isNotEmpty
           ? _builderState.formTitle
           : 'Form Tanpa Judul',
     );
 
-    // FIX Bug 17-18: createForm selalu draft, maka publish via endpoint khusus.
-    // Pastikan benar-benar published (jangan lanjut generate QR kalau gagal).
-    final pubRes = await ApiService.publishForm(formId);
-    if (pubRes['success'] != true) {
-      _markSavingDone();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal publish form: ${pubRes['message'] ?? 'terjadi kesalahan'}',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-
+    _markSaving();
     final qrRes = await ApiService.generateQrCode(formId);
 
     if (qrRes['success'] == true && qrRes['data'] is Map) {
