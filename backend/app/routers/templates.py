@@ -60,6 +60,7 @@ def create_template(
             reveal_answers=payload.reveal_answers,
             shuffle_questions=payload.shuffle_questions,
             shuffle_options=payload.shuffle_options,
+            use_join_token=getattr(payload, 'use_join_token', False) or False,
             start_date=payload.start_date,
             end_date=payload.end_date,
         )

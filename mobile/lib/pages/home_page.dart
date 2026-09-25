@@ -21,6 +21,7 @@ import 'scan_qr_page.dart';
 import 'profile_page.dart';
 import 'tentang_page.dart';
 import 'cara_pakai_page.dart';
+import '../theme/app_colors.dart';
 
 // Part: widget tab Dashboard — Tahap 4a.
 // Sama-sama satu library, call-site tidak berubah.
@@ -383,9 +384,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   // ─── AppBar ───────────────────────────────────────────────────────────────
 
   AppBar _buildAppBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final appBarBg = isDark ? AppColors.darkBgCard : const Color(0xFF0B76D4);
+    final iconColor = isDark ? AppColors.darkTextPrimary : Colors.white;
+
     return AppBar(
-      backgroundColor: const Color(0xFF0B76D4),
-      foregroundColor: Colors.white,
+      backgroundColor: appBarBg,
+      foregroundColor: isDark ? AppColors.darkTextPrimary : Colors.white,
+      elevation: isDark ? 0 : 0.5,
+      surfaceTintColor: Colors.transparent,
       centerTitle: false,
       leading: GestureDetector(
         onTap: () {},
@@ -399,36 +406,39 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               width: 27,
               height: 27,
               fit: BoxFit.cover,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
+              colorFilter: ColorFilter.mode(
+                isDark ? AppColors.darkAccent : Colors.white,
                 BlendMode.srcIn,
               ),
             ),
           ),
         ),
       ),
-      title: const Column(
+      title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'Form4x',
             style: TextStyle(
-              color: Colors.white,
+              color: isDark ? AppColors.darkTextPrimary : Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
             'Tempat membuat Form terlengkap',
-            style: TextStyle(color: Colors.white70, fontSize: 11),
+            style: TextStyle(
+              color: isDark ? AppColors.darkTextSecondary : Colors.white70,
+              fontSize: 11,
+            ),
           ),
         ],
       ),
       actions: [
         Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
+            icon: Icon(Icons.menu, color: iconColor),
             onPressed: () => Scaffold.of(context).openEndDrawer(),
           ),
         ),
@@ -440,15 +450,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           child: TextField(
             controller: _searchController,
             focusNode: _searchFocus,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? AppColors.darkTextPrimary : Colors.black,
+            ),
+            cursorColor: isDark ? AppColors.darkAccent : Colors.black,
             decoration: InputDecoration(
               hintText: 'Cari formulir...',
-              hintStyle: const TextStyle(fontSize: 14, color: Colors.black38),
+              hintStyle: TextStyle(
+                fontSize: 14,
+                color: isDark ? AppColors.darkTextFaint : Colors.black45,
+              ),
               filled: true,
-              fillColor: Colors.white,
-              prefixIcon: const Icon(Icons.search, color: Colors.black38),
+              fillColor: isDark ? AppColors.darkBgInput : Colors.white,
+              prefixIcon: Icon(
+                Icons.search,
+                color: isDark ? AppColors.darkTextSecondary : Colors.black45,
+              ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.black38),
+                      icon: Icon(
+                        Icons.clear,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : Colors.black45,
+                      ),
                       onPressed: () {
                         _searchController.clear();
                         _searchFocus.unfocus();
@@ -458,7 +484,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(50),
-                borderSide: BorderSide.none,
+                borderSide: isDark
+                    ? const BorderSide(color: AppColors.darkBorder)
+                    : BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(50),
+                borderSide: isDark
+                    ? const BorderSide(color: AppColors.darkBorder)
+                    : BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(50),
+                borderSide: BorderSide(
+                  color:
+                      isDark ? AppColors.darkAccent : const Color(0xFF0B76D4),
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -466,6 +508,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
     );
   }
+
 
   // ─── Bottom Navigation ────────────────────────────────────────────────────
 

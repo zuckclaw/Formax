@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/question_model.dart';
 import '../../../models/form_template.dart';
+import '../../../utils/form_settings_meta.dart';
 
 class FormPageModel {
   String id;
@@ -114,7 +115,7 @@ class FormBuilderState extends ChangeNotifier {
   factory FormBuilderState.fromTemplate(FormTemplate template) {
     final state = FormBuilderState(
       formTitle: template.title,
-      formDescription: template.subtitle,
+      formDescription: FormSettingsMeta.stripMetaHtml(template.subtitle),
       bannerUrl: template.bannerUrl,
       pages: [],
     );

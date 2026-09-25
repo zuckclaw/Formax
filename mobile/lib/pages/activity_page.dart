@@ -7,6 +7,7 @@ import '../models/activity_model.dart';
 import '../services/api_service.dart';
 import 'fillformpage.dart';
 import 'join_link_page.dart';
+import '../theme/app_colors.dart';
 
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
@@ -154,13 +155,19 @@ class _ActivityPageState extends State<ActivityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E66D0),
-        foregroundColor: Colors.white,
-        title: const Text(
+        backgroundColor:
+            isDark ? AppColors.darkBgCard : const Color(0xFF1E66D0),
+        foregroundColor: isDark ? AppColors.darkTextPrimary : Colors.white,
+        elevation: isDark ? 0 : 0.5,
+        title: Text(
           'Aktivitas Saya',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? AppColors.darkTextPrimary : Colors.white,
+          ),
         ),
         actions: [
           IconButton(
@@ -741,13 +748,19 @@ class _ActivityResultScreen extends StatelessWidget {
                     ? const Color(0xFFD97706)
                     : const Color(0xFFDC2626)));
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E66D0),
-        foregroundColor: Colors.white,
-        title: const Text(
+        backgroundColor:
+            isDark ? AppColors.darkBgCard : const Color(0xFF1E66D0),
+        foregroundColor: isDark ? AppColors.darkTextPrimary : Colors.white,
+        elevation: isDark ? 0 : 0.5,
+        title: Text(
           'Hasil',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? AppColors.darkTextPrimary : Colors.white,
+          ),
         ),
       ),
       body: ListView(

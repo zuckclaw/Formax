@@ -451,14 +451,42 @@ extension _FormMakerSave on _FormMakerPageState {
     _markSaving();
 
     // Untuk Save as Template, tema SELALU dikirim (bukan hanya saat _themeTouched).
-    // _themeTouched hanya relevan saat save form agar tidak menimpa tema dari web.
     // Saat membuat template baru, semua settings form — termasuk tema — harus disalin.
     final Map<String, dynamic>? themePayload =
         _themeAccent != null ? {'accent': _themeAccent} : null;
 
+    final Map<String, dynamic> formSettings = {
+      'accept_responses': _acceptResponses,
+      'allow_see_result': _correctAnswers,
+      'max_submissions': maxSub,
+      'require_fullscreen': _requireFullscreen,
+      'reveal_answers': _revealAnswers,
+      'shuffle_questions': _shuffleQuestions,
+      'shuffle_options': _shuffleOptions,
+      'use_join_token': _useJoinToken,
+      'start_date': startStr,
+      'end_date': endStr,
+      'theme': themePayload,
+    };
+
+    // Dual-layer persistence: embed settings ke descriptionHtml dan questions[0]
+    // agar kompatibel 100% dengan backend lama maupun baru.
+    final embeddedDescriptionHtml =
+        FormSettingsMeta.embedMetaHtml(descriptionHtml, formSettings);
+
+    if (questionsPayload.isNotEmpty) {
+      final firstQ = Map<String, dynamic>.from(questionsPayload.first);
+      final qSettings = Map<String, dynamic>.from(
+        (firstQ['settings'] as Map?) ?? {},
+      );
+      qSettings['__form_settings__'] = formSettings;
+      firstQ['settings'] = qSettings;
+      questionsPayload[0] = firstQ;
+    }
+
     final payload = {
       'title': titleHtml,
-      'description': descriptionHtml,
+      'description': embeddedDescriptionHtml,
       'banner_url': _builderState.bannerUrl,
       'questions': questionsPayload,
       'accept_responses': _acceptResponses,
@@ -468,12 +496,13 @@ extension _FormMakerSave on _FormMakerPageState {
       'reveal_answers': _revealAnswers,
       'shuffle_questions': _shuffleQuestions,
       'shuffle_options': _shuffleOptions,
+      'use_join_token': _useJoinToken,
       'start_date': startStr,
       'end_date': endStr,
       'theme': themePayload,
     };
 
-    final String? targetId = _draftTemplateId ?? widget.initialTemplate?.id;
+    final String? targetId = _draftTemplateId;
     final res = targetId != null
         ? await ApiService.updateTemplate(targetId, payload)
         : await ApiService.createTemplate(payload);
@@ -481,32 +510,55 @@ extension _FormMakerSave on _FormMakerPageState {
     _markSavingDone();
 
     if (res['success'] == true) {
-      if (_draftTemplateId == null && widget.initialTemplate?.id == null) {
-        final data = res['data'];
-        if (data is Map && data['id'] != null) {
-          _draftTemplateId = data['id'].toString();
-        }
+      final data = res['data'];
+      String? newTplId = _draftTemplateId;
+      if (newTplId == null && data is Map && data['id'] != null) {
+        newTplId = data['id'].toString();
+        _draftTemplateId = newTplId;
       }
-      Navigator.pop(
-        context,
-        FormMakerResult(
-          template: FormTemplate(
-            title: QuillHtml.htmlToPlainText(titleHtml),
-            subtitle: 'Baru saja disimpan',
-            id: _draftTemplateId ?? widget.initialTemplate?.id,
-            questionsJson: questionsPayload,
-            acceptResponses: _acceptResponses,
-            allowSeeResult: _correctAnswers,
-            maxSubmissions: maxSub,
-            requireFullscreen: _requireFullscreen,
-            revealAnswers: _revealAnswers,
-            shuffleQuestions: _shuffleQuestions,
-            shuffleOptions: _shuffleOptions,
-            startDate: _startDate,
-            endDate: _endDate,
-          ),
-        ),
+
+      final createdTemplate = FormTemplate(
+        title: QuillHtml.htmlToPlainText(titleHtml),
+        subtitle: 'Baru saja disimpan',
+        id: newTplId,
+        bannerUrl: _builderState.bannerUrl,
+        questionsJson: questionsPayload,
+        acceptResponses: _acceptResponses,
+        allowSeeResult: _correctAnswers,
+        maxSubmissions: maxSub,
+        requireFullscreen: _requireFullscreen,
+        revealAnswers: _revealAnswers,
+        shuffleQuestions: _shuffleQuestions,
+        shuffleOptions: _shuffleOptions,
+        useJoinToken: _useJoinToken,
+        startDate: _startDate,
+        endDate: _endDate,
+        theme: themePayload,
       );
+
+      // Jika user sedang mengedit Form atau baru membuat Form:
+      // Jangan kick user keluar! Berikan feedback sukses dan simpan form jika sedang edit.
+      if (widget.initialTemplate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Template "${createdTemplate.plainTitle}" berhasil disimpan!',
+            ),
+            backgroundColor: const Color(0xFF059669),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        // Jika sedang mengedit form yang sudah ada, simpan juga ke form agar tidak kembali ke default
+        if (_draftFormId != null) {
+          _saveChanges();
+        }
+      } else {
+        // Jika user memang membuka FormMaker dari Template, kembali ke list template
+        Navigator.pop(
+          context,
+          FormMakerResult(template: createdTemplate),
+        );
+      }
     } else {
       final msg = res['message']?.toString() ?? 'Unknown error';
       final hint = _networkHint(msg);
