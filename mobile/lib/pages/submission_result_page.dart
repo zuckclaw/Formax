@@ -585,7 +585,7 @@ class _SubmissionResultPageState extends State<SubmissionResultPage> {
           if (ungradedCount > 0) ...[
             const SizedBox(width: 8),
             _buildFilterChipItem(
-                'ungraded', 'Tidak Dinilai ($ungradedCount)', isDark,
+                'ungraded', '○ Tidak Dinilai ($ungradedCount)', isDark,
                 badgeColor: const Color(0xFF64748B)),
           ],
         ],
@@ -693,11 +693,6 @@ class _SubmissionResultPageState extends State<SubmissionResultPage> {
       statusColor = const Color(0xFFEF4444);
       statusText = 'Salah';
       statusIcon = Icons.cancel_rounded;
-    } else if (result.isCheated) {
-      // Soal tidak dinilai karena submission ditandai curang
-      statusColor = const Color(0xFFDC2626);
-      statusText = 'Curang';
-      statusIcon = Icons.warning_amber_rounded;
     } else {
       statusColor = const Color(0xFF64748B);
       statusText = 'Tidak Dinilai';

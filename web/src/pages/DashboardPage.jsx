@@ -2403,16 +2403,12 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                         const correctCount = answers.filter(a => a.is_correct === true).length;
                         const wrongCount = answers.filter(a => a.is_correct === false).length;
                         const ungradedCount = answers.filter(a => a.is_correct === null || a.is_correct === undefined).length;
-                        const isCheated = activityDetailSub?.is_cheated;
 
                         const filterTabs = [
                           { key: 'all', label: `Semua (${answers.length})` },
                           { key: 'correct', label: `✓ Benar (${correctCount})` },
                           { key: 'wrong', label: `✕ Salah (${wrongCount})` },
-                          ...(ungradedCount > 0 ? [{
-                            key: 'ungraded',
-                            label: isCheated ? `⚠ Curang (${ungradedCount})` : `○ Tidak Dinilai (${ungradedCount})`
-                          }] : []),
+                          ...(ungradedCount > 0 ? [{ key: 'ungraded', label: `○ Tidak Dinilai (${ungradedCount})` }] : []),
                         ];
 
                         const filteredAnswers = answers.filter(a => {
@@ -2425,7 +2421,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                         const emptyMessages = {
                           correct: 'Tidak ada soal yang ditandai benar',
                           wrong: 'Tidak ada soal yang ditandai salah',
-                          ungraded: isCheated ? 'Tidak ada soal yang ditandai curang' : 'Tidak ada soal yang tidak dinilai',
+                          ungraded: 'Tidak ada soal yang tidak dinilai',
                           all: 'Belum ada jawaban tersedia',
                         };
 
@@ -2439,7 +2435,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                                   className={`answer-filter-tab-btn ${
                                     tab.key === 'correct' ? 'tab-correct' :
                                     tab.key === 'wrong' ? 'tab-wrong' :
-                                    tab.key === 'ungraded' ? (isCheated ? 'tab-cheated' : 'tab-ungraded') : ''
+                                    tab.key === 'ungraded' ? 'tab-ungraded' : ''
                                   } ${activityAnswerFilter === tab.key ? 'active' : ''}`}
                                   onClick={() => setActivityAnswerFilter(tab.key)}
                                 >
@@ -2462,10 +2458,8 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                                   <p>{emptyMessages[activityAnswerFilter] || emptyMessages.all}</p>
                                 </div>
                               ) : (
-                                filteredAnswers.map((a, idx) => {
+                                filteredAnswers.map((a) => {
                                   const origIdx = answers.indexOf(a);
-                                  const isUngraded = a.is_correct === null || a.is_correct === undefined;
-                                  const showCheatedBadge = isUngraded && isCheated;
                                   return (
                                     <div key={a.question_id} className="detail-question-card activity-q-card">
                                       <div className="detail-question-header">
@@ -2475,8 +2469,6 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                                           <span className={`correct-tag ${a.is_correct ? '' : 'incorrect-tag'}`}>
                                             {a.is_correct ? '✓ Benar' : '✕ Salah'}
                                           </span>
-                                        ) : showCheatedBadge ? (
-                                          <span className="correct-tag cheated-tag">⚠ Curang</span>
                                         ) : (
                                           <span className="correct-tag ungraded-tag">○ Tidak Dinilai</span>
                                         )}
