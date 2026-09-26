@@ -166,23 +166,7 @@ class _CaraPakaiPageState extends State<CaraPakaiPage> {
               height: 1.6,
             ),
           ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 28, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Text(
-              'Mulai Sekarang',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E66D0),
-              ),
-            ),
-          ),
+
         ],
       ),
     );

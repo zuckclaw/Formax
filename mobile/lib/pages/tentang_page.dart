@@ -99,7 +99,6 @@ class TentangPage extends StatelessWidget {
             _buildFeaturesSection(isDark),
             _buildValuesSection(isDark),
             _buildTeamSection(isDark),
-            _buildCta(),
             const SizedBox(height: 32),
           ],
         ),
@@ -668,63 +667,7 @@ class TentangPage extends StatelessWidget {
     );
   }
 
-  // ── CTA ───────────────────────────────────────────────────────────────────
-  Widget _buildCta() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(20, 36, 20, 0),
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E66D0), Color(0xFF0B76D4)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Siap Membuat Formulir Pertama Anda?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Mulai dari template atau impor Word, bagikan dalam hitungan menit.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white70,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 28, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Text(
-              'Buat Form Sekarang',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E66D0),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   // ── Helper ────────────────────────────────────────────────────────────────
   Widget _sectionKicker(String text) {
