@@ -8,6 +8,8 @@ import '../widgets/ngrok_image.dart';
 import '../widgets/rich_text_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import '../models/activity_model.dart';
+import 'submission_result_page.dart';
 
 // Model dipindah ke fill_form/models/fill_form_models.dart (Tahap 1).
 // import: agar file ini sendiri tetap mengenal FormData/Question.
@@ -52,6 +54,7 @@ class _FillFormPageState extends State<FillFormPage>
   String? _submissionId;
   bool _isSubmitted = false;
   bool _isSubmitting = false;
+  bool _loadingResult = false;
 
   // Anti-cheat fullscreen (parity web require_fullscreen):
   // - Form dengan require_fullscreen wajib mulai via intro "Mulai" (immersive).
@@ -1382,70 +1385,174 @@ class _FillFormPageState extends State<FillFormPage>
     );
   }
 
+  Future<void> _openSubmissionResult() async {
+    if (_submissionId == null) return;
+    setState(() => _loadingResult = true);
+    try {
+      final res = await ApiService.getSubmissionResult(_submissionId!);
+      if (!mounted) return;
+      if (res['success'] != true || res['data'] is! Map) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat hasil: ${res['message'] ?? 'Respons tidak valid'}'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+        return;
+      }
+      final result = ActivityResultModel.fromJson(
+        Map<String, dynamic>.from(res['data'] as Map),
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SubmissionResultPage(result: result),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan saat memuat hasil: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingResult = false);
+    }
+  }
+
   // ============================================================
   // SUBMITTED STATE
   // ============================================================
   Widget _buildSubmittedState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final formTitle = _formData?.title ?? 'Formulir';
+    final canSeeResult = (_formData?.allowSeeResult == true) && _submissionId != null;
+
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD1FAE5),
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: const Icon(
-                Icons.check_circle_outline,
-                size: 64,
-                color: Color(0xFF059669),
-              ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 480),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF23233F) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2D2D4A) : const Color(0xFFE2E8F0),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Jawaban Terkirim!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Terima kasih telah mengisi form ini.\nJawaban kamu sudah berhasil disimpan.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-            // Parity web: submission curang tetap bisa submit, tampilkan banner.
-            if (_isCheated) ...[
-              const SizedBox(height: 16),
-              _buildCheatedBanner(),
             ],
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Kembali'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E66D0),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 14,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Checkmark Circle Icon
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF064E3B).withValues(alpha: 0.5)
+                      : const Color(0xFFD1FAE5),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFF059669).withValues(alpha: 0.3),
+                    width: 2,
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 44,
+                  color: Color(0xFF059669),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                'Jawaban Berhasil Terkirim!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Terima kasih telah mengisi $formTitle. Jawaban Anda telah tersimpan dengan aman di server.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+              // Parity web: submission curang tetap bisa submit, tampilkan banner.
+              if (_isCheated) ...[
+                const SizedBox(height: 16),
+                _buildCheatedBanner(),
+              ],
+              const SizedBox(height: 28),
+              // Action Buttons
+              if (canSeeResult) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _loadingResult ? null : _openSubmissionResult,
+                    icon: _loadingResult
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.assignment_turned_in_rounded, size: 20),
+                    label: Text(
+                      _loadingResult ? 'Memuat Hasil...' : 'Lihat Hasil & Rincian Jawaban',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('Kembali ke Halaman Utama'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white : const Color(0xFF1E66D0),
+                    side: BorderSide(
+                      color: isDark ? const Color(0xFF3B82F6) : const Color(0xFF1E66D0),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

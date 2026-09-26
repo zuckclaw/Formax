@@ -115,6 +115,8 @@ class FormData {
   // pemilik: pembuka yang adalah owner tidak di-join sebagai responden
   // sehingga tidak tercatat di Aktivitas Saya (parity perilaku web).
   final String? ownerId;
+  final bool allowSeeResult;
+  final bool revealAnswers;
   final List<Question> questions;
 
   FormData({
@@ -127,6 +129,8 @@ class FormData {
     this.requireJoinToken = false,
     this.requireFullscreen = false,
     this.acceptResponses = true,
+    this.allowSeeResult = false,
+    this.revealAnswers = false,
     this.startDate,
     this.endDate,
     this.ownerId,
@@ -149,6 +153,8 @@ class FormData {
       requireJoinToken: map['require_join_token'] == true,
       requireFullscreen: map['require_fullscreen'] == true,
       acceptResponses: map['accept_responses'] == true || map['accept_responses'] == null,
+      allowSeeResult: map['allow_see_result'] == true,
+      revealAnswers: map['reveal_answers'] == true,
       startDate: map['start_date']?.toString(),
       endDate: map['end_date']?.toString(),
       ownerId: map['owner_id']?.toString(),

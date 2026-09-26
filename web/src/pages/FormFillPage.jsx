@@ -27,6 +27,29 @@ const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 10;
 
+function isImgFileUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim().toLowerCase().split('?')[0];
+  return clean.endsWith('.png') || clean.endsWith('.jpg') || clean.endsWith('.jpeg') || clean.endsWith('.webp') || clean.endsWith('.gif') || clean.endsWith('.svg');
+}
+
+function isHttpOrStatic(url) {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.trim().toLowerCase();
+  return clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('/static/');
+}
+
+function getFileName(url) {
+  if (!url || typeof url !== 'string') return 'Berkas';
+  try {
+    const parts = url.split('?')[0].split('/');
+    const name = parts[parts.length - 1];
+    return decodeURIComponent(name) || 'Berkas Lampiran';
+  } catch {
+    return 'Berkas Lampiran';
+  }
+}
+
 // section helpers — split flat questions by page_break
 function splitSections(questions) {
   const sorted = [...(questions || [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -449,6 +472,7 @@ export default function FormFillPage() {
   const [result, setResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [resultLoading, setResultLoading] = useState(false);
+  const [resultFilter, setResultFilter] = useState('all');
 
   // Helper untuk ambil token fresh (biar tidak stale closure)
   const getToken = () => getValidToken();
@@ -1385,9 +1409,34 @@ export default function FormFillPage() {
 
   // Halaman Hasil (responden lihat skor + rincian jawaban)
   if (showResult && result) {
+    const allAnswers = result.answers || [];
+    const correctCount = allAnswers.filter((a) => a.is_correct === true).length;
+    const wrongCount = allAnswers.filter((a) => a.is_correct === false).length;
+    const ungradedCount = allAnswers.filter((a) => a.is_correct === null || a.is_correct === undefined).length;
+
+    const filteredAnswers = allAnswers.filter((a) => {
+      if (resultFilter === 'correct') return a.is_correct === true;
+      if (resultFilter === 'wrong') return a.is_correct === false;
+      if (resultFilter === 'ungraded') return a.is_correct === null || a.is_correct === undefined;
+      return true;
+    });
+
+    const score = result.score_percent;
+    let gradePill = { text: 'Perlu Peningkatan 📚', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)' };
+    if (score === 100) {
+      gradePill = { text: 'Sempurna! 🌟', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' };
+    } else if (score >= 80) {
+      gradePill = { text: 'Luar Biasa! 🎉', color: '#059669', bg: 'rgba(5, 150, 105, 0.15)' };
+    } else if (score >= 70) {
+      gradePill = { text: 'Bagus (Lulus) 👍', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.15)' };
+    }
+
+    const strokeDash = 264;
+    const strokeOffset = strokeDash - (strokeDash * (score || 0)) / 100;
+
     return (
       <div className="form-fill-container" style={ffThemeVars}>
-        <header className="form-fill-header">
+        <header className="form-fill-header no-print">
           <div className="form-fill-logo-wrap" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} role="button" tabIndex={0} aria-label="Ke dashboard">
             <img src={logoForm4x} alt="Form4x logo" className="form-fill-logo-img" />
             <h1 className="form-fill-logo">Form4x</h1>
@@ -1406,80 +1455,327 @@ export default function FormFillPage() {
             </button>
           </div>
         </header>
+
         <main className="result-main">
           <div className="result-card">
-            <h2 className="result-title" dangerouslySetInnerHTML={richHtml(result.form_title)} />
-            <p className="result-subtitle">Hasil submission Anda</p>
+            {/* Header Hero */}
+            <div className="result-header-section">
+              <div className="result-header-text">
+                <h2 className="result-title" dangerouslySetInnerHTML={richHtml(result.form_title)} />
+                <p className="result-subtitle">Tinjauan Hasil Pengerjaan & Evaluasi Jawaban</p>
+                {result.submitted_at && (
+                  <p className="result-date">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Selesai pada {formatDateFriendly(result.submitted_at)}
+                  </p>
+                )}
+              </div>
+            </div>
 
+            {/* Cheated Warning Banner */}
             {result.is_cheated && (
               <div className="cheated-banner">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                Submission ini ditandai curang karena keluar dari mode full screen.
+                <div>
+                  <strong>Peringatan Integritas:</strong> Submission ini ditandai keluar dari mode full screen saat pengerjaan.
+                </div>
               </div>
             )}
 
-            {result.score_percent !== null ? (
-              <div className="score-card">
-                <div className={`score-ring ${result.is_cheated ? 'cheated' : ''}`}>
-                  <span className="score-value">{result.score_percent}%</span>
-                  <span className="score-label">Skor</span>
+            {/* Score Showcase */}
+            {score !== null ? (
+              <div className="score-card-modern">
+                <div className="score-hero-wrap">
+                  <div className="score-radial-container">
+                    <svg className="score-svg-ring" viewBox="0 0 100 100">
+                      <circle className="score-svg-bg" cx="50" cy="50" r="42" />
+                      <circle
+                        className="score-svg-progress"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        strokeDasharray={strokeDash}
+                        strokeDashoffset={strokeOffset}
+                        style={{ stroke: gradePill.color }}
+                      />
+                    </svg>
+                    <div className="score-radial-center">
+                      <span className="score-radial-num" style={{ color: gradePill.color }}>{score}%</span>
+                      <span className="score-radial-label">SKOR</span>
+                    </div>
+                  </div>
+
+                  <div className="score-hero-info">
+                    <span className="score-grade-badge" style={{ color: gradePill.color, background: gradePill.bg }}>
+                      {gradePill.text}
+                    </span>
+                    <h3 className="score-summary-heading">Evaluasi Skor Pengerjaan</h3>
+                    <p className="score-summary-desc">
+                      Anda berhasil menjawab <strong>{result.correct_count}</strong> dari total <strong>{result.total_graded}</strong> soal yang dinilai.
+                    </p>
+                  </div>
                 </div>
-                <div className="score-detail">
-                  <div className="score-stat correct">
-                    <span className="score-stat-num">{result.correct_count}</span>
-                    <span className="score-stat-label">Benar</span>
+
+                <div className="score-stat-grid">
+                  <div className="stat-tile stat-correct">
+                    <div className="stat-tile-icon">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="stat-tile-data">
+                      <span className="stat-tile-num">{result.correct_count}</span>
+                      <span className="stat-tile-label">Jawaban Benar</span>
+                    </div>
                   </div>
-                  <div className="score-stat">
-                    <span className="score-stat-num">{result.total_graded - result.correct_count}</span>
-                    <span className="score-stat-label">Salah</span>
+
+                  <div className="stat-tile stat-wrong">
+                    <div className="stat-tile-icon">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <div className="stat-tile-data">
+                      <span className="stat-tile-num">{result.total_graded - result.correct_count}</span>
+                      <span className="stat-tile-label">Jawaban Salah</span>
+                    </div>
                   </div>
-                  <div className="score-stat">
-                    <span className="score-stat-num">{result.total_graded}</span>
-                    <span className="score-stat-label">Dinilai</span>
+
+                  <div className="stat-tile stat-graded">
+                    <div className="stat-tile-icon">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="stat-tile-data">
+                      <span className="stat-tile-num">{result.total_graded}</span>
+                      <span className="stat-tile-label">Soal Dinilai</span>
+                    </div>
+                  </div>
+
+                  <div className="stat-tile stat-total">
+                    <div className="stat-tile-icon">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="stat-tile-data">
+                      <span className="stat-tile-num">{allAnswers.length}</span>
+                      <span className="stat-tile-label">Total Soal</span>
+                    </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="result-no-score">Form ini tidak memiliki kunci jawaban, jadi skor tidak dihitung.</p>
+              <div className="result-no-score-card">
+                <div className="result-no-score-icon">
+                  <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="result-no-score-title">Formulir Tanpa Penilaian Otomatis</h4>
+                  <p className="result-no-score-desc">Formulir ini bertipe survei/kuisioner tanpa kunci jawaban. Tanggapan Anda telah tersimpan dengan aman.</p>
+                </div>
+              </div>
             )}
 
-            <div className="result-answers">
-              {result.answers.map((a, idx) => (
-                <div key={a.question_id} className="result-answer-item">
-                  <div className="result-answer-header">
-                    <span className="result-q-number">{idx + 1}.</span>
-                    <QuestionLabelWithAudio html={a.label} />
-                    {a.is_correct !== null && a.is_correct !== undefined && (
-                      <span className={`result-badge ${a.is_correct ? 'correct' : 'wrong'}`}>
-                        {a.is_correct ? 'Benar' : 'Salah'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="result-answer-body">
-                    <div>
-                      <span className="result-label">Jawaban Anda:</span>
-                      {a.user_answer ? (
-                        <ResultAnswerText html={a.user_answer} className={a.is_correct === false ? 'wrong' : ''} />
-                      ) : (
-                        <span className="result-answer-text">(tidak dijawab)</span>
-                      )}
-                    </div>
-                    {a.correct_answer && (
-                      <div>
-                        <span className="result-label">Jawaban Benar:</span>
-                        <ResultAnswerText html={a.correct_answer} className="correct" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            {/* Filter Tabs */}
+            <div className="result-filter-toolbar no-print">
+              <div className="result-filter-tabs">
+                <button
+                  type="button"
+                  className={`result-filter-tab ${resultFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setResultFilter('all')}
+                >
+                  Semua ({allAnswers.length})
+                </button>
+                <button
+                  type="button"
+                  className={`result-filter-tab tab-correct ${resultFilter === 'correct' ? 'active' : ''}`}
+                  onClick={() => setResultFilter('correct')}
+                >
+                  <span className="dot dot-correct" />
+                  Benar ({correctCount})
+                </button>
+                <button
+                  type="button"
+                  className={`result-filter-tab tab-wrong ${resultFilter === 'wrong' ? 'active' : ''}`}
+                  onClick={() => setResultFilter('wrong')}
+                >
+                  <span className="dot dot-wrong" />
+                  Salah ({wrongCount})
+                </button>
+                {ungradedCount > 0 && (
+                  <button
+                    type="button"
+                    className={`result-filter-tab tab-ungraded ${resultFilter === 'ungraded' ? 'active' : ''}`}
+                    onClick={() => setResultFilter('ungraded')}
+                  >
+                    Tidak Dinilai ({ungradedCount})
+                  </button>
+                )}
+              </div>
             </div>
 
-            <button className="modal-btn-primary" onClick={() => navigate('/dashboard')}>
-              Kembali ke Dashboard
-            </button>
+            {/* Answers List */}
+            <div className="result-answers-container">
+              {filteredAnswers.length === 0 ? (
+                <div className="result-empty-filter">
+                  <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  <p>Tidak ada soal pada kategori filter ini.</p>
+                </div>
+              ) : (
+                filteredAnswers.map((a) => {
+                  const originalIdx = allAnswers.findIndex((item) => item.question_id === a.question_id);
+                  const isCorrect = a.is_correct;
+                  const itemClass = isCorrect === true ? 'is-correct' : isCorrect === false ? 'is-wrong' : 'is-ungraded';
+                  const userAns = a.user_answer ? String(a.user_answer).trim() : '';
+                  const hasAnswer = userAns.length > 0;
+                  const isImg = isImgFileUrl(userAns);
+                  const isHttp = isHttpOrStatic(userAns);
+
+                  return (
+                    <div key={a.question_id} className={`result-answer-card ${itemClass}`}>
+                      <div className="result-card-accent-bar" />
+                      <div className="result-card-inner">
+                        {/* Header Row */}
+                        <div className="result-answer-top-bar">
+                          <span className="result-question-pill">Soal #{originalIdx + 1}</span>
+                          {isCorrect !== null && isCorrect !== undefined ? (
+                            <span className={`result-status-badge ${isCorrect ? 'badge-correct' : 'badge-wrong'}`}>
+                              {isCorrect ? (
+                                <>
+                                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Benar
+                                </>
+                              ) : (
+                                <>
+                                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Salah
+                                </>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="result-status-badge badge-ungraded">Tidak Dinilai</span>
+                          )}
+                        </div>
+
+                        {/* Question Label */}
+                        <div className="result-question-prompt">
+                          <QuestionLabelWithAudio html={a.label} />
+                        </div>
+
+                        {/* Answer Details Comparison */}
+                        <div className="result-answer-boxes">
+                          {/* User Answer Box */}
+                          <div className={`result-box-user ${isCorrect === true ? 'box-correct' : isCorrect === false ? 'box-wrong' : 'box-ungraded'}`}>
+                            <div className="result-box-header">
+                              {isCorrect === true && (
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                              {isCorrect === false && (
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              )}
+                              <span>
+                                {isCorrect === true
+                                  ? 'Jawaban Anda (Benar):'
+                                  : isCorrect === false
+                                  ? 'Jawaban Anda (Salah):'
+                                  : 'Jawaban Anda:'}
+                              </span>
+                            </div>
+                            <div className="result-box-content">
+                              {!hasAnswer ? (
+                                <span className="result-answer-empty">(Tidak dijawab / Dikosongkan)</span>
+                              ) : isImg ? (
+                                <div className="result-media-attachment">
+                                  <a href={normalizeFileUrl(userAns)} target="_blank" rel="noopener noreferrer" className="result-img-link" title="Klik untuk melihat ukuran penuh">
+                                    <img src={normalizeFileUrl(userAns)} alt="Jawaban berkas gambar" className="result-img-thumb" />
+                                    <span className="result-media-label">Lihat Gambar Penuh ↗</span>
+                                  </a>
+                                </div>
+                              ) : isHttp ? (
+                                <div className="result-file-attachment">
+                                  <a href={normalizeFileUrl(userAns)} target="_blank" rel="noopener noreferrer" className="result-file-link" title="Buka lampiran berkas">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Buka Berkas Lampiran ({getFileName(userAns)}) ↗</span>
+                                  </a>
+                                </div>
+                              ) : (
+                                <ResultAnswerText html={userAns} className={isCorrect === false ? 'ans-wrong' : isCorrect === true ? 'ans-correct' : ''} />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Correct Answer Box */}
+                          {a.correct_answer && (
+                            <div className="result-box-correct">
+                              <div className="result-box-header">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                                <span>Kunci Jawaban yang Benar:</span>
+                              </div>
+                              <div className="result-box-content">
+                                <ResultAnswerText html={a.correct_answer} className="ans-correct" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Action Buttons Footer */}
+            <div className="result-actions-footer no-print">
+              <button
+                type="button"
+                className="result-btn-print"
+                onClick={() => window.print()}
+                title="Cetak atau simpan halaman ini sebagai PDF"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Cetak / Simpan PDF
+              </button>
+
+              <button
+                type="button"
+                className="result-btn-secondary"
+                onClick={() => setShowResult(false)}
+              >
+                Tinjau Ringkasan
+              </button>
+
+              <button
+                type="button"
+                className="result-btn-primary"
+                onClick={() => navigate('/dashboard')}
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
           </div>
         </main>
       </div>

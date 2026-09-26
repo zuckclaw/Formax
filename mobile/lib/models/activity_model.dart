@@ -130,12 +130,16 @@ class ActivityResultModel {
 
 class ActivityAnswerResult {
   final String label;
+  final String rawLabel;
+  final String? type;
   final String? userAnswer;
   final bool? isCorrect;
   final String? correctAnswer;
 
   ActivityAnswerResult({
     required this.label,
+    this.rawLabel = '',
+    this.type,
     this.userAnswer,
     this.isCorrect,
     this.correctAnswer,
@@ -145,8 +149,11 @@ class ActivityAnswerResult {
     final map = json is Map<String, dynamic>
         ? json
         : Map<String, dynamic>.from(json);
+    final rawL = map['label']?.toString() ?? '';
     return ActivityAnswerResult(
-      label: MyActivityModel._stripHtml(map['label']?.toString()),
+      label: MyActivityModel._stripHtml(rawL),
+      rawLabel: rawL,
+      type: map['type']?.toString(),
       userAnswer: _clean(map['user_answer']?.toString()),
       isCorrect: map['is_correct'] as bool?,
       correctAnswer: _clean(map['correct_answer']?.toString()),
