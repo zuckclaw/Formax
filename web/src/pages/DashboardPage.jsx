@@ -249,6 +249,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
   const [activityResultLoading, setActivityResultLoading] = useState(false);
   const [activityDetailSub, setActivityDetailSub] = useState(null); // submission yang sedang dilihat detail/bukti
   const [activityViewMode, setActivityViewMode] = useState('grid'); // 'grid' | 'table'
+  const [activityAnswerFilter, setActivityAnswerFilter] = useState('all'); // 'all' | 'correct' | 'wrong' | 'ungraded'
 
   const token = getValidToken();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2298,6 +2299,7 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
                     onClick={() => {
                       setActivityResult(null);
                       setActivityDetailSub(null);
+                      setActivityAnswerFilter('all');
                     }}
                   >
                     ← Kembali ke Aktivitas Saya
@@ -2395,31 +2397,108 @@ export default function DashboardPage({ initialTab = 'dashboard' }) {
 
                     {/* KANAN — Rincian Jawaban Responden */}
                     <section className="detail-answers-pane">
-                      <div className="detail-answers-list">
-                        {activityResult.answers.map((a, idx) => (
-                          <div key={a.question_id} className="detail-question-card activity-q-card">
-                            <div className="detail-question-header">
-                              <h3 className="detail-question-title ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(`${idx + 1}. ${prepareMathHtml(a.label || '')}`) }}>
-                              </h3>
-                              {a.is_correct !== null && a.is_correct !== undefined && (
-                                <span className={`correct-tag ${a.is_correct ? '' : 'incorrect-tag'}`}>
-                                  {a.is_correct ? '✓ Benar' : '✕ Salah'}
-                                </span>
+                      {/* Filter Tabs */}
+                      {(() => {
+                        const answers = activityResult.answers || [];
+                        const correctCount = answers.filter(a => a.is_correct === true).length;
+                        const wrongCount = answers.filter(a => a.is_correct === false).length;
+                        const ungradedCount = answers.filter(a => a.is_correct === null || a.is_correct === undefined).length;
+                        const isCheated = activityDetailSub?.is_cheated;
+
+                        const filterTabs = [
+                          { key: 'all', label: `Semua (${answers.length})` },
+                          { key: 'correct', label: `✓ Benar (${correctCount})` },
+                          { key: 'wrong', label: `✕ Salah (${wrongCount})` },
+                          ...(ungradedCount > 0 ? [{
+                            key: 'ungraded',
+                            label: isCheated ? `⚠ Curang (${ungradedCount})` : `○ Tidak Dinilai (${ungradedCount})`
+                          }] : []),
+                        ];
+
+                        const filteredAnswers = answers.filter(a => {
+                          if (activityAnswerFilter === 'correct') return a.is_correct === true;
+                          if (activityAnswerFilter === 'wrong') return a.is_correct === false;
+                          if (activityAnswerFilter === 'ungraded') return a.is_correct === null || a.is_correct === undefined;
+                          return true;
+                        });
+
+                        const emptyMessages = {
+                          correct: 'Tidak ada soal yang ditandai benar',
+                          wrong: 'Tidak ada soal yang ditandai salah',
+                          ungraded: isCheated ? 'Tidak ada soal yang ditandai curang' : 'Tidak ada soal yang tidak dinilai',
+                          all: 'Belum ada jawaban tersedia',
+                        };
+
+                        return (
+                          <>
+                            {/* Tab Bar */}
+                            <div className="activity-answer-filter-tabs">
+                              {filterTabs.map(tab => (
+                                <button
+                                  key={tab.key}
+                                  className={`answer-filter-tab-btn ${
+                                    tab.key === 'correct' ? 'tab-correct' :
+                                    tab.key === 'wrong' ? 'tab-wrong' :
+                                    tab.key === 'ungraded' ? (isCheated ? 'tab-cheated' : 'tab-ungraded') : ''
+                                  } ${activityAnswerFilter === tab.key ? 'active' : ''}`}
+                                  onClick={() => setActivityAnswerFilter(tab.key)}
+                                >
+                                  {tab.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Answer List or Empty State */}
+                            <div className="detail-answers-list">
+                              {filteredAnswers.length === 0 ? (
+                                <div className="activity-answer-empty-state">
+                                  <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    {activityAnswerFilter === 'correct'
+                                      ? <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      : activityAnswerFilter === 'wrong'
+                                        ? <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        : <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />}
+                                  </svg>
+                                  <p>{emptyMessages[activityAnswerFilter] || emptyMessages.all}</p>
+                                </div>
+                              ) : (
+                                filteredAnswers.map((a, idx) => {
+                                  const origIdx = answers.indexOf(a);
+                                  const isUngraded = a.is_correct === null || a.is_correct === undefined;
+                                  const showCheatedBadge = isUngraded && isCheated;
+                                  return (
+                                    <div key={a.question_id} className="detail-question-card activity-q-card">
+                                      <div className="detail-question-header">
+                                        <h3 className="detail-question-title ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(`${origIdx + 1}. ${prepareMathHtml(a.label || '')}`) }}>
+                                        </h3>
+                                        {a.is_correct !== null && a.is_correct !== undefined ? (
+                                          <span className={`correct-tag ${a.is_correct ? '' : 'incorrect-tag'}`}>
+                                            {a.is_correct ? '✓ Benar' : '✕ Salah'}
+                                          </span>
+                                        ) : showCheatedBadge ? (
+                                          <span className="correct-tag cheated-tag">⚠ Curang</span>
+                                        ) : (
+                                          <span className="correct-tag ungraded-tag">○ Tidak Dinilai</span>
+                                        )}
+                                      </div>
+                                      <div className="resp-answer-value">
+                                        <span className="ans-label-tag">Jawaban kamu:</span>
+                                        <span className="ans-text-content ql-editor" dangerouslySetInnerHTML={{ __html: a.user_answer ? safeHtml(prepareMathHtml(a.user_answer)) : '<i style="color:#94a3b8">(tidak dijawab)</i>' }} />
+                                      </div>
+                                      {a.correct_answer && (
+                                        <div className="resp-answer-value key-answer-box">
+                                          <span className="key-label-tag">Kunci Jawaban:</span>
+                                          <span className="key-text-content ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(a.correct_answer)) }} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })
                               )}
                             </div>
-                            <div className="resp-answer-value">
-                              <span className="ans-label-tag">Jawaban kamu:</span>
-                              <span className="ans-text-content ql-editor" dangerouslySetInnerHTML={{ __html: a.user_answer ? safeHtml(prepareMathHtml(a.user_answer)) : '<i style="color:#94a3b8">(tidak dijawab)</i>' }} />
-                            </div>
-                            {a.correct_answer && (
-                              <div className="resp-answer-value key-answer-box">
-                                <span className="key-label-tag">Kunci Jawaban:</span>
-                                <span className="key-text-content ql-editor" dangerouslySetInnerHTML={{ __html: safeHtml(prepareMathHtml(a.correct_answer)) }} />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          </>
+                        );
+                      })()}
                     </section>
                   </div>
                 </div>

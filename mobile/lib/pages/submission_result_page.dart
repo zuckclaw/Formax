@@ -626,19 +626,40 @@ class _SubmissionResultPageState extends State<SubmissionResultPage> {
 
   // ── Empty Filter State ──
   Widget _buildEmptyFilterState(bool isDark) {
+    String message;
+    IconData icon;
+    switch (_selectedFilter) {
+      case 'correct':
+        message = 'Tidak ada soal yang ditandai benar';
+        icon = Icons.check_circle_outline_rounded;
+        break;
+      case 'wrong':
+        message = 'Tidak ada soal yang ditandai salah';
+        icon = Icons.cancel_outlined;
+        break;
+      case 'ungraded':
+        message = 'Tidak ada soal yang tidak dinilai';
+        icon = Icons.remove_circle_outline_rounded;
+        break;
+      default:
+        message = 'Belum ada soal yang tersedia';
+        icon = Icons.quiz_outlined;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Center(
         child: Column(
           children: [
             Icon(
-              Icons.filter_list_off_rounded,
+              icon,
               size: 48,
               color: isDark ? AppColors.darkTextMuted : const Color(0xFFCBD5E1),
             ),
             const SizedBox(height: 12),
             Text(
-              'Tidak ada soal dengan filter ini',
+              message,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 color: isDark
@@ -672,6 +693,11 @@ class _SubmissionResultPageState extends State<SubmissionResultPage> {
       statusColor = const Color(0xFFEF4444);
       statusText = 'Salah';
       statusIcon = Icons.cancel_rounded;
+    } else if (result.isCheated) {
+      // Soal tidak dinilai karena submission ditandai curang
+      statusColor = const Color(0xFFDC2626);
+      statusText = 'Curang';
+      statusIcon = Icons.warning_amber_rounded;
     } else {
       statusColor = const Color(0xFF64748B);
       statusText = 'Tidak Dinilai';
