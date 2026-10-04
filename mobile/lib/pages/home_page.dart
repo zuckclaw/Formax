@@ -22,6 +22,7 @@ import 'profile_page.dart';
 import 'tentang_page.dart';
 import 'cara_pakai_page.dart';
 import '../theme/app_colors.dart';
+import '../widgets/ngrok_image.dart';
 
 // Part: widget tab Dashboard — Tahap 4a.
 // Sama-sama satu library, call-site tidak berubah.
@@ -45,6 +46,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   String _fullName = 'User';
+  String? _avatarUrl;
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
@@ -358,6 +360,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (result['success'] == true && profile != null && mounted) {
       setState(() {
         _fullName = profile['full_name'] as String? ?? 'User';
+        _avatarUrl = profile['avatar_url'] as String?;
       });
       return;
     }

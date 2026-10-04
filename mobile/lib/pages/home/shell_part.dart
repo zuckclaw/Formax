@@ -156,40 +156,44 @@ extension _HomeShell on _HomePageState {
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ProfilePage()),
-                    ).then((updated) {
-                      if (updated == true && mounted) {
-                        _loadUserProfile();
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Color(0xFFE5E7EB),
-                        child: Icon(Icons.person, color: Colors.grey),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfilePage()),
+                      ).then((_) {
+                        if (mounted) {
+                          _loadUserProfile();
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                      child: Row(
+                        children: [
+                          _buildDrawerAvatar(),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _fullName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _fullName,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.logout, color: Color(0xFF9CA3AF)),
                   onPressed: () async {
@@ -206,6 +210,57 @@ extension _HomeShell on _HomePageState {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerAvatar() {
+    final avatar = _avatarUrl?.trim();
+    if (avatar != null && avatar.isNotEmpty) {
+      return ClipOval(
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: NgrokImage(
+            avatar,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _buildDrawerFallbackAvatar(),
+          ),
+        ),
+      );
+    }
+    return _buildDrawerFallbackAvatar();
+  }
+
+  Widget _buildDrawerFallbackAvatar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final trimmed = _fullName.trim();
+    final initial = trimmed.isNotEmpty && trimmed != 'User'
+        ? trimmed[0].toUpperCase()
+        : '';
+    if (initial.isNotEmpty) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: const Color(0xFF2563EB),
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor:
+          isDark ? const Color(0xFF2A2B3D) : const Color(0xFFE5E7EB),
+      child: Icon(
+        Icons.person,
+        color: isDark ? const Color(0xFF94A3B8) : Colors.grey,
       ),
     );
   }

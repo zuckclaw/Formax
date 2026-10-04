@@ -377,8 +377,8 @@ def update_me(
             raise HTTPException(status_code=400, detail="Email sudah terdaftar")
         current_user.email = email
 
-    if payload.avatar_url is not None:
-        current_user.avatar_url = payload.avatar_url
+    if "avatar_url" in payload.model_fields_set:
+        current_user.avatar_url = payload.avatar_url.strip() if payload.avatar_url and payload.avatar_url.strip() else None
 
     db.add(current_user)
     db.commit()

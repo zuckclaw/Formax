@@ -103,7 +103,7 @@ class ProfileUpdateRequest(BaseModel):
             return None
         s = v.strip()
         if not s:
-            return None
+            return ""
         if len(s) > 2000:
             raise ValueError("avatar_url terlalu panjang")
         low = s.lower()
@@ -114,8 +114,9 @@ class ProfileUpdateRequest(BaseModel):
             or low.startswith("https://")
             or low.startswith("blob:")
             or low.startswith("data:image/")
+            or low.startswith("/static/")
         ):
-            raise ValueError("avatar_url harus http(s)://, blob:, atau data:image/")
+            raise ValueError("avatar_url harus http(s)://, blob:, data:image/, atau /static/")
         return s
 
 

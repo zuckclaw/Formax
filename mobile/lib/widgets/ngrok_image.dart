@@ -33,10 +33,25 @@ class NgrokImage extends StatelessWidget {
 
   static const String _skipWarningHeader = 'ngrok-skip-browser-warning';
 
-  /// Resolves relative URLs (e.g. `/static/uploads/...`) to backend URLs.
+  /// Resolves relative URLs (e.g. `/static/uploads/...`) to backend URLs,
+  /// and rewrites localhost/127.0.0.1 static backend URLs to use [ApiService.baseUrl].
   static String resolveUrl(String? url) {
     if (url == null || url.trim().isEmpty) return '';
     final s = url.trim();
+
+    // Check if pointing to backend static files with localhost/127.0.0.1 or relative path
+    final staticIdx = s.indexOf('/static/');
+    if (staticIdx != -1) {
+      final parsed = Uri.tryParse(s);
+      final isLocal = parsed != null &&
+          (parsed.host == 'localhost' || parsed.host == '127.0.0.1');
+      if (isLocal || !s.startsWith('http')) {
+        final base = ApiService.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+        final cleanPath = s.substring(staticIdx);
+        return '$base$cleanPath';
+      }
+    }
+
     if (s.startsWith('http://') ||
         s.startsWith('https://') ||
         s.startsWith('data:') ||

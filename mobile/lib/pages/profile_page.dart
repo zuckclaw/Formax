@@ -6,6 +6,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../widgets/ngrok_image.dart';
@@ -25,6 +26,37 @@ class _ProfilePageState extends State<ProfilePage> {
   File? _pickedImage;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _emailCopied = false;
+
+  void _copyEmail() {
+    final email = _email.trim();
+    if (email.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: email));
+    if (!mounted) return;
+    setState(() => _emailCopied = true);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+            SizedBox(width: 10),
+            Text(
+              'Email berhasil disalin ke clipboard!',
+              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF059669),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _emailCopied = false);
+    });
+  }
 
   // Store originals to detect changes / cancel
   String _originalName = '';
@@ -491,19 +523,33 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 14,
+                        vertical: 10,
                       ),
                       decoration: BoxDecoration(
                         color: cs.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: cs.outlineVariant),
                       ),
-                      child: Text(
-                        _email,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: cs.onSurfaceVariant,
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.mail_outline_rounded,
+                            size: 20,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SelectableText(
+                              _email.isNotEmpty ? _email : '-',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildCopyEmailButton(cs),
+                        ],
                       ),
                     ),
                   ),
@@ -613,10 +659,38 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          _email,
-          style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-        ),
+        if (_email.isNotEmpty)
+          InkWell(
+            onTap: _copyEmail,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _email,
+                    style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    _emailCopied ? Icons.check_rounded : Icons.copy_rounded,
+                    size: 14,
+                    color: _emailCopied
+                        ? (Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFF16A34A))
+                        : cs.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Text(
+            _email,
+            style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+          ),
       ],
     );
   }
@@ -897,6 +971,59 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 8),
         child,
       ],
+    );
+  }
+
+  Widget _buildCopyEmailButton(ColorScheme cs) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _email.trim().isNotEmpty ? _copyEmail : null,
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _emailCopied
+                ? (isDark
+                    ? const Color(0xFF065F46).withValues(alpha: 0.4)
+                    : const Color(0xFFDCFCE7))
+                : (isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFF1F5F9)),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _emailCopied
+                  ? (isDark ? const Color(0xFF10B981) : const Color(0xFF86EFAC))
+                  : cs.outlineVariant,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _emailCopied ? Icons.check_rounded : Icons.copy_rounded,
+                size: 14,
+                color: _emailCopied
+                    ? (isDark ? const Color(0xFF34D399) : const Color(0xFF16A34A))
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                _emailCopied ? 'Tersalin' : 'Salin',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _emailCopied
+                      ? (isDark ? const Color(0xFF34D399) : const Color(0xFF16A34A))
+                      : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

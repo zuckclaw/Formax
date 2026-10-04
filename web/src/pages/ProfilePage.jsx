@@ -40,6 +40,7 @@ export default function ProfilePage() {
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   useEffect(() => {
     let startX = 0;
@@ -80,6 +81,34 @@ export default function ProfilePage() {
       .map((w) => w[0])
       .join('')
       .toUpperCase() || 'U';
+
+  const handleCopyEmail = async (e) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const targetEmail = (form.email || user?.email || '').trim();
+    if (!targetEmail) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(targetEmail);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = targetEmail;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    } catch (_) {
+      // Fallback
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -319,7 +348,34 @@ export default function ProfilePage() {
                       Akun Terverifikasi
                     </span>
                   </div>
-                  <p className="profile-email-sub">{displayEmail}</p>
+                  <div className="profile-email-sub-wrapper">
+                    <p className="profile-email-sub">{displayEmail}</p>
+                    {displayEmail && (
+                      <button
+                        type="button"
+                        className={`profile-copy-btn ${copiedEmail ? 'copied' : ''}`}
+                        onClick={handleCopyEmail}
+                        title={copiedEmail ? 'Email tersalin!' : 'Salin email'}
+                        aria-label="Salin email"
+                      >
+                        {copiedEmail ? (
+                          <>
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span>Salin</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
 
                   <div className="profile-meta-chips">
                     <span className="profile-chip">
@@ -391,6 +447,52 @@ export default function ProfilePage() {
                         placeholder="Masukkan nama lengkap"
                         required
                       />
+                    </div>
+                  </div>
+
+                  <div className="profile-form-group">
+                    <div className="profile-label-row">
+                      <label htmlFor="email">Email</label>
+                      <span className="profile-readonly-badge">Hanya Baca</span>
+                    </div>
+                    <div className="input-icon-wrapper profile-email-input-wrapper">
+                      <svg className="input-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value={displayEmail}
+                        readOnly
+                        disabled
+                        className="profile-readonly-input"
+                        placeholder="Alamat email Anda"
+                      />
+                      {displayEmail && (
+                        <button
+                          type="button"
+                          className={`profile-input-copy-btn ${copiedEmail ? 'copied' : ''}`}
+                          onClick={handleCopyEmail}
+                          title={copiedEmail ? 'Email tersalin!' : 'Salin email'}
+                        >
+                          {copiedEmail ? (
+                            <>
+                              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Tersalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              <span>Salin</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -669,7 +771,28 @@ export default function ProfilePage() {
 
                   <div className="side-info-item">
                     <span className="side-info-label">Email Terhubung</span>
-                    <span className="side-info-val truncate-text">{displayEmail}</span>
+                    <div className="side-email-val-wrapper">
+                      <span className="side-info-val truncate-text">{displayEmail}</span>
+                      {displayEmail && (
+                        <button
+                          type="button"
+                          className={`profile-copy-btn-mini ${copiedEmail ? 'copied' : ''}`}
+                          onClick={handleCopyEmail}
+                          title={copiedEmail ? 'Email tersalin!' : 'Salin email'}
+                          aria-label="Salin email"
+                        >
+                          {copiedEmail ? (
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 

@@ -3160,6 +3160,47 @@
   margin: 0;
 }
 
+.profile-email-sub-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  line-height: 1.2;
+}
+
+.profile-copy-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.profile-copy-btn:active {
+  transform: translateY(0);
+}
+
+.profile-copy-btn.copied {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
 .profile-meta-chips {
   display: flex;
   align-items: center;
@@ -3351,6 +3392,101 @@
 .input-icon-wrapper .eye-toggle-btn:hover {
   color: #2563eb;
   background: rgba(37, 99, 235, 0.08);
+}
+
+.profile-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-readonly-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.profile-email-input-wrapper {
+  position: relative;
+}
+
+.profile-email-input-wrapper input.profile-readonly-input {
+  padding-right: 96px;
+  background: #f8fafc;
+  color: #475569;
+  border-color: #e2e8f0;
+  cursor: default;
+}
+
+.profile-input-copy-btn {
+  position: absolute;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.profile-input-copy-btn:hover {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(37, 99, 235, 0.3);
+  transform: translateY(-0.5px);
+}
+
+.profile-input-copy-btn:active {
+  transform: translateY(0);
+}
+
+.profile-input-copy-btn.copied {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.side-email-val-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.profile-copy-btn-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 5px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.profile-copy-btn-mini:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.profile-copy-btn-mini.copied {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
 }
 
 /* Live Avatar Preview Box */
@@ -3651,6 +3787,71 @@
 [data-theme='dark'] .side-tip-box {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.25);
+}
+
+[data-theme='dark'] .profile-copy-btn {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .profile-copy-btn:hover {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+[data-theme='dark'] .profile-copy-btn.copied {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+[data-theme='dark'] .profile-readonly-badge {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .profile-email-input-wrapper input.profile-readonly-input {
+  background: #0b1120;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .profile-input-copy-btn {
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+[data-theme='dark'] .profile-input-copy-btn:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+[data-theme='dark'] .profile-input-copy-btn.copied {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+[data-theme='dark'] .profile-copy-btn-mini {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .profile-copy-btn-mini:hover {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+[data-theme='dark'] .profile-copy-btn-mini.copied {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
 }
 
 /* ============================================================
